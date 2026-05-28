@@ -1,0 +1,25 @@
+{
+  "name": "std/game",
+  "version": "0.1.0",
+  "license": "ISC",
+  "build": {
+    "native": {
+      "extraCopyPaths": [
+        "native_game.hpp"
+      ],
+      "macos": {
+        "sourceFiles": [
+          "native_game.mm"
+        ],
+        "frameworks": [
+          "Cocoa",
+          "CoreVideo",
+          "Foundation",
+          "Metal",
+          "QuartzCore"
+        ]
+      }
+    }
+  },
+  "dependencies": {}
+}
