@@ -48,53 +48,10 @@ public:
     ~NativeRenderPass();
 
     void end();
-    void drawTriangle(
-        double ax,
-        double ay,
-        double az,
-        double aw,
-        double bx,
-        double by,
-        double bz,
-        double bw,
-        double cx,
-        double cy,
-        double cz,
-        double cw,
-        double red,
-        double green,
-        double blue,
-        double alpha
-    );
-    void drawTextureQuad(
-        std::shared_ptr<NativeTexture> texture,
-        double ax,
-        double ay,
-        double az,
-        double aw,
-        double bx,
-        double by,
-        double bz,
-        double bw,
-        double cx,
-        double cy,
-        double cz,
-        double cw,
-        double dx,
-        double dy,
-        double dz,
-        double dw,
-        double sourceX,
-        double sourceY,
-        double sourceWidth,
-        double sourceHeight,
-        double red,
-        double green,
-        double blue,
-        double alpha
-    );
     int64_t metalRenderCommandEncoderHandle() const;
     int64_t metalCommandBufferHandle() const;
+    int64_t metalDeviceHandle() const;
+    bool hasDepthAttachment() const;
 
 private:
     friend class NativeRenderFrame;

@@ -4,7 +4,7 @@ import {
   NativeTexture,
 } from "./native"
 import { GameSurface } from "./surface"
-import { tan } from "std/math"
+import { cos, sin, tan } from "std/math"
 
 export enum CameraKind {
   Screen,
@@ -173,6 +173,39 @@ export class Mat4 {
     }
   }
 
+  static rotationX(radians: double): Mat4 {
+    c := cos(radians)
+    s := sin(radians)
+    return Mat4 {
+      m00: 1.0, m01: 0.0, m02: 0.0, m03: 0.0,
+      m10: 0.0, m11: c, m12: -s, m13: 0.0,
+      m20: 0.0, m21: s, m22: c, m23: 0.0,
+      m30: 0.0, m31: 0.0, m32: 0.0, m33: 1.0,
+    }
+  }
+
+  static rotationY(radians: double): Mat4 {
+    c := cos(radians)
+    s := sin(radians)
+    return Mat4 {
+      m00: c, m01: 0.0, m02: s, m03: 0.0,
+      m10: 0.0, m11: 1.0, m12: 0.0, m13: 0.0,
+      m20: -s, m21: 0.0, m22: c, m23: 0.0,
+      m30: 0.0, m31: 0.0, m32: 0.0, m33: 1.0,
+    }
+  }
+
+  static rotationZ(radians: double): Mat4 {
+    c := cos(radians)
+    s := sin(radians)
+    return Mat4 {
+      m00: c, m01: -s, m02: 0.0, m03: 0.0,
+      m10: s, m11: c, m12: 0.0, m13: 0.0,
+      m20: 0.0, m21: 0.0, m22: 1.0, m23: 0.0,
+      m30: 0.0, m31: 0.0, m32: 0.0, m33: 1.0,
+    }
+  }
+
   static orthographic(
     left: double,
     right: double,
@@ -325,18 +358,22 @@ export class Camera {
     }
   }
 
-  project(surface: GameSurface, point: Point3): ClipPoint {
+  matrix(surface: GameSurface): Mat4 {
     if kind == CameraKind.Screen {
       width := double(surface.pixelWidth())
       height := double(surface.pixelHeight())
-      return ClipPoint {
-        x: (point.x / width) * 2.0 - 1.0,
-        y: 1.0 - (point.y / height) * 2.0,
-        z: point.z,
-        w: 1.0,
+      return Mat4 {
+        m00: 2.0 / width, m01: 0.0, m02: 0.0, m03: -1.0,
+        m10: 0.0, m11: -2.0 / height, m12: 0.0, m13: 1.0,
+        m20: 0.0, m21: 0.0, m22: 1.0, m23: 0.0,
+        m30: 0.0, m31: 0.0, m32: 0.0, m33: 1.0,
       }
     }
-    return viewProjection.transformPoint(point)
+    return viewProjection
+  }
+
+  project(surface: GameSurface, point: Point3): ClipPoint {
+    return matrix(surface).transformPoint(point)
   }
 }
 
@@ -428,12 +465,16 @@ export class RenderPassDescriptor {
 export class RenderPass {
   private readonly gameSurface: GameSurface
   private readonly passCamera: Camera
+  private readonly passBlendModeCode: int
   private readonly native: NativeRenderPass
 
   surface(): GameSurface => gameSurface
   camera(): Camera => passCamera
   metalRenderCommandEncoderHandle(): long => native.metalRenderCommandEncoderHandle()
   metalCommandBufferHandle(): long => native.metalCommandBufferHandle()
+  metalDeviceHandle(): long => native.metalDeviceHandle()
+  nativeBlendModeCode(): int => passBlendModeCode
+  hasDepthAttachment(): bool => native.hasDepthAttachment()
 }
 
 export class Renderer {
@@ -462,6 +503,7 @@ export class Renderer {
     renderPass := RenderPass {
       gameSurface: gameSurface,
       passCamera: desc.camera,
+      passBlendModeCode: blendModeCode(desc.blend.mode),
       native: nativePass,
     }
     draw(renderPass)
@@ -497,99 +539,4 @@ export function loadTextureForSurface(surface: GameSurface, path: string): Resul
       error: f.error
     }
   }
-}
-
-export function drawTriangle(pass: RenderPass, a: Point, b: Point, c: Point, color: Color): void {
-  drawTriangle3(pass, a.withZ(0.0), b.withZ(0.0), c.withZ(0.0), color)
-}
-
-export function drawTriangle3(pass: RenderPass, a: Point3, b: Point3, c: Point3, color: Color): void {
-  surface := pass.surface()
-  camera := pass.camera()
-  ca := camera.project(surface, a)
-  cb := camera.project(surface, b)
-  cc := camera.project(surface, c)
-
-  pass.native.drawTriangle(
-    ca.x,
-    ca.y,
-    ca.z,
-    ca.w,
-    cb.x,
-    cb.y,
-    cb.z,
-    cb.w,
-    cc.x,
-    cc.y,
-    cc.z,
-    cc.w,
-    color.r,
-    color.g,
-    color.b,
-    color.a,
-  )
-}
-
-export function drawRect(pass: RenderPass, rect: Rect, color: Color): void {
-  a := Point.xy(rect.x, rect.y)
-  b := Point.xy(rect.x + rect.width, rect.y)
-  c := Point.xy(rect.x, rect.y + rect.height)
-  d := Point.xy(rect.x + rect.width, rect.y + rect.height)
-
-  drawTriangle(pass, a, b, c, color)
-  drawTriangle(pass, b, d, c, color)
-}
-
-export function drawTexture(
-  pass: RenderPass,
-  texture: Texture,
-  dest: Rect,
-  source: Rect,
-  tint: Color = Color { r: 1.0, g: 1.0, b: 1.0, a: 1.0 },
-): void {
-  surface := pass.surface()
-  camera := pass.camera()
-  a := camera.project(surface, Point3.xyz(dest.x, dest.y, 0.0))
-  b := camera.project(surface, Point3.xyz(dest.x + dest.width, dest.y, 0.0))
-  c := camera.project(surface, Point3.xyz(dest.x, dest.y + dest.height, 0.0))
-  d := camera.project(surface, Point3.xyz(dest.x + dest.width, dest.y + dest.height, 0.0))
-
-  pass.native.drawTextureQuad(
-    texture.native,
-    a.x,
-    a.y,
-    a.z,
-    a.w,
-    b.x,
-    b.y,
-    b.z,
-    b.w,
-    c.x,
-    c.y,
-    c.z,
-    c.w,
-    d.x,
-    d.y,
-    d.z,
-    d.w,
-    source.x,
-    source.y,
-    source.width,
-    source.height,
-    tint.r,
-    tint.g,
-    tint.b,
-    tint.a,
-  )
-}
-
-export function drawAtlasCell(
-  pass: RenderPass,
-  atlas: Atlas,
-  column: int,
-  row: int,
-  dest: Rect,
-  tint: Color = Color { r: 1.0, g: 1.0, b: 1.0, a: 1.0 },
-): void {
-  drawTexture(pass, atlas.texture, dest, atlas.cellRect(column, row), tint)
 }

@@ -11,21 +11,24 @@ import {
   CameraKind,
   Clear,
   ClearKind,
+  ColorMeshBuilder,
   Color,
   Depth,
   DepthMode,
   GameEventKind,
+  GameSurface,
   Key,
   Mat4,
   MouseButton,
   Point,
   Point3,
   Rect,
+  RenderPass,
   Texture,
+  TextureQuadBatchBuilder,
   RenderPassDescriptor,
-  drawRect,
-  drawTriangle,
-  drawTriangle3,
+  drawColorMesh,
+  drawTextureQuadBatch,
   gameEventKindFromCode,
   initGameApp,
   keyCode,
@@ -33,6 +36,50 @@ import {
   mouseButtonCode,
   mouseButtonFromCode,
 } from "../index"
+
+function compileMeshSmoke(surface: GameSurface, pass: RenderPass): void {
+  builder := ColorMeshBuilder.create()
+  builder.addTriangle(
+    Point3.xyz(-0.5, -0.5, 0.0),
+    Point3.xyz(0.5, -0.5, 0.0),
+    Point3.xyz(0.0, 0.5, 0.0),
+    Color.rgb(0.0, 0.7, 1.0),
+  )
+  builder.addQuad(
+    Point3.xyz(-0.25, -0.25, 0.0),
+    Point3.xyz(0.25, -0.25, 0.0),
+    Point3.xyz(0.25, 0.25, 0.0),
+    Point3.xyz(-0.25, 0.25, 0.0),
+    Color.rgb(1.0, 0.3, 0.1),
+  )
+
+  built := builder.build(surface)
+  case built {
+    s: Success -> drawColorMesh(pass, s.value, Mat4.identity())
+    f: Failure -> {}
+  }
+}
+
+function compileTextureQuadBatchSmoke(texture: Texture, surface: GameSurface, pass: RenderPass): void {
+  atlas := Atlas {
+    texture: texture,
+    columns: 14,
+    rows: 4,
+  }
+  builder := TextureQuadBatchBuilder.forAtlas(atlas)
+  builder.addAtlasCell(atlas, 0, 0, Rect.xywh(80.0, 90.0, 121.0, 176.0))
+  builder.addQuad(
+    Rect.xywh(220.0, 90.0, 121.0, 176.0),
+    atlas.cellRect(10, 1),
+    Color.rgba(1.0, 1.0, 1.0, 0.75),
+  )
+
+  built := builder.build(surface)
+  case built {
+    s: Success -> drawTextureQuadBatch(pass, s.value, Mat4.identity())
+    f: Failure -> {}
+  }
+}
 
 function compileGameAppSmoke(): Result<void, string> {
   app := initGameApp{ title: "Doof Game Smoke" }
@@ -68,7 +115,16 @@ function compileGameAppSmoke(): Result<void, string> {
       (pass): void => {
         passSurface := pass.surface()
         encoderHandle := pass.metalRenderCommandEncoderHandle()
-        drawRect(pass, Rect.xywh(40.0, 40.0, 160.0, 100.0), Color.rgb(0.9, 0.2, 0.1))
+        deviceHandle := pass.metalDeviceHandle()
+        blendCode := pass.nativeBlendModeCode()
+        hasDepth := pass.hasDepthAttachment()
+        projected := pass.camera().project(passSurface, Point3.xyz(10.0, 20.0, 0.0))
+        matrixProjected := pass.camera().matrix(passSurface).transformPoint(Point3.xyz(10.0, 20.0, 0.0))
+        Assert.isTrue(approxEqual(projected.x, matrixProjected.x))
+        Assert.isTrue(approxEqual(projected.y, matrixProjected.y))
+        Assert.isTrue(approxEqual(projected.z, matrixProjected.z))
+        Assert.isTrue(approxEqual(projected.w, matrixProjected.w))
+        compileMeshSmoke(passSurface, pass)
       },
     )
     renderer.pass(
@@ -80,20 +136,6 @@ function compileGameAppSmoke(): Result<void, string> {
       (pass): void => {
         passCamera := pass.camera()
         commandBufferHandle := pass.metalCommandBufferHandle()
-        drawTriangle(
-          pass,
-          Point.xy(220.0, 80.0),
-          Point.xy(320.0, 220.0),
-          Point.xy(120.0, 220.0),
-          Color.rgba(0.2, 0.7, 1.0, 0.65),
-        )
-        drawTriangle3(
-          pass,
-          Point3.xyz(-0.5, -0.5, 0.0),
-          Point3.xyz(0.5, -0.5, 0.0),
-          Point3.xyz(0.0, 0.5, 0.0),
-          Color.white(),
-        )
       },
     )
   })
@@ -182,6 +224,21 @@ export function testMat4IdentityTranslationAndScale(): void {
   Assert.equal(combined.y, 11.0)
   Assert.equal(combined.z, 18.0)
   Assert.equal(combined.w, 1.0)
+}
+
+export function testMat4Rotations(): void {
+  quarterTurn := 1.5707963267948966
+
+  rotatedX := Mat4.rotationX(quarterTurn).transformPoint(Point3.xyz(0.0, 1.0, 0.0))
+  rotatedY := Mat4.rotationY(quarterTurn).transformPoint(Point3.xyz(0.0, 0.0, 1.0))
+  rotatedZ := Mat4.rotationZ(quarterTurn).transformPoint(Point3.xyz(1.0, 0.0, 0.0))
+
+  Assert.isTrue(approxEqual(rotatedX.y, 0.0))
+  Assert.isTrue(approxEqual(rotatedX.z, 1.0))
+  Assert.isTrue(approxEqual(rotatedY.x, 1.0))
+  Assert.isTrue(approxEqual(rotatedY.z, 0.0))
+  Assert.isTrue(approxEqual(rotatedZ.x, 0.0))
+  Assert.isTrue(approxEqual(rotatedZ.y, 1.0))
 }
 
 export function testMat4OrthographicMapsBoundsToClipSpace(): void {

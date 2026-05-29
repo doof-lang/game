@@ -7,15 +7,11 @@ import {
   GameEventKind,
   Key,
   Rect,
-  RenderPass,
   RenderPassDescriptor,
-  drawAtlasCell,
+  TextureQuadBatchBuilder,
+  drawTextureQuadBatch,
   initGameApp,
 } from "std/game"
-
-function drawCard(pass: RenderPass, atlas: Atlas, column: int, row: int, x: double, y: double): void {
-  drawAtlasCell(pass, atlas, column, row, Rect.xywh(x, y, 121.0, 176.0))
-}
 
 function main(): int {
   readonly cardAtlasPath = "/Users/andrew/develop/doof-stdlib/game/samples/cards/images/card_atlas.png"
@@ -24,13 +20,30 @@ function main(): int {
   app := initGameApp{ title: "Doof Game Cards" }
 
   loadedAtlasTexture := app.loadTexture(cardAtlasPath) else {
-    println("Failed to load card atlas texture")
+    case loadedAtlasTexture {
+      f: Failure -> println(f.error)
+      _: Success -> println("Failed to load card atlas texture")
+    }
     return 1
   }
   cardAtlas := Atlas {
-        texture: loadedAtlasTexture,
-        columns: cardColumns,
-        rows: cardRows,
+    texture: loadedAtlasTexture,
+    columns: cardColumns,
+    rows: cardRows,
+  }
+  batchBuilder := TextureQuadBatchBuilder.forAtlas(cardAtlas)
+  batchBuilder.addAtlasCell(cardAtlas, 0, 0, Rect.xywh(80.0, 90.0, 121.0, 176.0))
+  batchBuilder.addAtlasCell(cardAtlas, 10, 1, Rect.xywh(220.0, 90.0, 121.0, 176.0))
+  batchBuilder.addAtlasCell(cardAtlas, 12, 2, Rect.xywh(360.0, 90.0, 121.0, 176.0))
+  batchBuilder.addAtlasCell(cardAtlas, 13, 0, Rect.xywh(500.0, 90.0, 121.0, 176.0))
+  batchBuilder.addAtlasCell(cardAtlas, 13, 1, Rect.xywh(640.0, 90.0, 121.0, 176.0))
+  batchBuilder.addAtlasCell(cardAtlas, 13, 2, Rect.xywh(780.0, 90.0, 121.0, 176.0))
+  cardBatch := batchBuilder.build(app.surface) else {
+    case cardBatch {
+      f: Failure -> println(f.error)
+      _: Success -> println("Failed to build card batch")
+    }
+    return 1
   }
 
   app.onEvent((event): void => {
@@ -51,12 +64,7 @@ function main(): int {
         blend: Blend.alpha(),
       },
       (pass): void => {
-        drawCard(pass, cardAtlas, 0, 0, 80.0, 90.0)
-        drawCard(pass, cardAtlas, 10, 1, 220.0, 90.0)
-        drawCard(pass, cardAtlas, 12, 2, 360.0, 90.0)
-        drawCard(pass, cardAtlas, 13, 0, 500.0, 90.0)
-        drawCard(pass, cardAtlas, 13, 1, 640.0, 90.0)
-        drawCard(pass, cardAtlas, 13, 2, 780.0, 90.0)
+        drawTextureQuadBatch(pass, cardBatch)
       },
     )
   })

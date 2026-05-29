@@ -2,14 +2,31 @@ import {
   Blend,
   Clear,
   Color,
+  ColorMesh,
+  ColorMeshBuilder,
   Depth,
   GameEventKind,
+  GameSurface,
   Key,
-  Rect,
+  Point3,
   RenderPassDescriptor,
-  drawRect,
+  drawColorMesh,
   initGameApp,
 } from "std/game"
+
+function createMinimalMesh(surface: GameSurface): Result<ColorMesh, string> {
+  builder := ColorMeshBuilder.create()
+
+  topLeft := builder.addVertex(Point3.xyz(80.0, 80.0, 0.0), Color.rgb(0.95, 0.25, 0.12))
+  topRight := builder.addVertex(Point3.xyz(400.0, 80.0, 0.0), Color.rgb(0.98, 0.72, 0.18))
+  bottomRight := builder.addVertex(Point3.xyz(400.0, 280.0, 0.0), Color.rgb(0.15, 0.78, 0.42))
+  bottomLeft := builder.addVertex(Point3.xyz(80.0, 280.0, 0.0), Color.rgb(0.12, 0.42, 0.95))
+
+  builder.addIndexedTriangle(topLeft, topRight, bottomRight)
+  builder.addIndexedTriangle(topLeft, bottomRight, bottomLeft)
+
+  return builder.build(surface)
+}
 
 function main(): int {
   app := initGameApp{ title: "Doof Game Minimal" }
@@ -24,6 +41,10 @@ function main(): int {
     }
   })
 
+  mesh := createMinimalMesh(app.surface) else {
+    panic("failed to create minimal mesh")
+  }
+
   app.onRender((renderer): void => {
     renderer.pass(
       RenderPassDescriptor {
@@ -32,7 +53,7 @@ function main(): int {
         blend: Blend.alpha(),
       },
       (pass): void => {
-        drawRect(pass, Rect.xywh(80.0, 80.0, 320.0, 200.0), Color.rgb(0.95, 0.25, 0.12))
+        drawColorMesh(pass, mesh)
       },
     )
   })

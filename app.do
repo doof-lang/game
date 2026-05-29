@@ -28,9 +28,21 @@ export class GameApp {
   readonly title: string
   private readonly native: NativeGameApp
   input: InputState
-  surface: GameSurface | null = null
+  surface: GameSurface
   private onEventHandler: (event: GameEvent): void
   private onRenderHandler: (renderer: Renderer): void
+
+  static constructor(title: string): GameApp {
+    native := NativeGameApp.create(title)
+    return GameApp {
+      title: title,
+      native: native,
+      input: InputState(native.input()),
+      surface: GameSurface(native.surface()),
+      onEventHandler: defaultGameEventHandler,
+      onRenderHandler: defaultGameRenderHandler,
+    }
+  }
 
   onEvent(handler: (event: GameEvent): void): GameApp {
     this.onEventHandler = handler
@@ -51,10 +63,7 @@ export class GameApp {
   }
 
   loadTexture(path: string): Result<Texture, string> {
-    gameSurface := this.surface as GameSurface else {
-      return Failure { error: "game surface is not initialized" }
-    }
-    return loadTextureForSurface(gameSurface, path)
+    return loadTextureForSurface(this.surface, path)
   }
 
   stop(): void {
@@ -86,13 +95,5 @@ export class GameApp {
 }
 
 export function initGameApp(title: string): GameApp {
-  native := NativeGameApp.create(title)
-  return GameApp {
-    title: title,
-    native: native,
-    input: InputState(native.input()),
-    surface: GameSurface(native.surface()),
-    onEventHandler: defaultGameEventHandler,
-    onRenderHandler: defaultGameRenderHandler,
-  }
+  return GameApp(title)
 }

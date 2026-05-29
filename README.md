@@ -2,12 +2,13 @@
 
 `std/game` provides a macOS-first full-screen game/app host with a Metal-backed
 surface, neutral key and mouse events, queryable input state, and a small
-native-backed render pass API.
+native-backed render pass API with static colored mesh and batched texture-quad
+drawing.
 
 This first version is intentionally small: it owns the AppKit window, input
-delivery, frame callbacks, Metal surface lifetime, and render pass setup, but it
-does not provide portable drawing primitives. Drawing code can build on the
-Metal handles exposed by `RenderPass` and `GameSurface`.
+delivery, frame callbacks, Metal surface lifetime, render pass setup, and a
+basic static mesh and texture-quad batch primitives. Drawing code can also build
+on the Metal handles exposed by `RenderPass` and `GameSurface`.
 
 ## Usage
 
@@ -18,22 +19,34 @@ import {
   Camera,
   Clear,
   Color,
+  ColorMesh,
+  ColorMeshBuilder,
   Depth,
   GameEventKind,
+  GameSurface,
   Key,
-  Mat4,
   Point3,
-  Rect,
   RenderPassDescriptor,
-  drawAtlasCell,
-  drawRect,
-  drawTriangle3,
+  drawColorMesh,
   initGameApp,
 } from "std/game"
 import { Duration } from "std/time"
 
+function createMesh(surface: GameSurface): Result<ColorMesh, string> {
+  builder := ColorMeshBuilder.create()
+  builder.addQuad(
+    Point3.xyz(80.0, 80.0, 0.0),
+    Point3.xyz(300.0, 80.0, 0.0),
+    Point3.xyz(300.0, 220.0, 0.0),
+    Point3.xyz(80.0, 220.0, 0.0),
+    Color.rgb(0.9, 0.2, 0.1),
+  )
+  return builder.build(surface)
+}
+
 function main(): int {
   app := initGameApp{ title: "Doof Game" }
+  mesh := try! createMesh(app.surface)
 
   simulationTimer := setInterval{
     interval: Duration.ofMillis(16L),
@@ -68,7 +81,7 @@ function main(): int {
         blend: Blend.opaque(),
       },
       (pass): void => {
-        drawRect(pass, Rect.xywh(80.0, 80.0, 220.0, 140.0), Color.rgb(0.9, 0.2, 0.1))
+        drawColorMesh(pass, mesh)
       },
     )
   })
@@ -154,57 +167,72 @@ for objects in front of the camera on negative Z. Use `withView(...)` to combine
 a projection camera with a view matrix.
 
 `Mat4` includes `identity()`, `translation(...)`, `scale(...)`,
-`orthographic(...)`, `perspective(...)`, `multiply(...)`, and
-`transformPoint(...)`. The draw helpers apply the active pass camera before
-sending vertices to Metal.
+`rotationX(...)`, `rotationY(...)`, `rotationZ(...)`, `orthographic(...)`,
+`perspective(...)`, `multiply(...)`, and `transformPoint(...)`. Static mesh
+drawing applies the active pass camera and model matrix on the GPU.
 
-### Simple Drawing
+### Static Colored Meshes
 
 ```doof
-drawRect(pass, Rect.xywh(80.0, 80.0, 220.0, 140.0), Color.rgb(0.9, 0.2, 0.1))
-
-drawTriangle(
-  pass,
-  Point.xy(360.0, 80.0),
-  Point.xy(500.0, 260.0),
-  Point.xy(220.0, 260.0),
-  Color.rgba(0.2, 0.7, 1.0, 0.65),
+builder := ColorMeshBuilder.create()
+builder.addTriangle(
+  Point3.xyz(-0.5, -0.5, 0.0),
+  Point3.xyz(0.5, -0.5, 0.0),
+  Point3.xyz(0.0, 0.5, 0.0),
+  Color.rgb(0.0, 0.7, 1.0),
 )
 
-drawTriangle3(
-  pass,
-  Point3.xyz(-0.5, -0.5, -2.0),
-  Point3.xyz(0.5, -0.5, -2.0),
-  Point3.xyz(0.0, 0.5, -2.0),
-  Color.white(),
+mesh := try! builder.build(app.surface)
+
+renderer.pass(
+  RenderPassDescriptor {
+    camera: Camera.perspective(1.0471975512, 16.0 / 9.0, 0.1, 100.0),
+    clear: Clear.colorDepth(Color.black(), 1.0),
+    depth: Depth.readWrite(),
+    blend: Blend.opaque(),
+  },
+  (pass): void => {
+    drawColorMesh(pass, mesh, Mat4.rotationY(angle))
+  },
 )
 ```
 
-The built-in helpers draw filled screen-space shapes in pixels, with `(0, 0)` at
-the top-left of the surface when using `Camera.screen()`. With orthographic or
-perspective cameras, the same helpers draw in camera world space. They are
-intended as an immediate end-to-end smoke path and a foundation for richer
-free-function draw helpers.
+`ColorMeshBuilder` collects colored triangles and quads during setup, then
+`build(surface)` uploads them into Metal buffers for that surface's device.
+`drawColorMesh(...)` uses one indexed Metal draw for the whole mesh and is the
+recommended path for repeated geometry such as cubes, level pieces, and other
+static colored shapes.
 
 ### Textures And Atlases
 
 ```doof
-loaded := app.loadTexture("/path/to/card_atlas.png")
-case loaded {
-  s: Success -> {
-    atlas := Atlas { texture: s.value, columns: 14, rows: 4 }
-    drawAtlasCell(pass, atlas, 0, 0, Rect.xywh(80.0, 90.0, 121.0, 176.0))
-  }
-  f: Failure -> println(f.error)
-}
+loadedTexture := try! app.loadTexture("/path/to/card_atlas.png")
+atlas := Atlas { texture: loadedTexture, columns: 14, rows: 4 }
+
+builder := TextureQuadBatchBuilder.forAtlas(atlas)
+builder.addAtlasCell(atlas, 0, 0, Rect.xywh(80.0, 90.0, 121.0, 176.0))
+builder.addAtlasCell(atlas, 10, 1, Rect.xywh(220.0, 90.0, 121.0, 176.0))
+batch := try! builder.build(app.surface)
+
+renderer.pass(
+  RenderPassDescriptor {
+    clear: Clear.colorDepth(Color.black(), 1.0),
+    blend: Blend.alpha(),
+  },
+  (pass): void => {
+    drawTextureQuadBatch(pass, batch)
+  },
+)
 ```
 
 `initGameApp` creates the Metal device up front, so `app.loadTexture(path)` can
 load textures during setup before `run()`. `Renderer.loadTexture(path)` remains
 available as the same cached lookup for render-time convenience. Both decode and
 upload only when the texture is not already alive for the current device.
-`drawTexture(...)` draws a source rectangle from a texture, and
-`drawAtlasCell(...)` addresses a fixed-grid atlas by column and row.
+`TextureQuadBatchBuilder` records destination/source rectangles during setup,
+then `drawTextureQuadBatch(...)` draws every quad in that batch with one Metal
+draw call. Use it for sprites, cards, tile strips, and other repeated quads that
+share one texture.
 
 ### `GameSurface`
 
@@ -249,6 +277,6 @@ the key/button is held.
 
 ## Samples
 
-- `samples/minimal` draws a screen-space rectangle.
-- `samples/cards` draws textured atlas sprites.
-- `samples/cube` draws a timer-driven spinning cube with `Camera.perspective(...)`.
+- `samples/minimal` draws a screen-space color mesh.
+- `samples/cards` draws textured atlas sprites with one texture-quad batch draw.
+- `samples/cube` draws a timer-driven spinning cube with one static color mesh.

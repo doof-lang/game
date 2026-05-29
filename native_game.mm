@@ -110,33 +110,62 @@ constexpr int32_t kDepthDisabled = 0;
 constexpr int32_t kDepthReadOnly = 1;
 constexpr int32_t kDepthReadWrite = 2;
 
-struct SimpleDrawVertex {
-    float x;
-    float y;
-    float z;
-    float w;
-    float r;
-    float g;
-    float b;
-    float a;
-};
-
-struct TextureDrawVertex {
-    float x;
-    float y;
-    float z;
-    float w;
-    float u;
-    float v;
-    float r;
-    float g;
-    float b;
-    float a;
+struct DepthTextureCacheEntry {
+    id<MTLTexture> texture = nil;
+    int32_t width = 0;
+    int32_t height = 0;
 };
 
 struct GameRuntimeState;
 
 GameRuntimeState* gActiveState = nullptr;
+std::mutex gDepthTextureCacheMutex;
+std::unordered_map<void*, DepthTextureCacheEntry> gDepthTextureCache;
+
+id<MTLTexture> cachedDepthTextureForLayer(CAMetalLayer* layer, id<MTLDevice> device, id<CAMetalDrawable> drawable) {
+    if (layer == nil || device == nil || drawable == nil) {
+        return nil;
+    }
+
+    const int32_t width = static_cast<int32_t>(drawable.texture.width);
+    const int32_t height = static_cast<int32_t>(drawable.texture.height);
+    void* key = (__bridge void*)layer;
+
+    std::lock_guard<std::mutex> lock(gDepthTextureCacheMutex);
+    DepthTextureCacheEntry& entry = gDepthTextureCache[key];
+    if (entry.texture != nil && entry.width == width && entry.height == height) {
+        return entry.texture;
+    }
+
+    [entry.texture release];
+    entry.texture = nil;
+    entry.width = width;
+    entry.height = height;
+
+    MTLTextureDescriptor* descriptor = [MTLTextureDescriptor texture2DDescriptorWithPixelFormat:MTLPixelFormatDepth32Float
+                                                                                          width:static_cast<NSUInteger>(std::max(width, 1))
+                                                                                         height:static_cast<NSUInteger>(std::max(height, 1))
+                                                                                      mipmapped:NO];
+    descriptor.usage = MTLTextureUsageRenderTarget;
+    descriptor.storageMode = MTLStorageModePrivate;
+    entry.texture = [device newTextureWithDescriptor:descriptor];
+    return entry.texture;
+}
+
+void releaseCachedDepthTextureForLayer(CAMetalLayer* layer) {
+    if (layer == nil) {
+        return;
+    }
+
+    void* key = (__bridge void*)layer;
+    std::lock_guard<std::mutex> lock(gDepthTextureCacheMutex);
+    auto it = gDepthTextureCache.find(key);
+    if (it == gDepthTextureCache.end()) {
+        return;
+    }
+    [it->second.texture release];
+    gDepthTextureCache.erase(it);
+}
 
 int32_t mapKeyCode(unsigned short keyCode) {
     switch (keyCode) {
@@ -237,161 +266,6 @@ std::unordered_map<std::string, std::weak_ptr<NativeTexture>>& textureCache() {
     return cache;
 }
 
-id<MTLRenderPipelineState> simpleDrawPipeline(id<MTLDevice> device, int32_t blendMode, bool hasDepth) {
-    if (device == nil) {
-        return nil;
-    }
-
-    static id<MTLRenderPipelineState> opaqueNoDepth = nil;
-    static id<MTLRenderPipelineState> alphaNoDepth = nil;
-    static id<MTLRenderPipelineState> opaqueDepth = nil;
-    static id<MTLRenderPipelineState> alphaDepth = nil;
-
-    id<MTLRenderPipelineState>* slot = nullptr;
-    if (blendMode == 1 && hasDepth) {
-        slot = &alphaDepth;
-    } else if (blendMode == 1) {
-        slot = &alphaNoDepth;
-    } else if (hasDepth) {
-        slot = &opaqueDepth;
-    } else {
-        slot = &opaqueNoDepth;
-    }
-
-    if (*slot != nil) {
-        return *slot;
-    }
-
-    NSString* source =
-        @"#include <metal_stdlib>\n"
-        @"using namespace metal;\n"
-        @"struct VertexIn { packed_float4 position; packed_float4 color; };\n"
-        @"struct VertexOut { float4 position [[position]]; float4 color; };\n"
-        @"vertex VertexOut doof_game_vertex(const device VertexIn* vertices [[buffer(0)]], uint vertexId [[vertex_id]]) {\n"
-        @"  VertexOut out;\n"
-        @"  out.position = vertices[vertexId].position;\n"
-        @"  out.color = vertices[vertexId].color;\n"
-        @"  return out;\n"
-        @"}\n"
-        @"fragment float4 doof_game_fragment(VertexOut in [[stage_in]]) {\n"
-        @"  return in.color;\n"
-        @"}\n";
-
-    NSError* error = nil;
-    id<MTLLibrary> library = [device newLibraryWithSource:source options:nil error:&error];
-    if (library == nil) {
-        return nil;
-    }
-
-    MTLRenderPipelineDescriptor* descriptor = [[MTLRenderPipelineDescriptor alloc] init];
-    descriptor.vertexFunction = [library newFunctionWithName:@"doof_game_vertex"];
-    descriptor.fragmentFunction = [library newFunctionWithName:@"doof_game_fragment"];
-    descriptor.colorAttachments[0].pixelFormat = MTLPixelFormatBGRA8Unorm;
-    if (hasDepth) {
-        descriptor.depthAttachmentPixelFormat = MTLPixelFormatDepth32Float;
-    }
-
-    if (blendMode == 1) {
-        descriptor.colorAttachments[0].blendingEnabled = YES;
-        descriptor.colorAttachments[0].rgbBlendOperation = MTLBlendOperationAdd;
-        descriptor.colorAttachments[0].alphaBlendOperation = MTLBlendOperationAdd;
-        descriptor.colorAttachments[0].sourceRGBBlendFactor = MTLBlendFactorSourceAlpha;
-        descriptor.colorAttachments[0].sourceAlphaBlendFactor = MTLBlendFactorSourceAlpha;
-        descriptor.colorAttachments[0].destinationRGBBlendFactor = MTLBlendFactorOneMinusSourceAlpha;
-        descriptor.colorAttachments[0].destinationAlphaBlendFactor = MTLBlendFactorOneMinusSourceAlpha;
-    }
-
-    id<MTLRenderPipelineState> pipeline = [device newRenderPipelineStateWithDescriptor:descriptor error:&error];
-    [descriptor.vertexFunction release];
-    [descriptor.fragmentFunction release];
-    [descriptor release];
-    [library release];
-    if (pipeline == nil) {
-        return nil;
-    }
-
-    *slot = pipeline;
-    return *slot;
-}
-
-id<MTLRenderPipelineState> textureDrawPipeline(id<MTLDevice> device, int32_t blendMode, bool hasDepth) {
-    if (device == nil) {
-        return nil;
-    }
-
-    static id<MTLRenderPipelineState> opaqueNoDepth = nil;
-    static id<MTLRenderPipelineState> alphaNoDepth = nil;
-    static id<MTLRenderPipelineState> opaqueDepth = nil;
-    static id<MTLRenderPipelineState> alphaDepth = nil;
-
-    id<MTLRenderPipelineState>* slot = nullptr;
-    if (blendMode == 1 && hasDepth) {
-        slot = &alphaDepth;
-    } else if (blendMode == 1) {
-        slot = &alphaNoDepth;
-    } else if (hasDepth) {
-        slot = &opaqueDepth;
-    } else {
-        slot = &opaqueNoDepth;
-    }
-
-    if (*slot != nil) {
-        return *slot;
-    }
-
-    NSString* source =
-        @"#include <metal_stdlib>\n"
-        @"using namespace metal;\n"
-        @"struct VertexIn { packed_float4 position; packed_float2 uv; packed_float4 tint; };\n"
-        @"struct VertexOut { float4 position [[position]]; float2 uv; float4 tint; };\n"
-        @"vertex VertexOut doof_game_texture_vertex(const device VertexIn* vertices [[buffer(0)]], uint vertexId [[vertex_id]]) {\n"
-        @"  VertexOut out;\n"
-        @"  out.position = vertices[vertexId].position;\n"
-        @"  out.uv = vertices[vertexId].uv;\n"
-        @"  out.tint = vertices[vertexId].tint;\n"
-        @"  return out;\n"
-        @"}\n"
-        @"fragment float4 doof_game_texture_fragment(VertexOut in [[stage_in]], texture2d<float> tex [[texture(0)]], sampler textureSampler [[sampler(0)]]) {\n"
-        @"  return tex.sample(textureSampler, in.uv) * in.tint;\n"
-        @"}\n";
-
-    NSError* error = nil;
-    id<MTLLibrary> library = [device newLibraryWithSource:source options:nil error:&error];
-    if (library == nil) {
-        return nil;
-    }
-
-    MTLRenderPipelineDescriptor* descriptor = [[MTLRenderPipelineDescriptor alloc] init];
-    descriptor.vertexFunction = [library newFunctionWithName:@"doof_game_texture_vertex"];
-    descriptor.fragmentFunction = [library newFunctionWithName:@"doof_game_texture_fragment"];
-    descriptor.colorAttachments[0].pixelFormat = MTLPixelFormatBGRA8Unorm;
-    if (hasDepth) {
-        descriptor.depthAttachmentPixelFormat = MTLPixelFormatDepth32Float;
-    }
-
-    if (blendMode == 1) {
-        descriptor.colorAttachments[0].blendingEnabled = YES;
-        descriptor.colorAttachments[0].rgbBlendOperation = MTLBlendOperationAdd;
-        descriptor.colorAttachments[0].alphaBlendOperation = MTLBlendOperationAdd;
-        descriptor.colorAttachments[0].sourceRGBBlendFactor = MTLBlendFactorSourceAlpha;
-        descriptor.colorAttachments[0].sourceAlphaBlendFactor = MTLBlendFactorSourceAlpha;
-        descriptor.colorAttachments[0].destinationRGBBlendFactor = MTLBlendFactorOneMinusSourceAlpha;
-        descriptor.colorAttachments[0].destinationAlphaBlendFactor = MTLBlendFactorOneMinusSourceAlpha;
-    }
-
-    id<MTLRenderPipelineState> pipeline = [device newRenderPipelineStateWithDescriptor:descriptor error:&error];
-    [descriptor.vertexFunction release];
-    [descriptor.fragmentFunction release];
-    [descriptor release];
-    [library release];
-    if (pipeline == nil) {
-        return nil;
-    }
-
-    *slot = pipeline;
-    return *slot;
-}
-
 NSScreen* targetLaunchScreen() {
     NSArray<NSScreen*>* screens = [NSScreen screens];
     if ([screens count] == 0) {
@@ -450,6 +324,7 @@ struct NativeGameSurface::Impl {
     }
 
     ~Impl() {
+        releaseCachedDepthTextureForLayer(layer);
         [layer release];
         [commandQueue release];
         [device release];
@@ -509,9 +384,6 @@ struct NativeRenderFrame::Impl {
     CAMetalLayer* layer = nil;
     id<CAMetalDrawable> drawable = nil;
     id<MTLCommandBuffer> commandBuffer = nil;
-    id<MTLTexture> depthTexture = nil;
-    int32_t depthWidth = 0;
-    int32_t depthHeight = 0;
     bool committed = false;
     bool valid = false;
 
@@ -546,35 +418,12 @@ struct NativeRenderFrame::Impl {
             [commandBuffer commit];
             committed = true;
         }
-        [depthTexture release];
         [drawable release];
         [commandBuffer release];
     }
 
     id<MTLTexture> depthTextureForDrawable() {
-        if (drawable == nil) {
-            return nil;
-        }
-
-        const int32_t width = static_cast<int32_t>(drawable.texture.width);
-        const int32_t height = static_cast<int32_t>(drawable.texture.height);
-        if (depthTexture != nil && depthWidth == width && depthHeight == height) {
-            return depthTexture;
-        }
-
-        [depthTexture release];
-        depthTexture = nil;
-        depthWidth = width;
-        depthHeight = height;
-
-        MTLTextureDescriptor* descriptor = [MTLTextureDescriptor texture2DDescriptorWithPixelFormat:MTLPixelFormatDepth32Float
-                                                                                              width:static_cast<NSUInteger>(std::max(width, 1))
-                                                                                             height:static_cast<NSUInteger>(std::max(height, 1))
-                                                                                          mipmapped:NO];
-        descriptor.usage = MTLTextureUsageRenderTarget;
-        descriptor.storageMode = MTLStorageModePrivate;
-        depthTexture = [device newTextureWithDescriptor:descriptor];
-        return depthTexture;
+        return cachedDepthTextureForLayer(layer, device, drawable);
     }
 };
 
@@ -624,6 +473,7 @@ struct NativeGameApp::Impl {
         layer.pixelFormat = MTLPixelFormatBGRA8Unorm;
         layer.framebufferOnly = YES;
         layer.opaque = YES;
+        layer.maximumDrawableCount = 3;
 
         surface = std::make_shared<NativeGameSurface>(
             (__bridge void*)device,
@@ -673,7 +523,9 @@ struct GameRuntimeState : std::enable_shared_from_this<GameRuntimeState> {
 
     void requestRender() {
         renderRequested.store(true);
-        scheduleDisplayLinkStart();
+        if (!displayLinkRunning.load()) {
+            scheduleDisplayLinkStart();
+        }
     }
 
     void scheduleDisplayLinkStart() {
@@ -1188,140 +1040,20 @@ void NativeRenderPass::end() {
     }
 }
 
-void NativeRenderPass::drawTriangle(
-    double ax,
-    double ay,
-    double az,
-    double aw,
-    double bx,
-    double by,
-    double bz,
-    double bw,
-    double cx,
-    double cy,
-    double cz,
-    double cw,
-    double red,
-    double green,
-    double blue,
-    double alpha
-) {
-    if (impl_->ended || impl_->encoder == nil || impl_->device == nil) {
-        return;
-    }
-
-    id<MTLRenderPipelineState> pipeline = simpleDrawPipeline(impl_->device, impl_->blendMode, impl_->hasDepth);
-    if (pipeline == nil) {
-        return;
-    }
-
-    SimpleDrawVertex vertices[3] = {
-        { static_cast<float>(ax), static_cast<float>(ay), static_cast<float>(az), static_cast<float>(aw), static_cast<float>(red), static_cast<float>(green), static_cast<float>(blue), static_cast<float>(alpha) },
-        { static_cast<float>(bx), static_cast<float>(by), static_cast<float>(bz), static_cast<float>(bw), static_cast<float>(red), static_cast<float>(green), static_cast<float>(blue), static_cast<float>(alpha) },
-        { static_cast<float>(cx), static_cast<float>(cy), static_cast<float>(cz), static_cast<float>(cw), static_cast<float>(red), static_cast<float>(green), static_cast<float>(blue), static_cast<float>(alpha) },
-    };
-
-    [impl_->encoder setRenderPipelineState:pipeline];
-    [impl_->encoder setVertexBytes:vertices length:sizeof(vertices) atIndex:0];
-    [impl_->encoder drawPrimitives:MTLPrimitiveTypeTriangle vertexStart:0 vertexCount:3];
-}
-
-void NativeRenderPass::drawTextureQuad(
-    std::shared_ptr<NativeTexture> texture,
-    double ax,
-    double ay,
-    double az,
-    double aw,
-    double bx,
-    double by,
-    double bz,
-    double bw,
-    double cx,
-    double cy,
-    double cz,
-    double cw,
-    double dx,
-    double dy,
-    double dz,
-    double dw,
-    double sourceX,
-    double sourceY,
-    double sourceWidth,
-    double sourceHeight,
-    double red,
-    double green,
-    double blue,
-    double alpha
-) {
-    if (
-        impl_->ended ||
-        impl_->encoder == nil ||
-        impl_->device == nil ||
-        !texture ||
-        texture->pixelWidth() <= 0 ||
-        texture->pixelHeight() <= 0
-    ) {
-        return;
-    }
-
-    id<MTLRenderPipelineState> pipeline = textureDrawPipeline(impl_->device, impl_->blendMode, impl_->hasDepth);
-    if (pipeline == nil) {
-        return;
-    }
-
-    id<MTLTexture> metalTexture = (__bridge id<MTLTexture>)reinterpret_cast<void*>(texture->metalTextureHandle());
-    if (metalTexture == nil) {
-        return;
-    }
-
-    static id<MTLSamplerState> sampler = nil;
-    if (sampler == nil) {
-        MTLSamplerDescriptor* descriptor = [[MTLSamplerDescriptor alloc] init];
-        descriptor.minFilter = MTLSamplerMinMagFilterLinear;
-        descriptor.magFilter = MTLSamplerMinMagFilterLinear;
-        descriptor.sAddressMode = MTLSamplerAddressModeClampToEdge;
-        descriptor.tAddressMode = MTLSamplerAddressModeClampToEdge;
-        sampler = [impl_->device newSamplerStateWithDescriptor:descriptor];
-        [descriptor release];
-        if (sampler == nil) {
-            return;
-        }
-    }
-
-    const double textureWidth = static_cast<double>(texture->pixelWidth());
-    const double textureHeight = static_cast<double>(texture->pixelHeight());
-    const float u0 = static_cast<float>(sourceX / textureWidth);
-    const float v0 = static_cast<float>(sourceY / textureHeight);
-    const float u1 = static_cast<float>((sourceX + sourceWidth) / textureWidth);
-    const float v1 = static_cast<float>((sourceY + sourceHeight) / textureHeight);
-
-    const float r = static_cast<float>(red);
-    const float g = static_cast<float>(green);
-    const float b = static_cast<float>(blue);
-    const float a = static_cast<float>(alpha);
-
-    TextureDrawVertex vertices[6] = {
-        { static_cast<float>(ax), static_cast<float>(ay), static_cast<float>(az), static_cast<float>(aw), u0, v0, r, g, b, a },
-        { static_cast<float>(bx), static_cast<float>(by), static_cast<float>(bz), static_cast<float>(bw), u1, v0, r, g, b, a },
-        { static_cast<float>(cx), static_cast<float>(cy), static_cast<float>(cz), static_cast<float>(cw), u0, v1, r, g, b, a },
-        { static_cast<float>(bx), static_cast<float>(by), static_cast<float>(bz), static_cast<float>(bw), u1, v0, r, g, b, a },
-        { static_cast<float>(dx), static_cast<float>(dy), static_cast<float>(dz), static_cast<float>(dw), u1, v1, r, g, b, a },
-        { static_cast<float>(cx), static_cast<float>(cy), static_cast<float>(cz), static_cast<float>(cw), u0, v1, r, g, b, a },
-    };
-
-    [impl_->encoder setRenderPipelineState:pipeline];
-    [impl_->encoder setVertexBytes:vertices length:sizeof(vertices) atIndex:0];
-    [impl_->encoder setFragmentTexture:metalTexture atIndex:0];
-    [impl_->encoder setFragmentSamplerState:sampler atIndex:0];
-    [impl_->encoder drawPrimitives:MTLPrimitiveTypeTriangle vertexStart:0 vertexCount:6];
-}
-
 int64_t NativeRenderPass::metalRenderCommandEncoderHandle() const {
     return reinterpret_cast<int64_t>((__bridge void*)impl_->encoder);
 }
 
 int64_t NativeRenderPass::metalCommandBufferHandle() const {
     return reinterpret_cast<int64_t>((__bridge void*)impl_->commandBuffer);
+}
+
+int64_t NativeRenderPass::metalDeviceHandle() const {
+    return reinterpret_cast<int64_t>((__bridge void*)impl_->device);
+}
+
+bool NativeRenderPass::hasDepthAttachment() const {
+    return impl_->hasDepth;
 }
 
 std::shared_ptr<NativeRenderFrame> NativeRenderFrame::create(std::shared_ptr<NativeGameSurface> surface) {

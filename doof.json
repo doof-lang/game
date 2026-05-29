@@ -5,11 +5,15 @@
   "build": {
     "native": {
       "extraCopyPaths": [
-        "native_game.hpp"
+        "native_game.hpp",
+        "native_mesh.hpp",
+        "native_sprite.hpp"
       ],
       "macos": {
         "sourceFiles": [
-          "native_game.mm"
+          "native_game.mm",
+          "native_mesh.mm",
+          "native_sprite.mm"
         ],
         "frameworks": [
           "Cocoa",
