@@ -1,6 +1,7 @@
 #include "native_game.hpp"
 
 #import <AppKit/AppKit.h>
+#import <CoreGraphics/CGDirectDisplayMetal.h>
 #import <CoreVideo/CoreVideo.h>
 #import <Metal/Metal.h>
 #import <QuartzCore/CAMetalLayer.h>
@@ -108,9 +109,6 @@ constexpr int32_t kClearColorDepth = 3;
 constexpr int32_t kDepthDisabled = 0;
 constexpr int32_t kDepthReadOnly = 1;
 constexpr int32_t kDepthReadWrite = 2;
-
-constexpr int64_t kAppEventWake = 0;
-constexpr int64_t kAppEventDisplayTick = 1;
 
 struct SimpleDrawVertex {
     float x;
@@ -394,6 +392,47 @@ id<MTLRenderPipelineState> textureDrawPipeline(id<MTLDevice> device, int32_t ble
     return *slot;
 }
 
+NSScreen* targetLaunchScreen() {
+    NSArray<NSScreen*>* screens = [NSScreen screens];
+    if ([screens count] == 0) {
+        return [NSScreen mainScreen];
+    }
+
+    NSPoint mouseLocation = [NSEvent mouseLocation];
+    for (NSScreen* screen in screens) {
+        if (NSMouseInRect(mouseLocation, [screen frame], NO)) {
+            return screen;
+        }
+    }
+
+    NSScreen* mainScreen = [NSScreen mainScreen];
+    return mainScreen != nil ? mainScreen : [screens objectAtIndex:0];
+}
+
+CGDirectDisplayID directDisplayIdForScreen(NSScreen* screen) {
+    if (screen == nil) {
+        return kCGNullDirectDisplay;
+    }
+
+    NSNumber* screenNumber = [[screen deviceDescription] objectForKey:@"NSScreenNumber"];
+    if (screenNumber == nil) {
+        return kCGNullDirectDisplay;
+    }
+    return static_cast<CGDirectDisplayID>([screenNumber unsignedIntValue]);
+}
+
+id<MTLDevice> newMetalDeviceForScreen(NSScreen* screen) {
+    CGDirectDisplayID displayID = directDisplayIdForScreen(screen);
+    if (displayID != kCGNullDirectDisplay) {
+        id<MTLDevice> device = CGDirectDisplayCopyCurrentMetalDevice(displayID);
+        if (device != nil) {
+            return device;
+        }
+    }
+
+    return MTLCreateSystemDefaultDevice();
+}
+
 }  // namespace
 
 struct NativeGameSurface::Impl {
@@ -556,11 +595,16 @@ struct NativeGameApp::Impl {
     std::shared_ptr<NativeGameSurface> surface;
     std::string initializationError;
     std::atomic<double> framesPerSecond = 0.0;
+    NSScreen* screen = nil;
+    CGDirectDisplayID displayID = kCGNullDirectDisplay;
 
     explicit Impl(std::string title)
         : title(std::move(title)),
           input(std::make_shared<NativeInputState>()) {
-        id<MTLDevice> device = MTLCreateSystemDefaultDevice();
+        screen = [targetLaunchScreen() retain];
+        displayID = directDisplayIdForScreen(screen);
+
+        id<MTLDevice> device = newMetalDeviceForScreen(screen);
         if (device == nil) {
             initializationError = "Metal device initialization failed";
             surface = std::make_shared<NativeGameSurface>(nullptr, nullptr, nullptr);
@@ -591,18 +635,27 @@ struct NativeGameApp::Impl {
         [commandQueue release];
         [device release];
     }
+
+    ~Impl() {
+        [screen release];
+    }
 };
 
 namespace {
 
-struct GameRuntimeState {
+struct GameRuntimeState : std::enable_shared_from_this<GameRuntimeState> {
     std::shared_ptr<NativeInputState> input;
     std::shared_ptr<NativeGameSurface> surface;
     doof::callback<void(std::shared_ptr<NativeGameEvent>, std::shared_ptr<NativeInputState>)> onEvent;
+    doof::callback<void(std::shared_ptr<NativeGameSurface>, std::shared_ptr<NativeInputState>)> onRender;
+    doof::callback<int32_t()> drainEvents;
     std::atomic<double>* framesPerSecond = nullptr;
+    CVDisplayLinkRef displayLink = nullptr;
     std::atomic_bool running = true;
-    std::atomic_bool renderRequested = true;
-    std::atomic_bool displayTickPending = false;
+    std::atomic_bool renderRequested = false;
+    std::atomic_bool renderCallbackPending = false;
+    std::atomic_bool displayLinkRunning = false;
+    std::atomic_bool drainPending = false;
     std::chrono::steady_clock::time_point fpsWindowStart = std::chrono::steady_clock::now();
     int32_t fpsFrameCount = 0;
     bool shiftDown = false;
@@ -620,6 +673,84 @@ struct GameRuntimeState {
 
     void requestRender() {
         renderRequested.store(true);
+        scheduleDisplayLinkStart();
+    }
+
+    void scheduleDisplayLinkStart() {
+        auto self = shared_from_this();
+        dispatch_async(dispatch_get_main_queue(), ^{
+            self->startDisplayLinkIfNeeded();
+        });
+    }
+
+    void startDisplayLinkIfNeeded() {
+        if (!running.load() || displayLink == nullptr || !renderRequested.load()) {
+            return;
+        }
+        if (!displayLinkRunning.exchange(true)) {
+            CVDisplayLinkStart(displayLink);
+        }
+    }
+
+    void stopDisplayLink() {
+        if (displayLink != nullptr && displayLinkRunning.exchange(false)) {
+            CVDisplayLinkStop(displayLink);
+        }
+    }
+
+    void scheduleRender() {
+        if (renderCallbackPending.exchange(true)) {
+            return;
+        }
+
+        auto self = shared_from_this();
+        dispatch_async(dispatch_get_main_queue(), ^{
+            self->renderOnMain();
+            self->renderCallbackPending.store(false);
+        });
+    }
+
+    void renderOnMain() {
+        if (!running.load()) {
+            stopDisplayLink();
+            return;
+        }
+
+        if (!renderRequested.exchange(false)) {
+            stopDisplayLink();
+            return;
+        }
+
+        onRender.call(surface, input);
+        recordRenderedFrame();
+        resetFrameDeltas();
+
+        if (!renderRequested.load()) {
+            stopDisplayLink();
+        }
+    }
+
+    void scheduleDrainEvents() {
+        if (drainPending.exchange(true)) {
+            return;
+        }
+
+        auto self = shared_from_this();
+        dispatch_async(dispatch_get_main_queue(), ^{
+            self->drainPending.store(false);
+            if (self->running.load()) {
+                self->drainEvents.call();
+            }
+        });
+    }
+
+    void stop() {
+        running.store(false);
+        stopDisplayLink();
+        dispatch_async(dispatch_get_main_queue(), ^{
+            [NSApp stop:nil];
+            CFRunLoopStop(CFRunLoopGetMain());
+        });
     }
 
     void recordRenderedFrame() {
@@ -682,23 +813,6 @@ std::shared_ptr<NativeGameEvent> makeResizeEvent(const std::shared_ptr<NativeGam
     );
 }
 
-void postApplicationDefinedEvent(int64_t kind = 0) {
-    dispatch_async(dispatch_get_main_queue(), ^{
-        if (NSApp != nil) {
-            NSEvent* event = [NSEvent otherEventWithType:NSEventTypeApplicationDefined
-                                                location:NSZeroPoint
-                                           modifierFlags:0
-                                               timestamp:0
-                                            windowNumber:0
-                                                   context:nil
-                                                 subtype:0
-                                                  data1:kind
-                                                  data2:0];
-            [NSApp postEvent:event atStart:NO];
-        }
-    });
-}
-
 CVReturn displayLinkCallback(
     CVDisplayLinkRef displayLink,
     const CVTimeStamp* now,
@@ -718,9 +832,7 @@ CVReturn displayLinkCallback(
         return kCVReturnSuccess;
     }
 
-    if (!state->displayTickPending.exchange(true)) {
-        postApplicationDefinedEvent(kAppEventDisplayTick);
-    }
+    state->scheduleRender();
 
     return kCVReturnSuccess;
 }
@@ -748,13 +860,13 @@ CVReturn displayLinkCallback(
 @public
     doof_game::GameRuntimeState* state_;
 }
-- (instancetype)initWithState:(doof_game::GameRuntimeState*)state;
+- (instancetype)initWithState:(doof_game::GameRuntimeState*)state frame:(NSRect)frame;
 @end
 
 @implementation DoofGameView
 
-- (instancetype)initWithState:(doof_game::GameRuntimeState*)state {
-    self = [super initWithFrame:[[NSScreen mainScreen] frame]];
+- (instancetype)initWithState:(doof_game::GameRuntimeState*)state frame:(NSRect)frame {
+    self = [super initWithFrame:frame];
     if (self) {
         state_ = state;
         [self setWantsLayer:YES];
@@ -915,7 +1027,7 @@ CVReturn displayLinkCallback(
 - (BOOL)windowShouldClose:(id)sender {
     (void)sender;
     state_->emit(std::make_shared<doof_game::NativeGameEvent>(doof_game::kKindCloseRequested));
-    state_->running.store(false);
+    state_->stop();
     return YES;
 }
 
@@ -1406,7 +1518,9 @@ double NativeGameApp::fps() const {
 }
 
 void requestGameAppWake() {
-    postApplicationDefinedEvent(kAppEventWake);
+    if (gActiveState != nullptr) {
+        gActiveState->scheduleDrainEvents();
+    }
 }
 
 void requestGameAppRender() {
@@ -1417,9 +1531,8 @@ void requestGameAppRender() {
 
 void requestGameAppStop() {
     if (gActiveState != nullptr) {
-        gActiveState->running.store(false);
+        gActiveState->stop();
     }
-    requestGameAppWake();
 }
 
 doof::Result<void, std::string> NativeGameApp::run(
@@ -1438,39 +1551,51 @@ doof::Result<void, std::string> NativeGameApp::run(
         auto input = impl_->input;
         auto surface = impl_->surface;
 
-        GameRuntimeState state;
-        state.input = input;
-        state.surface = surface;
-        state.onEvent = onEvent;
-        state.framesPerSecond = &impl_->framesPerSecond;
+        auto state = std::make_shared<GameRuntimeState>();
+        state->input = input;
+        state->surface = surface;
+        state->onEvent = onEvent;
+        state->onRender = onRender;
+        state->drainEvents = drainEvents;
+        state->framesPerSecond = &impl_->framesPerSecond;
         impl_->framesPerSecond.store(0.0);
-        gActiveState = &state;
+        gActiveState = state.get();
         CVDisplayLinkRef displayLink = nullptr;
 
-        NSScreen* screen = [NSScreen mainScreen];
+        NSScreen* screen = impl_->screen != nil ? impl_->screen : targetLaunchScreen();
         NSRect frame = [screen frame];
-        DoofGameWindow* window = [[DoofGameWindow alloc] initWithContentRect:frame
+        NSRect contentFrame = NSMakeRect(0.0, 0.0, NSWidth(frame), NSHeight(frame));
+        DoofGameWindow* window = [[DoofGameWindow alloc] initWithContentRect:contentFrame
                                                                    styleMask:NSWindowStyleMaskBorderless
                                                                      backing:NSBackingStoreBuffered
                                                                        defer:NO
                                                                       screen:screen];
         [window setTitle:[NSString stringWithUTF8String:impl_->title.c_str()]];
         [window setLevel:NSMainMenuWindowLevel + 1];
-        [window setCollectionBehavior:NSWindowCollectionBehaviorFullScreenPrimary];
+        [window setCollectionBehavior:NSWindowCollectionBehaviorMoveToActiveSpace | NSWindowCollectionBehaviorFullScreenAuxiliary];
+        [window setOpaque:YES];
+        [window setBackgroundColor:[NSColor blackColor]];
         [window setReleasedWhenClosed:NO];
 
-        DoofGameView* view = [[DoofGameView alloc] initWithState:&state];
+        DoofGameView* view = [[DoofGameView alloc] initWithState:state.get()
+                                                           frame:NSMakeRect(0.0, 0.0, NSWidth(frame), NSHeight(frame))];
         [window setContentView:view];
         [window makeFirstResponder:view];
 
-        DoofGameWindowDelegate* delegate = [[DoofGameWindowDelegate alloc] initWithState:&state];
+        DoofGameWindowDelegate* delegate = [[DoofGameWindowDelegate alloc] initWithState:state.get()];
         [window setDelegate:delegate];
 
         updateLayerDrawableSize(view, surface);
         [window makeKeyAndOrderFront:nil];
+        [window orderFrontRegardless];
         [app activateIgnoringOtherApps:YES];
 
-        CVReturn displayLinkResult = CVDisplayLinkCreateWithActiveCGDisplays(&displayLink);
+        CVReturn displayLinkResult = impl_->displayID != kCGNullDirectDisplay
+            ? CVDisplayLinkCreateWithCGDisplay(impl_->displayID, &displayLink)
+            : CVDisplayLinkCreateWithActiveCGDisplays(&displayLink);
+        if (displayLinkResult != kCVReturnSuccess || displayLink == nullptr) {
+            displayLinkResult = CVDisplayLinkCreateWithActiveCGDisplays(&displayLink);
+        }
         if (displayLinkResult != kCVReturnSuccess || displayLink == nullptr) {
             [window orderOut:nil];
             [window setDelegate:nil];
@@ -1481,63 +1606,18 @@ doof::Result<void, std::string> NativeGameApp::run(
             gActiveState = nullptr;
             return doof::Result<void, std::string>::failure("Display link initialization failed");
         }
-        CVDisplayLinkSetOutputCallback(displayLink, displayLinkCallback, &state);
-        CVDisplayLinkStart(displayLink);
+        state->displayLink = displayLink;
+        CVDisplayLinkSetOutputCallback(displayLink, displayLinkCallback, state.get());
 
         drainEvents.call();
+        state->requestRender();
 
-        while (state.running.load()) {
-            @autoreleasepool {
-                bool sawDisplayTick = false;
+        [app run];
 
-                NSEvent* event = [app nextEventMatchingMask:NSEventMaskAny
-                                                  untilDate:[NSDate distantFuture]
-                                                     inMode:NSDefaultRunLoopMode
-                                                    dequeue:YES];
-                if (event != nil) {
-                    if ([event type] == NSEventTypeApplicationDefined) {
-                        if ([event data1] == kAppEventDisplayTick) {
-                            sawDisplayTick = true;
-                            state.displayTickPending.store(false);
-                        }
-                        drainEvents.call();
-                    } else {
-                        [app sendEvent:event];
-                    }
-                }
-
-                do {
-                    event = [app nextEventMatchingMask:NSEventMaskAny
-                                             untilDate:[NSDate distantPast]
-                                                inMode:NSDefaultRunLoopMode
-                                               dequeue:YES];
-                    if (event == nil) {
-                        break;
-                    }
-
-                    if ([event type] == NSEventTypeApplicationDefined) {
-                        if ([event data1] == kAppEventDisplayTick) {
-                            sawDisplayTick = true;
-                            state.displayTickPending.store(false);
-                        }
-                        drainEvents.call();
-                    } else {
-                        [app sendEvent:event];
-                    }
-                } while (state.running.load());
-
-                drainEvents.call();
-
-                if (sawDisplayTick && state.renderRequested.exchange(false)) {
-                    onRender.call(surface, input);
-                    state.recordRenderedFrame();
-                    state.resetFrameDeltas();
-                }
-            }
-        }
-
-        CVDisplayLinkStop(displayLink);
+        state->running.store(false);
+        state->stopDisplayLink();
         CVDisplayLinkRelease(displayLink);
+        state->displayLink = nullptr;
 
         drainEvents.call();
 

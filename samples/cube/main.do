@@ -70,7 +70,6 @@ function main(): int {
     interval: Duration.ofMillis(15L),
     handler: (): void => {
       angle += 0.025
-      app.requestRender()
     },
   }
 
@@ -105,6 +104,7 @@ function main(): int {
       },
       (pass): void => {
         drawCube(pass, angle)
+        app.requestRender()
       },
     )
 

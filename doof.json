@@ -13,6 +13,7 @@
         ],
         "frameworks": [
           "Cocoa",
+          "CoreGraphics",
           "CoreVideo",
           "Foundation",
           "Metal",
