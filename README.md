@@ -2,7 +2,7 @@
 
 `std/game` provides a macOS-first full-screen game/app host with a Metal-backed
 surface, neutral key and mouse events, queryable input state, and a small
-native-backed render pass API with static colored mesh and batched texture-quad
+native-backed render pass API with static simple meshes and batched texture-quad
 drawing.
 
 This first version is intentionally small: it owns the AppKit window, input
@@ -19,34 +19,34 @@ import {
   Camera,
   Clear,
   Color,
-  ColorMesh,
-  ColorMeshBuilder,
   Depth,
   GameEventKind,
   GameSurface,
   Key,
   Point3,
   RenderPassDescriptor,
-  drawColorMesh,
+  SimpleMesh,
+  SimpleMeshBuilder,
+  drawSimpleMesh,
   initGameApp,
 } from "std/game"
 import { Duration } from "std/time"
 
-function createMesh(surface: GameSurface): Result<ColorMesh, string> {
-  builder := ColorMeshBuilder.create()
-  builder.addQuad(
-    Point3.xyz(80.0, 80.0, 0.0),
-    Point3.xyz(300.0, 80.0, 0.0),
-    Point3.xyz(300.0, 220.0, 0.0),
-    Point3.xyz(80.0, 220.0, 0.0),
-    Color.rgb(0.9, 0.2, 0.1),
-  )
+function createMesh(surface: GameSurface): SimpleMesh {
+  builder := SimpleMeshBuilder.create()
+  builder.quad{
+    a: Point3.xyz(80.0, 80.0, 0.0),
+    b: Point3.xyz(300.0, 80.0, 0.0),
+    c: Point3.xyz(300.0, 220.0, 0.0),
+    d: Point3.xyz(80.0, 220.0, 0.0),
+    color: Color.rgb(0.9, 0.2, 0.1),
+  }
   return builder.build(surface)
 }
 
 function main(): int {
   app := initGameApp{ title: "Doof Game" }
-  mesh := try! createMesh(app.surface)
+  mesh := createMesh(app.surface)
 
   simulationTimer := setInterval{
     interval: Duration.ofMillis(16L),
@@ -81,7 +81,7 @@ function main(): int {
         blend: Blend.opaque(),
       },
       (pass): void => {
-        drawColorMesh(pass, mesh)
+        drawSimpleMesh(pass, mesh)
       },
     )
   })
@@ -171,18 +171,16 @@ a projection camera with a view matrix.
 `perspective(...)`, `multiply(...)`, and `transformPoint(...)`. Static mesh
 drawing applies the active pass camera and model matrix on the GPU.
 
-### Static Colored Meshes
+### Static Simple Meshes
 
 ```doof
-builder := ColorMeshBuilder.create()
-builder.addTriangle(
-  Point3.xyz(-0.5, -0.5, 0.0),
-  Point3.xyz(0.5, -0.5, 0.0),
-  Point3.xyz(0.0, 0.5, 0.0),
-  Color.rgb(0.0, 0.7, 1.0),
-)
+builder := SimpleMeshBuilder.create()
+i0 := builder.vertex{ position: Point3.xyz(-0.5, -0.5, 0.0), color: Color.rgb(0.0, 0.7, 1.0) }
+i1 := builder.vertex{ position: Point3.xyz(0.5, -0.5, 0.0), color: Color.rgb(0.0, 0.7, 1.0) }
+i2 := builder.vertex{ position: Point3.xyz(0.0, 0.5, 0.0), color: Color.rgb(0.0, 0.7, 1.0) }
+builder.triangle(i0, i1, i2)
 
-mesh := try! builder.build(app.surface)
+mesh := builder.build(app.surface)
 
 renderer.pass(
   RenderPassDescriptor {
@@ -192,16 +190,17 @@ renderer.pass(
     blend: Blend.opaque(),
   },
   (pass): void => {
-    drawColorMesh(pass, mesh, Mat4.rotationY(angle))
+    drawSimpleMesh(pass, mesh, Mat4.rotationY(angle))
   },
 )
 ```
 
-`ColorMeshBuilder` collects colored triangles and quads during setup, then
+`SimpleMeshBuilder` collects vertices, triangles, and quads during setup, then
 `build(surface)` uploads them into Metal buffers for that surface's device.
-`drawColorMesh(...)` uses one indexed Metal draw for the whole mesh and is the
-recommended path for repeated geometry such as cubes, level pieces, and other
-static colored shapes.
+Vertices carry position, color, UV, and normal data. `drawSimpleMesh(...)` uses
+one indexed Metal draw for the whole mesh with simple built-in directional
+lighting, while `drawTexturedSimpleMesh(...)` samples a `Texture` using the
+mesh UVs before applying the same lighting.
 
 ### Textures And Atlases
 
@@ -277,6 +276,6 @@ the key/button is held.
 
 ## Samples
 
-- `samples/minimal` draws a screen-space color mesh.
+- `samples/minimal` draws a screen-space simple mesh.
 - `samples/cards` draws textured atlas sprites with one texture-quad batch draw.
-- `samples/cube` draws a timer-driven spinning cube with one static color mesh.
+- `samples/cube` draws a timer-driven spinning cube with one static simple mesh.

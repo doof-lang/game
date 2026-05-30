@@ -2,7 +2,7 @@ export { GameApp, initGameApp } from "./app"
 export { GameEvent, gameEventKindFromCode } from "./event"
 export { InputState } from "./input"
 export { keyCode, keyFromCode } from "./keys"
-export { ColorMesh, ColorMeshBuilder, drawColorMesh } from "./mesh"
+export { SimpleMesh, SimpleMeshBuilder, SimpleMeshSpec, drawSimpleMesh, drawTexturedSimpleMesh } from "./mesh"
 export { mouseButtonCode, mouseButtonFromCode } from "./mouse"
 export { TextureQuadBatch, TextureQuadBatchBuilder, drawTextureQuadBatch } from "./sprite"
 export {

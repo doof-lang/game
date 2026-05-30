@@ -92,6 +92,10 @@ export class Color {
   static white(): Color {
     return Color.rgb(1.0, 1.0, 1.0)
   }
+
+  static red(): Color {
+    return Color.rgb(1.0, 0.0, 0.0)
+  }
 }
 
 export class Point {

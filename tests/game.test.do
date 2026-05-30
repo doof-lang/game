@@ -11,7 +11,6 @@ import {
   CameraKind,
   Clear,
   ClearKind,
-  ColorMeshBuilder,
   Color,
   Depth,
   DepthMode,
@@ -24,10 +23,12 @@ import {
   Point3,
   Rect,
   RenderPass,
+  SimpleMeshBuilder,
   Texture,
   TextureQuadBatchBuilder,
   RenderPassDescriptor,
-  drawColorMesh,
+  drawSimpleMesh,
+  drawTexturedSimpleMesh,
   drawTextureQuadBatch,
   gameEventKindFromCode,
   initGameApp,
@@ -38,26 +39,47 @@ import {
 } from "../index"
 
 function compileMeshSmoke(surface: GameSurface, pass: RenderPass): void {
-  builder := ColorMeshBuilder.create()
-  builder.addTriangle(
-    Point3.xyz(-0.5, -0.5, 0.0),
-    Point3.xyz(0.5, -0.5, 0.0),
-    Point3.xyz(0.0, 0.5, 0.0),
-    Color.rgb(0.0, 0.7, 1.0),
-  )
-  builder.addQuad(
-    Point3.xyz(-0.25, -0.25, 0.0),
-    Point3.xyz(0.25, -0.25, 0.0),
-    Point3.xyz(0.25, 0.25, 0.0),
-    Point3.xyz(-0.25, 0.25, 0.0),
-    Color.rgb(1.0, 0.3, 0.1),
-  )
-
-  built := builder.build(surface)
-  case built {
-    s: Success -> drawColorMesh(pass, s.value, Mat4.identity())
-    f: Failure -> {}
+  builder := SimpleMeshBuilder.create()
+  a := builder.vertex{
+    position: Point3.xyz(-0.5, -0.5, 0.0),
+    color: Color.rgb(0.0, 0.7, 1.0),
   }
+  b := builder.vertex{
+    position: Point3.xyz(0.5, -0.5, 0.0),
+    color: Color.rgb(0.0, 0.7, 1.0),
+  }
+  c := builder.vertex{
+    position: Point3.xyz(0.0, 0.5, 0.0),
+    color: Color.rgb(0.0, 0.7, 1.0),
+  }
+  builder.triangle(a, b, c)
+  builder.quad{
+    a: Point3.xyz(-0.25, -0.25, 0.0),
+    b: Point3.xyz(0.25, -0.25, 0.0),
+    c: Point3.xyz(0.25, 0.25, 0.0),
+    d: Point3.xyz(-0.25, 0.25, 0.0),
+    color: Color.rgb(1.0, 0.3, 0.1),
+  }
+
+  mesh := builder.build(surface)
+  drawSimpleMesh(pass, mesh, Mat4.identity())
+}
+
+function compileTexturedSimpleMeshSmoke(texture: Texture, surface: GameSurface, pass: RenderPass): void {
+  builder := SimpleMeshBuilder.create()
+  builder.quad{
+    a: Point3.xyz(-0.5, -0.5, 0.0),
+    b: Point3.xyz(0.5, -0.5, 0.0),
+    c: Point3.xyz(0.5, 0.5, 0.0),
+    d: Point3.xyz(-0.5, 0.5, 0.0),
+    color: Color.white(),
+    uvA: Point.xy(0.0, 1.0),
+    uvB: Point.xy(1.0, 1.0),
+    uvC: Point.xy(1.0, 0.0),
+    uvD: Point.xy(0.0, 0.0),
+  }
+
+  drawTexturedSimpleMesh(pass, builder.build(surface), texture, Mat4.identity())
 }
 
 function compileTextureQuadBatchSmoke(texture: Texture, surface: GameSurface, pass: RenderPass): void {
@@ -291,6 +313,7 @@ export function testPointRectAndColorHelpers(): void {
   point := Point.xy(3.0, 4.0)
   rect := Rect.xywh(10.0, 20.0, 30.0, 40.0)
   white := Color.white()
+  red := Color.red()
 
   Assert.equal(point.x, 3.0)
   Assert.equal(point.y, 4.0)
@@ -302,6 +325,79 @@ export function testPointRectAndColorHelpers(): void {
   Assert.equal(white.g, 1.0)
   Assert.equal(white.b, 1.0)
   Assert.equal(white.a, 1.0)
+  Assert.equal(red.r, 1.0)
+  Assert.equal(red.g, 0.0)
+  Assert.equal(red.b, 0.0)
+  Assert.equal(red.a, 1.0)
+}
+
+export function testSimpleMeshBuilderVertexDefaults(): void {
+  builder := SimpleMeshBuilder.create()
+  index := builder.vertex{ position: Point3.xyz(1.0, 2.0, 3.0) }
+  spec := builder.buildSpec()
+
+  Assert.equal(index, 0)
+  Assert.equal(spec.vertexCount(), 1)
+  Assert.equal(spec.indexCount(), 0)
+  Assert.equal(spec.positions[0].x, 1.0)
+  Assert.equal(spec.positions[0].y, 2.0)
+  Assert.equal(spec.positions[0].z, 3.0)
+  Assert.equal(spec.colors[0].r, 1.0)
+  Assert.equal(spec.colors[0].g, 1.0)
+  Assert.equal(spec.colors[0].b, 1.0)
+  Assert.equal(spec.colors[0].a, 1.0)
+  Assert.equal(spec.uvs[0].x, 0.0)
+  Assert.equal(spec.uvs[0].y, 0.0)
+  Assert.equal(spec.normals[0].x, 0.0)
+  Assert.equal(spec.normals[0].y, 0.0)
+  Assert.equal(spec.normals[0].z, 1.0)
+}
+
+export function testSimpleMeshBuilderTriangleAndQuadSpec(): void {
+  builder := SimpleMeshBuilder.create()
+  i0 := builder.vertex{
+    position: Point3.xyz(0.0, 0.0, 0.0),
+    color: Color.red(),
+    uv: Point.xy(0.25, 0.5),
+    normal: Point3.xyz(1.0, 0.0, 0.0),
+  }
+  i1 := builder.vertex{ position: Point3.xyz(1.0, 0.0, 0.0) }
+  i2 := builder.vertex{ position: Point3.xyz(0.0, 1.0, 0.0) }
+  builder.triangle(i0, i1, i2)
+  builder.quad{
+    a: Point3.xyz(-1.0, -1.0, 0.0),
+    b: Point3.xyz(1.0, -1.0, 0.0),
+    c: Point3.xyz(1.0, 1.0, 0.0),
+    d: Point3.xyz(-1.0, 1.0, 0.0),
+    color: Color.rgb(0.2, 0.3, 0.4),
+    normal: Point3.xyz(0.0, 1.0, 0.0),
+    uvA: Point.xy(0.0, 1.0),
+    uvB: Point.xy(1.0, 1.0),
+    uvC: Point.xy(1.0, 0.0),
+    uvD: Point.xy(0.0, 0.0),
+  }
+
+  spec := builder.buildSpec()
+
+  Assert.equal(spec.vertexCount(), 7)
+  Assert.equal(spec.indexCount(), 9)
+  Assert.equal(spec.indices[0], 0)
+  Assert.equal(spec.indices[1], 1)
+  Assert.equal(spec.indices[2], 2)
+  Assert.equal(spec.indices[3], 3)
+  Assert.equal(spec.indices[4], 4)
+  Assert.equal(spec.indices[5], 5)
+  Assert.equal(spec.indices[6], 3)
+  Assert.equal(spec.indices[7], 5)
+  Assert.equal(spec.indices[8], 6)
+  Assert.equal(spec.colors[0].r, 1.0)
+  Assert.equal(spec.uvs[0].x, 0.25)
+  Assert.equal(spec.uvs[0].y, 0.5)
+  Assert.equal(spec.normals[0].x, 1.0)
+  Assert.equal(spec.normals[3].y, 1.0)
+  Assert.equal(spec.uvs[3].x, 0.0)
+  Assert.equal(spec.uvs[4].x, 1.0)
+  Assert.equal(spec.uvs[5].y, 0.0)
 }
 
 function compileAtlasCellSmoke(texture: Texture): Rect {

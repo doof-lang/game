@@ -307,6 +307,35 @@ id<MTLDevice> newMetalDeviceForScreen(NSScreen* screen) {
     return MTLCreateSystemDefaultDevice();
 }
 
+double backingScaleForScreen(NSScreen* screen) {
+    if (screen != nil) {
+        double scale = [screen backingScaleFactor];
+        return scale > 0.0 ? scale : 1.0;
+    }
+
+    NSScreen* mainScreen = [NSScreen mainScreen];
+    if (mainScreen != nil) {
+        double scale = [mainScreen backingScaleFactor];
+        return scale > 0.0 ? scale : 1.0;
+    }
+
+    return 1.0;
+}
+
+void updateLayerDrawableSizeForScreen(CAMetalLayer* layer, NSScreen* screen) {
+    if (layer == nil) {
+        return;
+    }
+
+    double scale = backingScaleForScreen(screen);
+    NSSize pointSize = screen != nil ? [screen frame].size : NSMakeSize(1.0, 1.0);
+    layer.contentsScale = scale;
+    layer.drawableSize = CGSizeMake(
+        std::max(pointSize.width * scale, 1.0),
+        std::max(pointSize.height * scale, 1.0)
+    );
+}
+
 }  // namespace
 
 struct NativeGameSurface::Impl {
@@ -474,6 +503,7 @@ struct NativeGameApp::Impl {
         layer.framebufferOnly = YES;
         layer.opaque = YES;
         layer.maximumDrawableCount = 3;
+        updateLayerDrawableSizeForScreen(layer, screen);
 
         surface = std::make_shared<NativeGameSurface>(
             (__bridge void*)device,

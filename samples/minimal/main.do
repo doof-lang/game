@@ -2,28 +2,40 @@ import {
   Blend,
   Clear,
   Color,
-  ColorMesh,
-  ColorMeshBuilder,
   Depth,
   GameEventKind,
   GameSurface,
   Key,
   Point3,
   RenderPassDescriptor,
-  drawColorMesh,
+  SimpleMesh,
+  SimpleMeshBuilder,
+  drawSimpleMesh,
   initGameApp,
 } from "std/game"
 
-function createMinimalMesh(surface: GameSurface): Result<ColorMesh, string> {
-  builder := ColorMeshBuilder.create()
+function createMinimalMesh(surface: GameSurface): SimpleMesh {
+  builder := SimpleMeshBuilder.create()
 
-  topLeft := builder.addVertex(Point3.xyz(80.0, 80.0, 0.0), Color.rgb(0.95, 0.25, 0.12))
-  topRight := builder.addVertex(Point3.xyz(400.0, 80.0, 0.0), Color.rgb(0.98, 0.72, 0.18))
-  bottomRight := builder.addVertex(Point3.xyz(400.0, 280.0, 0.0), Color.rgb(0.15, 0.78, 0.42))
-  bottomLeft := builder.addVertex(Point3.xyz(80.0, 280.0, 0.0), Color.rgb(0.12, 0.42, 0.95))
+  topLeft := builder.vertex{
+    position: Point3.xyz(80.0, 80.0, 0.0),
+    color: Color.rgb(0.95, 0.25, 0.12),
+  }
+  topRight := builder.vertex{
+    position: Point3.xyz(400.0, 80.0, 0.0),
+    color: Color.rgb(0.98, 0.72, 0.18),
+  }
+  bottomRight := builder.vertex{
+    position: Point3.xyz(400.0, 280.0, 0.0),
+    color: Color.rgb(0.15, 0.78, 0.42),
+  }
+  bottomLeft := builder.vertex{
+    position: Point3.xyz(80.0, 280.0, 0.0),
+    color: Color.rgb(0.12, 0.42, 0.95),
+  }
 
-  builder.addIndexedTriangle(topLeft, topRight, bottomRight)
-  builder.addIndexedTriangle(topLeft, bottomRight, bottomLeft)
+  builder.triangle(topLeft, topRight, bottomRight)
+  builder.triangle(topLeft, bottomRight, bottomLeft)
 
   return builder.build(surface)
 }
@@ -41,9 +53,7 @@ function main(): int {
     }
   })
 
-  mesh := createMinimalMesh(app.surface) else {
-    panic("failed to create minimal mesh")
-  }
+  mesh := createMinimalMesh(app.surface)
 
   app.onRender((renderer): void => {
     renderer.pass(
@@ -53,7 +63,7 @@ function main(): int {
         blend: Blend.alpha(),
       },
       (pass): void => {
-        drawColorMesh(pass, mesh)
+        drawSimpleMesh(pass, mesh)
       },
     )
   })

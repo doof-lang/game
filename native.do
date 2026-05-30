@@ -74,14 +74,27 @@ export import class NativeRenderPass from "native_game.hpp" as doof_game::Native
   hasDepthAttachment(): bool
 }
 
-export import class NativeColorMeshBuilder from "native_mesh.hpp" as doof_game::NativeColorMeshBuilder {
-  static create(): NativeColorMeshBuilder
-  addVertex(x: double, y: double, z: double, red: double, green: double, blue: double, alpha: double): int
-  addTriangle(a: int, b: int, c: int): NativeColorMeshBuilder
-  build(metalDeviceHandle: long): Result<NativeColorMesh, string>
+export import class NativeSimpleMeshBuilder from "native_mesh.hpp" as doof_game::NativeSimpleMeshBuilder {
+  static create(): NativeSimpleMeshBuilder
+  addVertex(
+    x: double,
+    y: double,
+    z: double,
+    red: double,
+    green: double,
+    blue: double,
+    alpha: double,
+    u: double,
+    v: double,
+    normalX: double,
+    normalY: double,
+    normalZ: double,
+  ): int
+  addTriangle(a: int, b: int, c: int): NativeSimpleMeshBuilder
+  build(metalDeviceHandle: long): Result<NativeSimpleMesh, string>
 }
 
-export import class NativeColorMesh from "native_mesh.hpp" as doof_game::NativeColorMesh {
+export import class NativeSimpleMesh from "native_mesh.hpp" as doof_game::NativeSimpleMesh {
   vertexCount(): int
   indexCount(): int
 }
@@ -109,8 +122,8 @@ export import class NativeTextureQuadBatch from "native_sprite.hpp" as doof_game
   quadCount(): int
 }
 
-export import function drawNativeColorMesh(
-  mesh: NativeColorMesh,
+export import function drawNativeSimpleMesh(
+  mesh: NativeSimpleMesh,
   metalRenderCommandEncoderHandle: long,
   metalDeviceHandle: long,
   blendMode: int,
@@ -131,7 +144,32 @@ export import function drawNativeColorMesh(
   m31: double,
   m32: double,
   m33: double,
-): void from "native_mesh.hpp" as doof_game::drawNativeColorMesh
+): void from "native_mesh.hpp" as doof_game::drawNativeSimpleMesh
+
+export import function drawNativeTexturedSimpleMesh(
+  mesh: NativeSimpleMesh,
+  metalTextureHandle: long,
+  metalRenderCommandEncoderHandle: long,
+  metalDeviceHandle: long,
+  blendMode: int,
+  hasDepthAttachment: bool,
+  m00: double,
+  m01: double,
+  m02: double,
+  m03: double,
+  m10: double,
+  m11: double,
+  m12: double,
+  m13: double,
+  m20: double,
+  m21: double,
+  m22: double,
+  m23: double,
+  m30: double,
+  m31: double,
+  m32: double,
+  m33: double,
+): void from "native_mesh.hpp" as doof_game::drawNativeTexturedSimpleMesh
 
 export import function drawNativeTextureQuadBatch(
   batch: NativeTextureQuadBatch,
