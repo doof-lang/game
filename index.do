@@ -27,4 +27,5 @@ export {
   Texture,
 } from "./render"
 export { GameSurface } from "./surface"
+export { Mat3, Rotation, Transform, Vec3 } from "./transform"
 export { GameEventKind, Key, MouseButton } from "./types"

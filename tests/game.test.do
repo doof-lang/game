@@ -18,14 +18,18 @@ import {
   GameSurface,
   Key,
   Mat4,
+  Mat3,
   MouseButton,
   Point,
   Point3,
   Rect,
   RenderPass,
+  Rotation,
   SimpleMeshBuilder,
   Texture,
   TextureQuadBatchBuilder,
+  Transform,
+  Vec3,
   RenderPassDescriptor,
   drawSimpleMesh,
   drawTexturedSimpleMesh,
@@ -37,6 +41,22 @@ import {
   mouseButtonCode,
   mouseButtonFromCode,
 } from "../index"
+
+function assertApprox(actual: double, expected: double, message: string | null = null): void {
+  Assert.isTrue(approxEqual(actual, expected), message)
+}
+
+function assertVec3Approx(actual: Vec3, expected: Vec3, message: string | null = null): void {
+  assertApprox(actual.x, expected.x, message)
+  assertApprox(actual.y, expected.y, message)
+  assertApprox(actual.z, expected.z, message)
+}
+
+function assertPoint3Approx(actual: Point3, expected: Point3): void {
+  assertApprox(actual.x, expected.x)
+  assertApprox(actual.y, expected.y)
+  assertApprox(actual.z, expected.z)
+}
 
 function compileMeshSmoke(surface: GameSurface, pass: RenderPass): void {
   builder := SimpleMeshBuilder.create()
@@ -282,6 +302,90 @@ export function testMat4PerspectiveProducesPerspectiveDivideW(): void {
   Assert.isTrue(approxEqual(projected.x, 0.0))
   Assert.isTrue(approxEqual(projected.y, 0.0))
   Assert.equal(projected.w, 5.0)
+}
+
+export function testVec3Helpers(): void {
+  value := Vec3.xyz(3.0, 4.0, 0.0)
+  unit := value.normalized()
+  cross := Vec3.right.cross(Vec3.up)
+
+  Assert.equal(value.length(), 5.0)
+  assertVec3Approx(unit, Vec3.xyz(0.6, 0.8, 0.0))
+  assertVec3Approx(cross, Vec3.back)
+  Assert.equal(Vec3.fromPoint(Point3.xyz(1.0, 2.0, 3.0)).z, 3.0)
+}
+
+export function testRotationCompositionInverseAndSlerp(): void {
+  yaw := Rotation.y(90.0)
+  pitch := Rotation.x(90.0)
+  yawThenPitch := yaw.andThen(pitch)
+  pitchThenYaw := pitch.andThen(yaw)
+  forward := yawThenPitch.apply(Vec3.forward)
+  manualForward := pitch.apply(yaw.apply(Vec3.forward))
+  original := yawThenPitch.inverse().apply(forward)
+  halfway := Rotation.slerp(Rotation.identity(), yaw, 0.5).apply(Vec3.forward)
+
+  assertVec3Approx(Rotation.x(90.0).apply(Vec3.forward), Vec3.up)
+  assertVec3Approx(Rotation.x(90.0).apply(Vec3.forward), Rotation.axisAngle(Vec3.xAxis, 90.0).apply(Vec3.forward))
+  assertVec3Approx(forward, manualForward, "andThen should match applying this rotation, then the next rotation")
+  assertVec3Approx(forward, Vec3.left, "yaw then world-space pitch leaves the left vector on the X axis")
+  assertVec3Approx(original, Vec3.forward, "applying the inverse rotation should return to the original vector")
+  Assert.isFalse(approxEqual(yawThenPitch.apply(Vec3.forward).y, pitchThenYaw.apply(Vec3.forward).y), "order of composition should matter")
+  assertApprox(halfway.x, -0.7071067811865476)
+  assertApprox(halfway.z, -0.7071067811865476)
+}
+
+export function testRotationLookAtAndEuler(): void {
+  aim := Rotation.lookAt{ direction: Vec3.forward, up: Vec3.up }
+  euler := Rotation.euler{
+    yaw: 90.0,
+    pitch: 0.0,
+    roll: 0.0
+  }
+  free := Rotation.axisAngle(Vec3.toNormalized(1.0, 1.0, 0.0), 30.0)
+
+  assertVec3Approx(aim.apply(Vec3.forward), Vec3.forward)
+  assertVec3Approx(euler.apply(Vec3.forward), Vec3.left)
+  Assert.isTrue(approxEqual(free.apply(Vec3.forward).length(), 1.0))
+}
+
+export function testTransformReplacementRelativeMotionAndMatrices(): void {
+  t1 := Transform {
+    position: Point3.xyz(0.0, 0.0, -4.0),
+    rotation: Rotation.y(90.0),
+    scale: Vec3.one,
+  }
+  t2 := t1
+    .withPosition(Point3.xyz(2.0, 0.0, -4.0))
+    .withRotation(Rotation.identity())
+    .withScale(Vec3.xyz(2.0, 2.0, 2.0))
+  t3 := t1
+    .movedBy(Vec3.xyz(0.0, 1.0, 0.0))
+    .rotatedLocalY(15.0)
+    .scaledBy(1.5)
+  localMove := t1.movedLocalBy(Vec3.forward.times(2.0))
+  worldMove := t1.movedWorldBy(Vec3.forward.times(2.0))
+  worldPoint := t1.applyPoint(Point3.xyz(0.0, 0.0, -1.0))
+  worldVector := t1.applyVector(Vec3.forward)
+  localPitch := t1.rotatedLocalX(90.0).applyVector(Vec3.forward)
+  worldPitch := t1.rotatedWorldX(90.0).applyVector(Vec3.forward)
+  modelMatrix := t1.toMat4()
+  matrixPoint := modelMatrix.transformPoint(Point3.xyz(0.0, 0.0, -1.0))
+  normalMatrix := t2.toNormalMat3()
+
+  assertPoint3Approx(t2.position, Point3.xyz(2.0, 0.0, -4.0))
+  assertVec3Approx(t2.scale, Vec3.xyz(2.0, 2.0, 2.0))
+  assertVec3Approx(t3.scale, Vec3.xyz(1.5, 1.5, 1.5))
+  assertPoint3Approx(localMove.position, Point3.xyz(-2.0, 0.0, -4.0))
+  assertPoint3Approx(worldMove.position, Point3.xyz(0.0, 0.0, -6.0))
+  assertPoint3Approx(worldPoint, Point3.xyz(-1.0, 0.0, -4.0))
+  assertVec3Approx(worldVector, Vec3.left)
+  assertVec3Approx(localPitch, Vec3.up)
+  assertVec3Approx(worldPitch, Vec3.left)
+  assertApprox(matrixPoint.x, worldPoint.x)
+  assertApprox(matrixPoint.y, worldPoint.y)
+  assertApprox(matrixPoint.z, worldPoint.z)
+  assertApprox(normalMatrix.m00, 0.5)
 }
 
 export function testClearHelpers(): void {
