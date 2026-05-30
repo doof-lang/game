@@ -25,12 +25,14 @@ import {
   Rect,
   RenderPass,
   Rotation,
+  SimpleModel,
   SimpleMeshBuilder,
   Texture,
   TextureQuadBatchBuilder,
   Transform,
   Vec3,
   RenderPassDescriptor,
+  drawSimpleModel,
   drawSimpleMesh,
   drawTexturedSimpleMesh,
   drawTextureQuadBatch,
@@ -83,6 +85,13 @@ function compileMeshSmoke(surface: GameSurface, pass: RenderPass): void {
 
   mesh := builder.build(surface)
   drawSimpleMesh(pass, mesh, Mat4.identity())
+
+  model := SimpleModel(mesh)
+  model
+    .moveWorldBy(Vec3.xyz(1.0, 2.0, 3.0))
+    .rotateLocalY(45.0)
+    .scaleBy(0.5)
+  drawSimpleModel(pass, model)
 }
 
 function compileTexturedSimpleMeshSmoke(texture: Texture, surface: GameSurface, pass: RenderPass): void {
@@ -99,7 +108,9 @@ function compileTexturedSimpleMeshSmoke(texture: Texture, surface: GameSurface, 
     uvD: Point.xy(0.0, 0.0),
   }
 
-  drawTexturedSimpleMesh(pass, builder.build(surface), texture, Mat4.identity())
+  mesh := builder.build(surface)
+  drawTexturedSimpleMesh(pass, mesh, texture, Mat4.identity())
+  drawSimpleModel(pass, SimpleModel(mesh, texture))
 }
 
 function compileTextureQuadBatchSmoke(texture: Texture, surface: GameSurface, pass: RenderPass): void {

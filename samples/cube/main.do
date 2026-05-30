@@ -16,7 +16,10 @@ import {
   RenderPassDescriptor,
   SimpleMesh,
   SimpleMeshBuilder,
-  drawSimpleMesh,
+  SimpleModel,
+  Transform,
+  Rotation,
+  drawSimpleModel,
   initGameApp,
 } from "std/game"
 
@@ -82,7 +85,7 @@ function main(): int {
     }
   })
 
-  cubeMesh := createCubeMesh(app.surface)
+  cube := SimpleModel(createCubeMesh(app.surface))
 
   surface := app.surface
   aspect := double(surface.pixelWidth()) / double(surface.pixelHeight())
@@ -100,12 +103,17 @@ function main(): int {
     elapsed := lastFrameAt.durationUntil(now)
     lastFrameAt = now
     angle += double(elapsed.toNanos()) / 1000000000.0
+    radiansToDegrees := 57.2957795131
 
     renderer.pass(
       renderPassDescriptor,
       (pass): void => {
-        model := Mat4.rotationX(angle * 0.62).multiply(Mat4.rotationY(angle))
-        drawSimpleMesh(pass, cubeMesh, model)
+        cube.setTransform(
+          Transform.identity()
+            .rotatedLocalBy(Rotation.y(angle * radiansToDegrees))
+            .rotatedLocalBy(Rotation.x(angle * 0.62 * radiansToDegrees)),
+        )
+        drawSimpleModel(pass, cube)
         app.requestRender()
       },
     )
