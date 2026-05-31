@@ -33,6 +33,7 @@ import {
   Transform,
   Vec3,
   RenderPassDescriptor,
+  createSphereMeshSpec,
   drawSimpleModel,
   drawSimpleMesh,
   drawEquirectangularSkyMap,
@@ -524,6 +525,34 @@ export function testSimpleMeshBuilderTriangleAndQuadSpec(): void {
   Assert.equal(spec.uvs[3].x, 0.0)
   Assert.equal(spec.uvs[4].x, 1.0)
   Assert.equal(spec.uvs[5].y, 0.0)
+}
+
+export function testCreateSphereMeshSpecBuildsEquirectangularSphere(): void {
+  spec := createSphereMeshSpec{
+    radius: 2.0,
+    tessellation: 4,
+    color: Color(0.2, 0.4, 0.8),
+  }
+
+  Assert.equal(spec.vertexCount(), 45)
+  Assert.equal(spec.indexCount(), 192)
+  Assert.equal(spec.positions[0].x, 0.0)
+  Assert.equal(spec.positions[0].y, 2.0)
+  Assert.isTrue(approxEqual(spec.positions[0].z, 0.0))
+  Assert.equal(spec.uvs[0].x, 1.0)
+  Assert.equal(spec.uvs[0].y, 0.0)
+  Assert.equal(spec.uvs[8].x, 0.0)
+  Assert.equal(spec.uvs[8].y, 0.0)
+  Assert.isTrue(approxEqual(spec.positions[18].x, 0.0))
+  Assert.isTrue(approxEqual(spec.positions[18].y, 0.0))
+  Assert.isTrue(approxEqual(spec.positions[18].z, -2.0))
+  Assert.equal(spec.uvs[20].x, 0.75)
+  Assert.isTrue(approxEqual(spec.positions[20].x, 2.0))
+  Assert.isTrue(approxEqual(spec.normals[18].z, -1.0))
+  Assert.equal(spec.colors[18].r, 0.2)
+  Assert.equal(spec.indices[0], 0)
+  Assert.equal(spec.indices[1], 1)
+  Assert.equal(spec.indices[2], 9)
 }
 
 function compileAtlasCellSmoke(texture: Texture): Rect {

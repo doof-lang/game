@@ -204,6 +204,20 @@ one indexed Metal draw for the whole mesh with simple built-in directional
 lighting, while `drawTexturedSimpleMesh(...)` samples a `Texture` using the
 mesh UVs before applying the same lighting.
 
+### Sphere Meshes
+
+```doof
+texture := try! app.loadTexture("images/earth.png")
+spec := createSphereMeshSpec{ radius: 1.0, tessellation: 32 }
+planet := SimpleModel(SimpleMesh(app.surface, spec), texture)
+```
+
+`createSphereMeshSpec(...)` creates a UV sphere as a `SimpleMeshSpec`.
+`tessellation` controls the number of latitude bands; longitude bands are
+twice that count for equirectangular textures. The generated UVs use `(0, 0)`
+at the top-left of the texture and duplicate the seam vertices so `u` wraps
+cleanly from `1` to `0`.
+
 ### OBJ Meshes
 
 ```doof
@@ -325,5 +339,5 @@ the key/button is held.
 - `samples/minimal` draws a screen-space simple mesh.
 - `samples/cards` draws textured atlas sprites with one texture-quad batch draw.
 - `samples/cube` draws a timer-driven spinning cube with one static simple mesh.
-- `samples/skymap` draws an equirectangular panorama and rotates the camera with
-  mouse movement.
+- `samples/skymap` draws an equirectangular panorama, a textured sphere planet,
+  and a loaded OBJ mesh while mouse movement steers the camera.

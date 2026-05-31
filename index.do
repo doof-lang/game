@@ -6,6 +6,7 @@ export { SimpleMesh, SimpleMeshBuilder, SimpleMeshSpec, drawSimpleMesh, drawText
 export { SimpleModel, drawSimpleModel } from "./model"
 export { ObjError, loadObjMeshSpec, parseObjMeshSpec } from "./obj"
 export { mouseButtonCode, mouseButtonFromCode } from "./mouse"
+export { createSphereMeshSpec } from "./sphere"
 export { SkyMap, drawEquirectangularSkyMap } from "./sky"
 export { TextureQuadBatch, TextureQuadBatchBuilder, drawTextureQuadBatch } from "./sprite"
 export {
