@@ -267,6 +267,25 @@ export function testCameraHelpersBuildExpectedKinds(): void {
   Assert.equal(Camera.perspective(1.0, 1.0, 0.1, 100.0).kind, CameraKind.Perspective)
 }
 
+export function testCameraTransformHelpersUpdateCameraPose(): void {
+  camera := Camera
+    .perspective(1.0, 1.0, 0.1, 100.0)
+    .withPosition(Point3(0.0, 0.0, 5.0))
+    .movedLocalBy(Vec3.forward.times(2.0))
+    .scaledBy(2.0)
+  rotated := camera.rotatedLocalY(90.0)
+
+  viewedOrigin := camera.transform.toInverseMat4().transformPoint(Point3(0.0, 0.0, 0.0))
+  withExtraView := rotated.withView(Mat4.translation(1.0, 2.0, 3.0))
+
+  assertPoint3Approx(camera.transform.position, Point3(0.0, 0.0, 3.0))
+  assertVec3Approx(camera.transform.scale, Vec3.xyz(2.0, 2.0, 2.0))
+  assertVec3Approx(rotated.transform.rotation.apply(Vec3.forward), Vec3.left)
+  Assert.equal(withExtraView.kind, CameraKind.Perspective)
+  assertPoint3Approx(withExtraView.transform.position, rotated.transform.position)
+  assertApprox(viewedOrigin.z, -1.5)
+}
+
 export function testMat4IdentityTranslationAndScale(): void {
   point := Point3(1.0, 2.0, 3.0)
   moved := Mat4.translation(4.0, 5.0, 6.0).transformPoint(point)
@@ -389,6 +408,7 @@ export function testTransformReplacementRelativeMotionAndMatrices(): void {
   worldPitch := t1.rotatedWorldX(90.0).applyVector(Vec3.forward)
   modelMatrix := t1.toMat4()
   matrixPoint := modelMatrix.transformPoint(Point3(0.0, 0.0, -1.0))
+  inverseMatrixPoint := t1.toInverseMat4().transformPoint(worldPoint)
   normalMatrix := t2.toNormalMat3()
 
   assertPoint3Approx(t2.position, Point3(2.0, 0.0, -4.0))
@@ -403,6 +423,9 @@ export function testTransformReplacementRelativeMotionAndMatrices(): void {
   assertApprox(matrixPoint.x, worldPoint.x)
   assertApprox(matrixPoint.y, worldPoint.y)
   assertApprox(matrixPoint.z, worldPoint.z)
+  assertApprox(inverseMatrixPoint.x, 0.0)
+  assertApprox(inverseMatrixPoint.y, 0.0)
+  assertApprox(inverseMatrixPoint.z, -1.0)
   assertApprox(normalMatrix.m00, 0.5)
 }
 

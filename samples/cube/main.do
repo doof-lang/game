@@ -11,7 +11,6 @@ import {
   GameEventKind,
   GameSurface,
   Key,
-  Mat4,
   Point3,
   RenderPassDescriptor,
   SimpleMesh,
@@ -89,7 +88,7 @@ function main(): int {
 
   surface := app.surface
   aspect := double(surface.pixelWidth()) / double(surface.pixelHeight())
-  camera := Camera.perspective(1.0471975512, aspect, 0.1, 100.0).withView(Mat4.translation(0.0, 0.0, -5.0))
+  camera := Camera.perspective(1.0471975512, aspect, 0.1, 100.0).withPosition(Point3(0.0, 0.0, 5.0))
 
   renderPassDescriptor := RenderPassDescriptor {
     camera,

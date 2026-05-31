@@ -420,6 +420,33 @@ export class Transform {
     }
   }
 
+  toInverseMat4(): Mat4 {
+    r := rotation.inverse().toMat3()
+    sx := safeScale(scale.x, "x")
+    sy := safeScale(scale.y, "y")
+    sz := safeScale(scale.z, "z")
+    tx := -position.x
+    ty := -position.y
+    tz := -position.z
+
+    m00 := r.m00 / sx
+    m01 := r.m01 / sx
+    m02 := r.m02 / sx
+    m10 := r.m10 / sy
+    m11 := r.m11 / sy
+    m12 := r.m12 / sy
+    m20 := r.m20 / sz
+    m21 := r.m21 / sz
+    m22 := r.m22 / sz
+
+    return Mat4 {
+      m00: m00, m01: m01, m02: m02, m03: m00 * tx + m01 * ty + m02 * tz,
+      m10: m10, m11: m11, m12: m12, m13: m10 * tx + m11 * ty + m12 * tz,
+      m20: m20, m21: m21, m22: m22, m23: m20 * tx + m21 * ty + m22 * tz,
+      m30: 0.0, m31: 0.0, m32: 0.0, m33: 1.0,
+    }
+  }
+
   toNormalMat3(): Mat3 {
     r := rotation.toMat3()
     sx := safeScale(scale.x, "x")

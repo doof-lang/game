@@ -156,15 +156,17 @@ Offscreen render targets are reserved for a later version.
 pixelCamera := Camera.screen()
 worldCamera := Camera.orthographic(-400.0, 400.0, -225.0, 225.0, -10.0, 10.0)
 projection := Camera.perspective(1.0471975512, 16.0 / 9.0, 0.1, 100.0)
-camera := projection.withView(Mat4.translation(0.0, 0.0, -6.0))
+camera := projection.withPosition(Point3(0.0, 0.0, 6.0))
 ```
 
 `Camera.screen()` keeps the built-in helpers in pixel coordinates with `(0, 0)`
 at the top-left of the surface. `Camera.identity()` treats positions as clip
 space. `Camera.orthographic(...)` accepts explicit world bounds, and
 `Camera.perspective(...)` builds a right-handed perspective projection suitable
-for objects in front of the camera on negative Z. Use `withView(...)` to combine
-a projection camera with a view matrix.
+for objects in front of the camera on negative Z. Cameras carry a world-space
+`Transform`; use `withPosition(...)`, `movedLocalBy(...)`, `rotatedLocalY(...)`,
+and related helpers to place the camera. Use `withView(...)` when you need to
+combine a projection camera with an explicit view matrix.
 
 `Mat4` includes `identity()`, `translation(...)`, `scale(...)`,
 `rotationX(...)`, `rotationY(...)`, `rotationZ(...)`, `orthographic(...)`,

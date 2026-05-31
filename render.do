@@ -4,6 +4,7 @@ import {
   NativeTexture,
 } from "./native"
 import { GameSurface } from "./surface"
+import { Rotation, Transform, Vec3 } from "./transform"
 import { cos, sin, tan } from "std/math"
 
 export enum CameraKind {
@@ -298,6 +299,7 @@ export class Atlas {
 export class Camera {
   readonly kind: CameraKind
   readonly viewProjection: Mat4
+  readonly transform: Transform = Transform.identity()
 
   static screen(): Camera {
     return Camera { kind: CameraKind.Screen, viewProjection: Mat4.identity }
@@ -332,21 +334,92 @@ export class Camera {
     return Camera {
       kind: kind,
       viewProjection: viewProjection.multiply(view),
+      transform: transform,
     }
   }
 
+  withTransform(transform: Transform): Camera {
+    return Camera {
+      kind: kind,
+      viewProjection: viewProjection,
+      transform: transform,
+    }
+  }
+
+  withPosition(position: Point3): Camera {
+    return withTransform(transform.withPosition(position))
+  }
+
+  withRotation(rotation: Rotation): Camera {
+    return withTransform(transform.withRotation(rotation))
+  }
+
+  withScale(scale: Vec3): Camera {
+    return withTransform(transform.withScale(scale))
+  }
+
+  movedBy(delta: Vec3): Camera {
+    return movedWorldBy(delta)
+  }
+
+  movedWorldBy(delta: Vec3): Camera {
+    return withTransform(transform.movedWorldBy(delta))
+  }
+
+  movedLocalBy(delta: Vec3): Camera {
+    return withTransform(transform.movedLocalBy(delta))
+  }
+
+  rotatedLocalBy(delta: Rotation): Camera {
+    return withTransform(transform.rotatedLocalBy(delta))
+  }
+
+  rotatedLocalX(degrees: double): Camera {
+    return withTransform(transform.rotatedLocalX(degrees))
+  }
+
+  rotatedLocalY(degrees: double): Camera {
+    return withTransform(transform.rotatedLocalY(degrees))
+  }
+
+  rotatedLocalZ(degrees: double): Camera {
+    return withTransform(transform.rotatedLocalZ(degrees))
+  }
+
+  rotatedWorldX(degrees: double): Camera {
+    return withTransform(transform.rotatedWorldX(degrees))
+  }
+
+  rotatedWorldY(degrees: double): Camera {
+    return withTransform(transform.rotatedWorldY(degrees))
+  }
+
+  rotatedWorldZ(degrees: double): Camera {
+    return withTransform(transform.rotatedWorldZ(degrees))
+  }
+
+  scaledBy(factor: double): Camera {
+    return withTransform(transform.scaledBy(factor))
+  }
+
+  scaledByVec(factor: Vec3): Camera {
+    return withTransform(transform.scaledByVec(factor))
+  }
+
   matrix(surface: GameSurface): Mat4 {
+    cameraView := transform.toInverseMat4()
     if kind == CameraKind.Screen {
       width := double(surface.pixelWidth())
       height := double(surface.pixelHeight())
-      return Mat4 {
+      projection := Mat4 {
         m00: 2.0 / width, m01: 0.0, m02: 0.0, m03: -1.0,
         m10: 0.0, m11: -2.0 / height, m12: 0.0, m13: 1.0,
         m20: 0.0, m21: 0.0, m22: 1.0, m23: 0.0,
         m30: 0.0, m31: 0.0, m32: 0.0, m33: 1.0,
       }
+      return projection.multiply(cameraView)
     }
-    return viewProjection
+    return viewProjection.multiply(cameraView)
   }
 
   project(surface: GameSurface, point: Point3): ClipPoint {
