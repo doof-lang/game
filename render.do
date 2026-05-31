@@ -32,6 +32,17 @@ export enum BlendMode {
   Alpha,
 }
 
+export enum WindingMode {
+  Clockwise,
+  CounterClockwise,
+}
+
+export enum CullMode {
+  None,
+  Front,
+  Back,
+}
+
 const CLEAR_NONE = 0
 const CLEAR_COLOR = 1
 const CLEAR_DEPTH = 2
@@ -43,6 +54,13 @@ const DEPTH_READ_WRITE = 2
 
 const BLEND_OPAQUE = 0
 const BLEND_ALPHA = 1
+
+const WINDING_CLOCKWISE = 0
+const WINDING_COUNTER_CLOCKWISE = 1
+
+const CULL_NONE = 0
+const CULL_FRONT = 1
+const CULL_BACK = 2
 
 function clearKindCode(kind: ClearKind): int {
   return case kind {
@@ -65,6 +83,21 @@ function blendModeCode(mode: BlendMode): int {
   return case mode {
     BlendMode.Opaque -> BLEND_OPAQUE,
     BlendMode.Alpha -> BLEND_ALPHA,
+  }
+}
+
+function windingModeCode(mode: WindingMode): int {
+  return case mode {
+    WindingMode.Clockwise -> WINDING_CLOCKWISE,
+    WindingMode.CounterClockwise -> WINDING_COUNTER_CLOCKWISE,
+  }
+}
+
+function cullModeCode(mode: CullMode): int {
+  return case mode {
+    CullMode.None -> CULL_NONE,
+    CullMode.Front -> CULL_FRONT,
+    CullMode.Back -> CULL_BACK,
   }
 }
 
@@ -518,6 +551,8 @@ export class RenderPassDescriptor {
   }
   depth: Depth = Depth { mode: DepthMode.Disabled }
   blend: Blend = Blend { mode: BlendMode.Opaque }
+  winding: WindingMode = .CounterClockwise
+  cull: CullMode = .None
 }
 
 export class RenderPass {
@@ -556,6 +591,8 @@ export class Renderer {
       desc.clear.depthValue,
       depthModeCode(desc.depth.mode),
       blendModeCode(desc.blend.mode),
+      windingModeCode(desc.winding),
+      cullModeCode(desc.cull),
     )
 
     renderPass := RenderPass {

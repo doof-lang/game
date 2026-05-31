@@ -115,6 +115,13 @@ constexpr int32_t kDepthDisabled = 0;
 constexpr int32_t kDepthReadOnly = 1;
 constexpr int32_t kDepthReadWrite = 2;
 
+constexpr int32_t kWindingClockwise = 0;
+constexpr int32_t kWindingCounterClockwise = 1;
+
+constexpr int32_t kCullNone = 0;
+constexpr int32_t kCullFront = 1;
+constexpr int32_t kCullBack = 2;
+
 struct DepthTextureCacheEntry {
     id<MTLTexture> texture = nil;
     int32_t width = 0;
@@ -318,6 +325,28 @@ bool parseHdrResolution(const std::string& line, int32_t& width, int32_t& height
     width = static_cast<int32_t>(parsedWidth);
     height = static_cast<int32_t>(parsedHeight);
     return true;
+}
+
+MTLWinding metalWindingForMode(int32_t windingMode) {
+    switch (windingMode) {
+        case kWindingClockwise:
+            return MTLWindingClockwise;
+        case kWindingCounterClockwise:
+        default:
+            return MTLWindingCounterClockwise;
+    }
+}
+
+MTLCullMode metalCullModeForMode(int32_t cullMode) {
+    switch (cullMode) {
+        case kCullFront:
+            return MTLCullModeFront;
+        case kCullBack:
+            return MTLCullModeBack;
+        case kCullNone:
+        default:
+            return MTLCullModeNone;
+    }
 }
 
 float rgbeToFloat(uint8_t value, uint8_t exponent) {
@@ -1297,7 +1326,9 @@ std::shared_ptr<NativeRenderPass> NativeRenderFrame::beginPass(
     double clearAlpha,
     double clearDepth,
     int32_t depthMode,
-    int32_t blendMode
+    int32_t blendMode,
+    int32_t windingMode,
+    int32_t cullMode
 ) {
     if (!impl_->valid || impl_->commandBuffer == nil || impl_->drawable == nil) {
         return std::shared_ptr<NativeRenderPass>(new NativeRenderPass(nullptr, nullptr, nullptr, blendMode, false));
@@ -1336,6 +1367,9 @@ std::shared_ptr<NativeRenderPass> NativeRenderFrame::beginPass(
             [depthState release];
         }
     }
+
+    [encoder setFrontFacingWinding:metalWindingForMode(windingMode)];
+    [encoder setCullMode:metalCullModeForMode(cullMode)];
 
     return std::shared_ptr<NativeRenderPass>(new NativeRenderPass(
         (__bridge void*)encoder,

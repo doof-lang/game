@@ -20,6 +20,7 @@ export {
   ClearKind,
   ClipPoint,
   Color,
+  CullMode,
   Depth,
   DepthMode,
   Mat4,
@@ -30,6 +31,7 @@ export {
   RenderPass,
   RenderPassDescriptor,
   Texture,
+  WindingMode,
 } from "./render"
 export { GameSurface } from "./surface"
 export { Mat3, Rotation, Transform, Vec3 } from "./transform"

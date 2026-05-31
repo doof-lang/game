@@ -12,6 +12,8 @@ import {
   Clear,
   ClearKind,
   Color,
+  Cull,
+  CullMode,
   Depth,
   DepthMode,
   GameEventKind,
@@ -32,6 +34,8 @@ import {
   TextureQuadBatchBuilder,
   Transform,
   Vec3,
+  Winding,
+  WindingMode,
   RenderPassDescriptor,
   createSphereMeshSpec,
   drawSimpleModel,
@@ -61,6 +65,18 @@ function assertPoint3Approx(actual: Point3, expected: Point3): void {
   assertApprox(actual.x, expected.x)
   assertApprox(actual.y, expected.y)
   assertApprox(actual.z, expected.z)
+}
+
+function subtractPoint3(a: Point3, b: Point3): Point3 {
+  return Point3(a.x - b.x, a.y - b.y, a.z - b.z)
+}
+
+function crossPoint3(a: Point3, b: Point3): Point3 {
+  return Point3(
+    a.y * b.z - a.z * b.y,
+    a.z * b.x - a.x * b.z,
+    a.x * b.y - a.y * b.x,
+  )
 }
 
 function compileMeshSmoke(surface: GameSurface, pass: RenderPass): void {
@@ -259,6 +275,8 @@ export function testRenderPassDescriptorDefaults(): void {
   Assert.equal(desc.clear.depthValue, 1.0)
   Assert.equal(desc.depth.mode, DepthMode.Disabled)
   Assert.equal(desc.blend.mode, BlendMode.Opaque)
+  Assert.equal(desc.winding.mode, WindingMode.CounterClockwise)
+  Assert.equal(desc.cull.mode, CullMode.None)
 }
 
 export function testCameraHelpersBuildExpectedKinds(): void {
@@ -436,6 +454,14 @@ export function testDepthAndBlendHelpers(): void {
   Assert.equal(Blend.alpha().mode, BlendMode.Alpha)
 }
 
+export function testWindingAndCullHelpers(): void {
+  Assert.equal(Winding.clockwise().mode, WindingMode.Clockwise)
+  Assert.equal(Winding.counterClockwise().mode, WindingMode.CounterClockwise)
+  Assert.equal(Cull.none().mode, CullMode.None)
+  Assert.equal(Cull.front().mode, CullMode.Front)
+  Assert.equal(Cull.back().mode, CullMode.Back)
+}
+
 export function testPointRectAndColorHelpers(): void {
   point := Point(3.0, 4.0)
   rect := Rect.xywh(10.0, 20.0, 30.0, 40.0)
@@ -553,6 +579,17 @@ export function testCreateSphereMeshSpecBuildsEquirectangularSphere(): void {
   Assert.equal(spec.indices[0], 0)
   Assert.equal(spec.indices[1], 1)
   Assert.equal(spec.indices[2], 9)
+
+  a := spec.positions[9]
+  b := spec.positions[10]
+  c := spec.positions[18]
+  normal := crossPoint3(subtractPoint3(b, a), subtractPoint3(c, a))
+  outward := Point3(
+    (a.x + b.x + c.x) / 3.0,
+    (a.y + b.y + c.y) / 3.0,
+    (a.z + b.z + c.z) / 3.0,
+  )
+  Assert.isTrue(normal.x * outward.x + normal.y * outward.y + normal.z * outward.z > 0.0)
 }
 
 function compileAtlasCellSmoke(texture: Texture): Rect {

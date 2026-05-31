@@ -120,6 +120,7 @@ function main(): int {
         clear: Clear.colorDepth(Color.black, 1.0),
         depth: Depth.readWrite(),
         blend: Blend.opaque(),
+        cull: .Back,
       },
       (pass): void => {
         marker.rotateLocalY(1)

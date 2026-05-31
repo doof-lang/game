@@ -75,7 +75,9 @@ public:
         double clearAlpha,
         double clearDepth,
         int32_t depthMode,
-        int32_t blendMode
+        int32_t blendMode,
+        int32_t windingMode,
+        int32_t cullMode
     );
     void commit();
 

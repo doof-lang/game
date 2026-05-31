@@ -62,6 +62,8 @@ export import class NativeRenderFrame from "native_game.hpp" as doof_game::Nativ
     clearDepth: double,
     depthMode: int,
     blendMode: int,
+    windingMode: int,
+    cullMode: int,
   ): NativeRenderPass
   commit(): void
 }

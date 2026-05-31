@@ -132,6 +132,8 @@ renderer.pass(
     clear: Clear.colorDepth(Color.black(), 1.0),
     depth: Depth.readWrite(),
     blend: Blend.opaque(),
+    winding: .CounterClockwise,
+    cull: .Back,
   },
   (pass): void => {
     encoder := pass.metalRenderCommandEncoderHandle()
@@ -140,15 +142,17 @@ renderer.pass(
 ```
 
 Each `onRender` callback owns one native Metal frame. `renderer.pass(...)`
-creates one render command encoder, applies clear and depth state, invokes the
-callback, ends the encoder, and commits the frame after `onRender` returns.
-`Blend` is captured on the pass for draw helpers; Metal applies blending through
-render pipeline state, so actual mesh/sprite helpers will use it when they
-create pipelines.
+creates one render command encoder, applies clear, depth, winding, and cull
+state, invokes the callback, ends the encoder, and commits the frame after
+`onRender` returns. `Blend` is captured on the pass for draw helpers; Metal
+applies blending through render pipeline state, so actual mesh/sprite helpers
+will use it when they create pipelines.
 
 `RenderPassDescriptor` defaults to the current window surface,
-`Camera.screen()`, `Clear.none`, `Depth.disabled()`, and `Blend.opaque()`.
-Offscreen render targets are reserved for a later version.
+`Camera.screen()`, `Clear.none`, `Depth.disabled()`, `Blend.opaque()`,
+`WindingMode.CounterClockwise`, and `CullMode.None`. Built-in 3D mesh generators use
+counter-clockwise front faces. Offscreen render targets are reserved for a later
+version.
 
 ### Cameras And Matrices
 
@@ -199,10 +203,13 @@ renderer.pass(
 
 `SimpleMeshBuilder` collects vertices, triangles, and quads during setup, then
 `build(surface)` uploads them into Metal buffers for that surface's device.
-Vertices carry position, color, UV, and normal data. `drawSimpleMesh(...)` uses
-one indexed Metal draw for the whole mesh with simple built-in directional
-lighting, while `drawTexturedSimpleMesh(...)` samples a `Texture` using the
-mesh UVs before applying the same lighting.
+Vertices carry position, color, UV, and normal data. Triangles are emitted in
+the order you provide; pass them counter-clockwise when viewed from the front to
+match the default winding. `quad(...)` emits two counter-clockwise triangles for
+the points `a`, `b`, `c`, `d`. `drawSimpleMesh(...)` uses one indexed Metal draw
+for the whole mesh with simple built-in directional lighting, while
+`drawTexturedSimpleMesh(...)` samples a `Texture` using the mesh UVs before
+applying the same lighting.
 
 ### Sphere Meshes
 
