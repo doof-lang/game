@@ -1,1 +1,3 @@
 build
+*.hdr
+.DS_Store

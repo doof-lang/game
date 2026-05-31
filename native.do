@@ -171,6 +171,19 @@ export import function drawNativeTexturedSimpleMesh(
   m33: double,
 ): void from "native_mesh.hpp" as doof_game::drawNativeTexturedSimpleMesh
 
+export import function drawNativeEquirectangularSkyMap(
+  metalTextureHandle: long,
+  metalRenderCommandEncoderHandle: long,
+  metalDeviceHandle: long,
+  hasDepthAttachment: bool,
+  pixelWidth: int,
+  pixelHeight: int,
+  yawRadians: double,
+  pitchRadians: double,
+  fovYRadians: double,
+  exposure: double,
+): void from "native_mesh.hpp" as doof_game::drawNativeEquirectangularSkyMap
+
 export import function drawNativeTextureQuadBatch(
   batch: NativeTextureQuadBatch,
   metalTextureHandle: long,

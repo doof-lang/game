@@ -3,6 +3,7 @@
 #import <Metal/Metal.h>
 
 #include <cstdint>
+#include <cmath>
 #include <memory>
 #include <string>
 #include <vector>
@@ -33,6 +34,17 @@ struct SimpleMeshUniforms {
     float row1[4];
     float row2[4];
     float row3[4];
+};
+
+struct SkyMapUniforms {
+    float pixelWidth;
+    float pixelHeight;
+    float yawRadians;
+    float pitchRadians;
+    float tanHalfFovY;
+    float exposure;
+    float pad0;
+    float pad1;
 };
 
 id<MTLRenderPipelineState> simpleMeshPipeline(id<MTLDevice> device, int32_t blendMode, bool hasDepthAttachment, bool textured) {
@@ -129,6 +141,89 @@ id<MTLSamplerState> simpleMeshSampler(id<MTLDevice> device) {
     descriptor.minFilter = MTLSamplerMinMagFilterLinear;
     descriptor.magFilter = MTLSamplerMinMagFilterLinear;
     descriptor.sAddressMode = MTLSamplerAddressModeClampToEdge;
+    descriptor.tAddressMode = MTLSamplerAddressModeClampToEdge;
+    sampler = [device newSamplerStateWithDescriptor:descriptor];
+    [descriptor release];
+    return sampler;
+}
+
+id<MTLRenderPipelineState> skyMapPipeline(id<MTLDevice> device, bool hasDepthAttachment) {
+    if (device == nil) {
+        return nil;
+    }
+
+    static id<MTLRenderPipelineState> pipelines[2] = {};
+    static bool attempted[2] = {};
+    int32_t slot = hasDepthAttachment ? 1 : 0;
+    if (pipelines[slot] != nil) {
+        return pipelines[slot];
+    }
+    if (attempted[slot]) {
+        return nil;
+    }
+    attempted[slot] = true;
+
+    NSString* source =
+        @"#include <metal_stdlib>\n"
+        @"using namespace metal;\n"
+        @"constant float DOOF_GAME_PI = 3.14159265358979323846;\n"
+        @"struct Uniforms { float pixelWidth; float pixelHeight; float yawRadians; float pitchRadians; float tanHalfFovY; float exposure; float pad0; float pad1; };\n"
+        @"struct VertexOut { float4 position [[position]]; float2 ndc; };\n"
+        @"vertex VertexOut doof_game_sky_map_vertex(uint vertexId [[vertex_id]]) {\n"
+        @"  float2 positions[3] = { float2(-1.0, -1.0), float2(3.0, -1.0), float2(-1.0, 3.0) };\n"
+        @"  VertexOut out;\n"
+        @"  out.position = float4(positions[vertexId], 1.0, 1.0);\n"
+        @"  out.ndc = positions[vertexId];\n"
+        @"  return out;\n"
+        @"}\n"
+        @"fragment float4 doof_game_sky_map_fragment(VertexOut in [[stage_in]], constant Uniforms& uniforms [[buffer(0)]], texture2d<float> tex [[texture(0)]], sampler textureSampler [[sampler(0)]]) {\n"
+        @"  float aspect = max(uniforms.pixelWidth, 1.0) / max(uniforms.pixelHeight, 1.0);\n"
+        @"  float3 dir = normalize(float3(in.ndc.x * aspect * uniforms.tanHalfFovY, in.ndc.y * uniforms.tanHalfFovY, -1.0));\n"
+        @"  float cy = cos(uniforms.yawRadians);\n"
+        @"  float sy = sin(uniforms.yawRadians);\n"
+        @"  dir = float3(dir.x * cy + dir.z * sy, dir.y, -dir.x * sy + dir.z * cy);\n"
+        @"  float cp = cos(uniforms.pitchRadians);\n"
+        @"  float sp = sin(uniforms.pitchRadians);\n"
+        @"  dir = float3(dir.x, dir.y * cp - dir.z * sp, dir.y * sp + dir.z * cp);\n"
+        @"  float u = atan2(dir.x, -dir.z) / (2.0 * DOOF_GAME_PI) + 0.5;\n"
+        @"  float v = 0.5 - asin(clamp(dir.y, -1.0, 1.0)) / DOOF_GAME_PI;\n"
+        @"  float4 color = tex.sample(textureSampler, float2(fract(u), clamp(v, 0.0, 1.0)));\n"
+        @"  return float4(color.rgb * uniforms.exposure, color.a);\n"
+        @"}\n";
+
+    NSError* error = nil;
+    id<MTLLibrary> library = [device newLibraryWithSource:source options:nil error:&error];
+    if (library == nil) {
+        return nil;
+    }
+
+    MTLRenderPipelineDescriptor* descriptor = [[MTLRenderPipelineDescriptor alloc] init];
+    descriptor.vertexFunction = [library newFunctionWithName:@"doof_game_sky_map_vertex"];
+    descriptor.fragmentFunction = [library newFunctionWithName:@"doof_game_sky_map_fragment"];
+    descriptor.colorAttachments[0].pixelFormat = MTLPixelFormatBGRA8Unorm;
+    if (hasDepthAttachment) {
+        descriptor.depthAttachmentPixelFormat = MTLPixelFormatDepth32Float;
+    }
+
+    id<MTLRenderPipelineState> pipeline = [device newRenderPipelineStateWithDescriptor:descriptor error:&error];
+    [descriptor.vertexFunction release];
+    [descriptor.fragmentFunction release];
+    [descriptor release];
+    [library release];
+    pipelines[slot] = pipeline;
+    return pipelines[slot];
+}
+
+id<MTLSamplerState> skyMapSampler(id<MTLDevice> device) {
+    static id<MTLSamplerState> sampler = nil;
+    if (sampler != nil || device == nil) {
+        return sampler;
+    }
+
+    MTLSamplerDescriptor* descriptor = [[MTLSamplerDescriptor alloc] init];
+    descriptor.minFilter = MTLSamplerMinMagFilterLinear;
+    descriptor.magFilter = MTLSamplerMinMagFilterLinear;
+    descriptor.sAddressMode = MTLSamplerAddressModeRepeat;
     descriptor.tAddressMode = MTLSamplerAddressModeClampToEdge;
     sampler = [device newSamplerStateWithDescriptor:descriptor];
     [descriptor release];
@@ -435,6 +530,49 @@ void drawNativeTexturedSimpleMesh(
         hasDepthAttachment,
         makeSimpleMeshUniforms(m00, m01, m02, m03, m10, m11, m12, m13, m20, m21, m22, m23, m30, m31, m32, m33)
     );
+}
+
+void drawNativeEquirectangularSkyMap(
+    int64_t metalTextureHandle,
+    int64_t metalRenderCommandEncoderHandle,
+    int64_t metalDeviceHandle,
+    bool hasDepthAttachment,
+    int32_t pixelWidth,
+    int32_t pixelHeight,
+    double yawRadians,
+    double pitchRadians,
+    double fovYRadians,
+    double exposure
+) {
+    id<MTLTexture> texture = (__bridge id<MTLTexture>)reinterpret_cast<void*>(metalTextureHandle);
+    id<MTLRenderCommandEncoder> encoder = (__bridge id<MTLRenderCommandEncoder>)reinterpret_cast<void*>(metalRenderCommandEncoderHandle);
+    id<MTLDevice> device = (__bridge id<MTLDevice>)reinterpret_cast<void*>(metalDeviceHandle);
+    if (texture == nil || encoder == nil || device == nil) {
+        return;
+    }
+
+    id<MTLRenderPipelineState> pipeline = skyMapPipeline(device, hasDepthAttachment);
+    id<MTLSamplerState> sampler = skyMapSampler(device);
+    if (pipeline == nil || sampler == nil) {
+        return;
+    }
+
+    SkyMapUniforms uniforms {
+        static_cast<float>(pixelWidth),
+        static_cast<float>(pixelHeight),
+        static_cast<float>(yawRadians),
+        static_cast<float>(pitchRadians),
+        static_cast<float>(std::tan(fovYRadians * 0.5)),
+        static_cast<float>(exposure),
+        0.0f,
+        0.0f,
+    };
+
+    [encoder setRenderPipelineState:pipeline];
+    [encoder setFragmentBytes:&uniforms length:sizeof(uniforms) atIndex:0];
+    [encoder setFragmentTexture:texture atIndex:0];
+    [encoder setFragmentSamplerState:sampler atIndex:0];
+    [encoder drawPrimitives:MTLPrimitiveTypeTriangle vertexStart:0 vertexCount:3];
 }
 
 }  // namespace doof_game

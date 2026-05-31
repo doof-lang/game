@@ -5,6 +5,7 @@ export { keyCode, keyFromCode } from "./keys"
 export { SimpleMesh, SimpleMeshBuilder, SimpleMeshSpec, drawSimpleMesh, drawTexturedSimpleMesh } from "./mesh"
 export { SimpleModel, drawSimpleModel } from "./model"
 export { mouseButtonCode, mouseButtonFromCode } from "./mouse"
+export { SkyMap, drawEquirectangularSkyMap } from "./sky"
 export { TextureQuadBatch, TextureQuadBatchBuilder, drawTextureQuadBatch } from "./sprite"
 export {
   Blend,

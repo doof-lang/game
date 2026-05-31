@@ -11,6 +11,11 @@
 #include <atomic>
 #include <chrono>
 #include <cstdint>
+#include <cctype>
+#include <cmath>
+#include <cstdio>
+#include <fstream>
+#include <iterator>
 #include <memory>
 #include <mutex>
 #include <sstream>
@@ -264,6 +269,186 @@ std::mutex& textureCacheMutex() {
 std::unordered_map<std::string, std::weak_ptr<NativeTexture>>& textureCache() {
     static std::unordered_map<std::string, std::weak_ptr<NativeTexture>> cache;
     return cache;
+}
+
+bool pathHasHdrExtension(const std::string& path) {
+    if (path.size() < 4) {
+        return false;
+    }
+
+    std::string ext = path.substr(path.size() - 4);
+    std::transform(ext.begin(), ext.end(), ext.begin(), [](unsigned char c) {
+        return static_cast<char>(std::tolower(c));
+    });
+    return ext == ".hdr";
+}
+
+bool readHdrLine(const std::vector<uint8_t>& bytes, size_t& offset, std::string& line) {
+    if (offset >= bytes.size()) {
+        return false;
+    }
+
+    line.clear();
+    while (offset < bytes.size()) {
+        char ch = static_cast<char>(bytes[offset++]);
+        if (ch == '\n') {
+            if (!line.empty() && line.back() == '\r') {
+                line.pop_back();
+            }
+            return true;
+        }
+        line.push_back(ch);
+    }
+    return true;
+}
+
+bool parseHdrResolution(const std::string& line, int32_t& width, int32_t& height) {
+    char ySign = 0;
+    char yAxis = 0;
+    char xSign = 0;
+    char xAxis = 0;
+    int parsedHeight = 0;
+    int parsedWidth = 0;
+    if (std::sscanf(line.c_str(), " %c%c %d %c%c %d", &ySign, &yAxis, &parsedHeight, &xSign, &xAxis, &parsedWidth) != 6) {
+        return false;
+    }
+    if ((yAxis != 'Y' && yAxis != 'y') || (xAxis != 'X' && xAxis != 'x') || parsedWidth <= 0 || parsedHeight <= 0) {
+        return false;
+    }
+    width = static_cast<int32_t>(parsedWidth);
+    height = static_cast<int32_t>(parsedHeight);
+    return true;
+}
+
+float rgbeToFloat(uint8_t value, uint8_t exponent) {
+    if (exponent == 0) {
+        return 0.0f;
+    }
+    return static_cast<float>((static_cast<double>(value) + 0.5) * std::ldexp(1.0, static_cast<int>(exponent) - 136));
+}
+
+doof::Result<std::shared_ptr<NativeTexture>, std::string> loadRadianceHdrTexture(
+    const std::string& path,
+    id<MTLDevice> device
+) {
+    std::ifstream file(path, std::ios::binary);
+    if (!file) {
+        return doof::Result<std::shared_ptr<NativeTexture>, std::string>::failure("Failed to load HDR image: " + path);
+    }
+
+    std::vector<uint8_t> bytes((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
+    size_t offset = 0;
+    std::string line;
+    int32_t width = 0;
+    int32_t height = 0;
+    while (readHdrLine(bytes, offset, line)) {
+        if (parseHdrResolution(line, width, height)) {
+            break;
+        }
+    }
+
+    if (width <= 0 || height <= 0) {
+        return doof::Result<std::shared_ptr<NativeTexture>, std::string>::failure("Failed to parse HDR image resolution: " + path);
+    }
+
+    const size_t pixelCount = static_cast<size_t>(width) * static_cast<size_t>(height);
+    std::vector<uint8_t> rgbe(pixelCount * 4u);
+
+    for (int32_t y = 0; y < height; ++y) {
+        if (offset + 4u > bytes.size()) {
+            return doof::Result<std::shared_ptr<NativeTexture>, std::string>::failure("HDR image ended early: " + path);
+        }
+
+        uint8_t b0 = bytes[offset];
+        uint8_t b1 = bytes[offset + 1u];
+        uint8_t b2 = bytes[offset + 2u];
+        uint8_t b3 = bytes[offset + 3u];
+        if (b0 == 2 && b1 == 2 && (b2 & 0x80u) == 0u) {
+            int32_t scanlineWidth = (static_cast<int32_t>(b2) << 8) | static_cast<int32_t>(b3);
+            offset += 4u;
+            if (scanlineWidth != width) {
+                return doof::Result<std::shared_ptr<NativeTexture>, std::string>::failure("HDR scanline width mismatch: " + path);
+            }
+
+            std::vector<uint8_t> channels(static_cast<size_t>(width) * 4u);
+            for (int32_t channel = 0; channel < 4; ++channel) {
+                int32_t x = 0;
+                while (x < width) {
+                    if (offset >= bytes.size()) {
+                        return doof::Result<std::shared_ptr<NativeTexture>, std::string>::failure("HDR RLE data ended early: " + path);
+                    }
+                    uint8_t count = bytes[offset++];
+                    if (count > 128) {
+                        int32_t run = static_cast<int32_t>(count) - 128;
+                        if (run <= 0 || x + run > width || offset >= bytes.size()) {
+                            return doof::Result<std::shared_ptr<NativeTexture>, std::string>::failure("HDR RLE run is invalid: " + path);
+                        }
+                        uint8_t value = bytes[offset++];
+                        for (int32_t i = 0; i < run; ++i) {
+                            channels[static_cast<size_t>(channel) * static_cast<size_t>(width) + static_cast<size_t>(x++)] = value;
+                        }
+                    } else {
+                        int32_t run = static_cast<int32_t>(count);
+                        if (run <= 0 || x + run > width || offset + static_cast<size_t>(run) > bytes.size()) {
+                            return doof::Result<std::shared_ptr<NativeTexture>, std::string>::failure("HDR RLE literal is invalid: " + path);
+                        }
+                        for (int32_t i = 0; i < run; ++i) {
+                            channels[static_cast<size_t>(channel) * static_cast<size_t>(width) + static_cast<size_t>(x++)] = bytes[offset++];
+                        }
+                    }
+                }
+            }
+
+            for (int32_t x = 0; x < width; ++x) {
+                size_t out = (static_cast<size_t>(y) * static_cast<size_t>(width) + static_cast<size_t>(x)) * 4u;
+                rgbe[out] = channels[static_cast<size_t>(x)];
+                rgbe[out + 1u] = channels[static_cast<size_t>(width) + static_cast<size_t>(x)];
+                rgbe[out + 2u] = channels[static_cast<size_t>(width) * 2u + static_cast<size_t>(x)];
+                rgbe[out + 3u] = channels[static_cast<size_t>(width) * 3u + static_cast<size_t>(x)];
+            }
+        } else {
+            size_t rowBytes = static_cast<size_t>(width) * 4u;
+            if (offset + rowBytes > bytes.size()) {
+                return doof::Result<std::shared_ptr<NativeTexture>, std::string>::failure("HDR image ended early: " + path);
+            }
+            std::copy(bytes.begin() + static_cast<std::ptrdiff_t>(offset),
+                      bytes.begin() + static_cast<std::ptrdiff_t>(offset + rowBytes),
+                      rgbe.begin() + static_cast<std::ptrdiff_t>(static_cast<size_t>(y) * rowBytes));
+            offset += rowBytes;
+        }
+    }
+
+    std::vector<float> pixels(pixelCount * 4u);
+    for (size_t i = 0; i < pixelCount; ++i) {
+        uint8_t exponent = rgbe[i * 4u + 3u];
+        pixels[i * 4u] = rgbeToFloat(rgbe[i * 4u], exponent);
+        pixels[i * 4u + 1u] = rgbeToFloat(rgbe[i * 4u + 1u], exponent);
+        pixels[i * 4u + 2u] = rgbeToFloat(rgbe[i * 4u + 2u], exponent);
+        pixels[i * 4u + 3u] = 1.0f;
+    }
+
+    MTLTextureDescriptor* descriptor = [MTLTextureDescriptor texture2DDescriptorWithPixelFormat:MTLPixelFormatRGBA32Float
+                                                                                          width:static_cast<NSUInteger>(width)
+                                                                                         height:static_cast<NSUInteger>(height)
+                                                                                      mipmapped:NO];
+    descriptor.usage = MTLTextureUsageShaderRead;
+    id<MTLTexture> texture = [device newTextureWithDescriptor:descriptor];
+    if (texture == nil) {
+        return doof::Result<std::shared_ptr<NativeTexture>, std::string>::failure("Failed to create HDR texture: " + path);
+    }
+
+    [texture replaceRegion:MTLRegionMake2D(0, 0, static_cast<NSUInteger>(width), static_cast<NSUInteger>(height))
+               mipmapLevel:0
+                 withBytes:pixels.data()
+               bytesPerRow:static_cast<NSUInteger>(width) * 4u * sizeof(float)];
+
+    auto native = std::make_shared<NativeTexture>(
+        (__bridge void*)texture,
+        width,
+        height
+    );
+    [texture release];
+    return doof::Result<std::shared_ptr<NativeTexture>, std::string>::success(native);
 }
 
 NSScreen* targetLaunchScreen() {
@@ -967,6 +1152,15 @@ doof::Result<std::shared_ptr<NativeTexture>, std::string> NativeTexture::load(
             }
             textureCache().erase(found);
         }
+    }
+
+    if (pathHasHdrExtension(path)) {
+        auto loaded = loadRadianceHdrTexture(path, device);
+        if (loaded.isSuccess()) {
+            std::lock_guard<std::mutex> lock(textureCacheMutex());
+            textureCache()[cacheKey] = loaded.value();
+        }
+        return loaded;
     }
 
     NSString* nsPath = [NSString stringWithUTF8String:path.c_str()];

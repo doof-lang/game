@@ -233,6 +233,33 @@ then `drawTextureQuadBatch(...)` draws every quad in that batch with one Metal
 draw call. Use it for sprites, cards, tile strips, and other repeated quads that
 share one texture.
 
+### Equirectangular Sky Maps
+
+```doof
+texture := try! app.loadTexture("images/panorama.png")
+skyMap := SkyMap { texture: texture }
+
+renderer.pass(
+  RenderPassDescriptor {
+    camera: Camera.identity(),
+    clear: Clear.color(Color.black),
+    depth: Depth.disabled(),
+    blend: Blend.opaque(),
+  },
+  (pass): void => {
+    drawEquirectangularSkyMap(pass, skyMap, yawRadians, pitchRadians, 1.0471975512, 1.0)
+  },
+)
+```
+
+`SkyMap` wraps a loaded 2D panorama texture and
+`drawEquirectangularSkyMap(...)` draws it as a full-screen equirectangular
+environment. The draw helper accepts yaw, pitch, vertical field of view, and
+exposure. It is intended for sky/background rendering, so draw it before opaque
+scene geometry when sharing a depth-enabled pass. `app.loadTexture(...)` accepts
+Radiance `.hdr` RGBE files and uploads them as float Metal textures, so HDRI
+panoramas can be used directly.
+
 ### `GameSurface`
 
 ```doof
@@ -279,3 +306,5 @@ the key/button is held.
 - `samples/minimal` draws a screen-space simple mesh.
 - `samples/cards` draws textured atlas sprites with one texture-quad batch draw.
 - `samples/cube` draws a timer-driven spinning cube with one static simple mesh.
+- `samples/skymap` draws an equirectangular panorama and rotates the camera with
+  mouse movement.

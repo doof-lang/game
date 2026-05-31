@@ -101,4 +101,17 @@ void drawNativeTexturedSimpleMesh(
     double m33
 );
 
+void drawNativeEquirectangularSkyMap(
+    int64_t metalTextureHandle,
+    int64_t metalRenderCommandEncoderHandle,
+    int64_t metalDeviceHandle,
+    bool hasDepthAttachment,
+    int32_t pixelWidth,
+    int32_t pixelHeight,
+    double yawRadians,
+    double pitchRadians,
+    double fovYRadians,
+    double exposure
+);
+
 }  // namespace doof_game

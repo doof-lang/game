@@ -25,6 +25,7 @@ import {
   Rect,
   RenderPass,
   Rotation,
+  SkyMap,
   SimpleModel,
   SimpleMeshBuilder,
   Texture,
@@ -34,6 +35,7 @@ import {
   RenderPassDescriptor,
   drawSimpleModel,
   drawSimpleMesh,
+  drawEquirectangularSkyMap,
   drawTexturedSimpleMesh,
   drawTextureQuadBatch,
   gameEventKindFromCode,
@@ -111,6 +113,11 @@ function compileTexturedSimpleMeshSmoke(texture: Texture, surface: GameSurface, 
   mesh := builder.build(surface)
   drawTexturedSimpleMesh(pass, mesh, texture, Mat4.identity)
   drawSimpleModel(pass, SimpleModel(mesh, texture))
+}
+
+function compileSkyMapSmoke(texture: Texture, pass: RenderPass): void {
+  skyMap := SkyMap { texture: texture }
+  drawEquirectangularSkyMap(pass, skyMap, 0.25, -0.1, 1.0471975512, 1.0)
 }
 
 function compileTextureQuadBatchSmoke(texture: Texture, surface: GameSurface, pass: RenderPass): void {
