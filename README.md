@@ -204,6 +204,20 @@ one indexed Metal draw for the whole mesh with simple built-in directional
 lighting, while `drawTexturedSimpleMesh(...)` samples a `Texture` using the
 mesh UVs before applying the same lighting.
 
+### OBJ Meshes
+
+```doof
+spec := try! loadObjMeshSpec("models/ship.obj")
+mesh := SimpleMesh(app.surface, spec)
+```
+
+`loadObjMeshSpec(path)` reads a Wavefront `.obj` file and converts its faces to
+a `SimpleMeshSpec`. `parseObjMeshSpec(text, source)` provides the same parser
+for in-memory OBJ text. The loader supports `v`, `vt`, `vn`, and polygonal `f`
+records, including negative relative face indices. Polygons are triangulated
+with a fan, and missing UVs or normals fall back to `(0, 0)` and generated face
+normals.
+
 ### Textures And Atlases
 
 ```doof
