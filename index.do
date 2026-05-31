@@ -1,4 +1,5 @@
 export { GameApp, initGameApp } from "./app"
+export { SpaceDust, SpaceDustConfig, drawSpaceDust } from "./dust"
 export { GameEvent, gameEventKindFromCode } from "./event"
 export { InputState } from "./input"
 export { keyCode, keyFromCode } from "./keys"

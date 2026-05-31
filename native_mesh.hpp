@@ -52,6 +52,34 @@ private:
     std::shared_ptr<Impl> impl_;
 };
 
+class NativeSpaceDust {
+public:
+    NativeSpaceDust(void* device, void* particleBuffer, int32_t particleCount);
+    ~NativeSpaceDust();
+
+    int32_t particleCount() const;
+    int64_t metalDeviceHandle() const;
+    int64_t metalParticleBufferHandle() const;
+
+private:
+    struct Impl;
+    std::shared_ptr<Impl> impl_;
+};
+
+class NativeSpaceDustBuilder : public std::enable_shared_from_this<NativeSpaceDustBuilder> {
+public:
+    static std::shared_ptr<NativeSpaceDustBuilder> create();
+    NativeSpaceDustBuilder();
+    ~NativeSpaceDustBuilder();
+
+    std::shared_ptr<NativeSpaceDustBuilder> addParticle(double x, double y, double z, double brightness);
+    doof::Result<std::shared_ptr<NativeSpaceDust>, std::string> build(int64_t metalDeviceHandle);
+
+private:
+    struct Impl;
+    std::shared_ptr<Impl> impl_;
+};
+
 void drawNativeSimpleMesh(
     std::shared_ptr<NativeSimpleMesh> mesh,
     int64_t metalRenderCommandEncoderHandle,
@@ -119,6 +147,42 @@ void drawNativeEquirectangularSkyMap(
     double rotationM20,
     double rotationM21,
     double rotationM22
+);
+
+void drawNativeSpaceDust(
+    std::shared_ptr<NativeSpaceDust> dust,
+    int64_t metalRenderCommandEncoderHandle,
+    int64_t metalDeviceHandle,
+    bool hasDepthAttachment,
+    int32_t pixelWidth,
+    int32_t pixelHeight,
+    double cameraX,
+    double cameraY,
+    double cameraZ,
+    double fieldSize,
+    double particleSize,
+    double fadeStart,
+    double fadeEnd,
+    double opacity,
+    double red,
+    double green,
+    double blue,
+    double m00,
+    double m01,
+    double m02,
+    double m03,
+    double m10,
+    double m11,
+    double m12,
+    double m13,
+    double m20,
+    double m21,
+    double m22,
+    double m23,
+    double m30,
+    double m31,
+    double m32,
+    double m33
 );
 
 }  // namespace doof_game

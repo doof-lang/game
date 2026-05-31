@@ -99,6 +99,16 @@ export import class NativeSimpleMesh from "native_mesh.hpp" as doof_game::Native
   indexCount(): int
 }
 
+export import class NativeSpaceDustBuilder from "native_mesh.hpp" as doof_game::NativeSpaceDustBuilder {
+  static create(): NativeSpaceDustBuilder
+  addParticle(x: double, y: double, z: double, brightness: double): NativeSpaceDustBuilder
+  build(metalDeviceHandle: long): Result<NativeSpaceDust, string>
+}
+
+export import class NativeSpaceDust from "native_mesh.hpp" as doof_game::NativeSpaceDust {
+  particleCount(): int
+}
+
 export import class NativeTextureQuadBatchBuilder from "native_sprite.hpp" as doof_game::NativeTextureQuadBatchBuilder {
   static create(): NativeTextureQuadBatchBuilder
   addQuad(
@@ -190,6 +200,42 @@ export import function drawNativeEquirectangularSkyMap(
   rotationM21: double,
   rotationM22: double,
 ): void from "native_mesh.hpp" as doof_game::drawNativeEquirectangularSkyMap
+
+export import function drawNativeSpaceDust(
+  dust: NativeSpaceDust,
+  metalRenderCommandEncoderHandle: long,
+  metalDeviceHandle: long,
+  hasDepthAttachment: bool,
+  pixelWidth: int,
+  pixelHeight: int,
+  cameraX: double,
+  cameraY: double,
+  cameraZ: double,
+  fieldSize: double,
+  particleSize: double,
+  fadeStart: double,
+  fadeEnd: double,
+  opacity: double,
+  red: double,
+  green: double,
+  blue: double,
+  m00: double,
+  m01: double,
+  m02: double,
+  m03: double,
+  m10: double,
+  m11: double,
+  m12: double,
+  m13: double,
+  m20: double,
+  m21: double,
+  m22: double,
+  m23: double,
+  m30: double,
+  m31: double,
+  m32: double,
+  m33: double,
+): void from "native_mesh.hpp" as doof_game::drawNativeSpaceDust
 
 export import function drawNativeTextureQuadBatch(
   batch: NativeTextureQuadBatch,

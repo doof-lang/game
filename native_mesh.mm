@@ -1,59 +1,13 @@
-#include "native_mesh.hpp"
+#include "native_mesh_internal.hpp"
 
-#import <Metal/Metal.h>
-
-#include <cstdint>
-#include <cmath>
 #include <memory>
 #include <string>
 #include <vector>
 
 namespace doof_game {
-
 namespace {
 
-struct SimpleMeshVertex {
-    float x;
-    float y;
-    float z;
-    float w;
-    float r;
-    float g;
-    float b;
-    float a;
-    float u;
-    float v;
-    float nx;
-    float ny;
-    float nz;
-    float nw;
-};
-
-struct SimpleMeshUniforms {
-    float row0[4];
-    float row1[4];
-    float row2[4];
-    float row3[4];
-};
-
-struct SkyMapUniforms {
-    float pixelWidth;
-    float pixelHeight;
-    float tanHalfFovY;
-    float exposure;
-    float rotationM00;
-    float rotationM01;
-    float rotationM02;
-    float rotationM10;
-    float rotationM11;
-    float rotationM12;
-    float rotationM20;
-    float rotationM21;
-    float rotationM22;
-    float pad0;
-    float pad1;
-    float pad2;
-};
+using native_mesh::SimpleMeshVertex;
 
 id<MTLRenderPipelineState> simpleMeshPipeline(id<MTLDevice> device, int32_t blendMode, bool hasDepthAttachment, bool textured) {
     if (device == nil) {
@@ -112,103 +66,9 @@ id<MTLRenderPipelineState> simpleMeshPipeline(id<MTLDevice> device, int32_t blen
     descriptor.vertexFunction = [library newFunctionWithName:@"doof_game_simple_mesh_vertex"];
     descriptor.fragmentFunction = [library newFunctionWithName:(textured ? @"doof_game_textured_simple_mesh_fragment" : @"doof_game_simple_mesh_fragment")];
     descriptor.colorAttachments[0].pixelFormat = MTLPixelFormatBGRA8Unorm;
-    if (hasDepthAttachment) {
-        descriptor.depthAttachmentPixelFormat = MTLPixelFormatDepth32Float;
-    }
-
+    native_mesh::configureDepthAttachment(descriptor, hasDepthAttachment);
     if (blendMode == 1) {
-        descriptor.colorAttachments[0].blendingEnabled = YES;
-        descriptor.colorAttachments[0].rgbBlendOperation = MTLBlendOperationAdd;
-        descriptor.colorAttachments[0].alphaBlendOperation = MTLBlendOperationAdd;
-        descriptor.colorAttachments[0].sourceRGBBlendFactor = MTLBlendFactorSourceAlpha;
-        descriptor.colorAttachments[0].sourceAlphaBlendFactor = MTLBlendFactorSourceAlpha;
-        descriptor.colorAttachments[0].destinationRGBBlendFactor = MTLBlendFactorOneMinusSourceAlpha;
-        descriptor.colorAttachments[0].destinationAlphaBlendFactor = MTLBlendFactorOneMinusSourceAlpha;
-    }
-
-    id<MTLRenderPipelineState> pipeline = [device newRenderPipelineStateWithDescriptor:descriptor error:&error];
-    [descriptor.vertexFunction release];
-    [descriptor.fragmentFunction release];
-    [descriptor release];
-    [library release];
-    if (pipeline == nil) {
-        return nil;
-    }
-
-    pipelines[slot] = pipeline;
-    return pipelines[slot];
-}
-
-id<MTLSamplerState> simpleMeshSampler(id<MTLDevice> device) {
-    static id<MTLSamplerState> sampler = nil;
-    if (sampler != nil || device == nil) {
-        return sampler;
-    }
-
-    MTLSamplerDescriptor* descriptor = [[MTLSamplerDescriptor alloc] init];
-    descriptor.minFilter = MTLSamplerMinMagFilterLinear;
-    descriptor.magFilter = MTLSamplerMinMagFilterLinear;
-    descriptor.sAddressMode = MTLSamplerAddressModeClampToEdge;
-    descriptor.tAddressMode = MTLSamplerAddressModeClampToEdge;
-    sampler = [device newSamplerStateWithDescriptor:descriptor];
-    [descriptor release];
-    return sampler;
-}
-
-id<MTLRenderPipelineState> skyMapPipeline(id<MTLDevice> device, bool hasDepthAttachment) {
-    if (device == nil) {
-        return nil;
-    }
-
-    static id<MTLRenderPipelineState> pipelines[2] = {};
-    static bool attempted[2] = {};
-    int32_t slot = hasDepthAttachment ? 1 : 0;
-    if (pipelines[slot] != nil) {
-        return pipelines[slot];
-    }
-    if (attempted[slot]) {
-        return nil;
-    }
-    attempted[slot] = true;
-
-    NSString* source =
-        @"#include <metal_stdlib>\n"
-        @"using namespace metal;\n"
-        @"constant float DOOF_GAME_PI = 3.14159265358979323846;\n"
-        @"struct Uniforms { float pixelWidth; float pixelHeight; float tanHalfFovY; float exposure; float rotationM00; float rotationM01; float rotationM02; float rotationM10; float rotationM11; float rotationM12; float rotationM20; float rotationM21; float rotationM22; float pad0; float pad1; float pad2; };\n"
-        @"struct VertexOut { float4 position [[position]]; float2 ndc; };\n"
-        @"vertex VertexOut doof_game_sky_map_vertex(uint vertexId [[vertex_id]]) {\n"
-        @"  float2 positions[3] = { float2(-1.0, -1.0), float2(3.0, -1.0), float2(-1.0, 3.0) };\n"
-        @"  VertexOut out;\n"
-        @"  out.position = float4(positions[vertexId], 1.0, 1.0);\n"
-        @"  out.ndc = positions[vertexId];\n"
-        @"  return out;\n"
-        @"}\n"
-        @"fragment float4 doof_game_sky_map_fragment(VertexOut in [[stage_in]], constant Uniforms& uniforms [[buffer(0)]], texture2d<float> tex [[texture(0)]], sampler textureSampler [[sampler(0)]]) {\n"
-        @"  float aspect = max(uniforms.pixelWidth, 1.0) / max(uniforms.pixelHeight, 1.0);\n"
-        @"  float3 localDir = normalize(float3(in.ndc.x * aspect * uniforms.tanHalfFovY, in.ndc.y * uniforms.tanHalfFovY, -1.0));\n"
-        @"  float3 dir = normalize(float3(\n"
-        @"    uniforms.rotationM00 * localDir.x + uniforms.rotationM01 * localDir.y + uniforms.rotationM02 * localDir.z,\n"
-        @"    uniforms.rotationM10 * localDir.x + uniforms.rotationM11 * localDir.y + uniforms.rotationM12 * localDir.z,\n"
-        @"    uniforms.rotationM20 * localDir.x + uniforms.rotationM21 * localDir.y + uniforms.rotationM22 * localDir.z));\n"
-        @"  float u = atan2(dir.x, -dir.z) / (2.0 * DOOF_GAME_PI) + 0.5;\n"
-        @"  float v = 0.5 - asin(clamp(dir.y, -1.0, 1.0)) / DOOF_GAME_PI;\n"
-        @"  float4 color = tex.sample(textureSampler, float2(fract(u), clamp(v, 0.0, 1.0)));\n"
-        @"  return float4(color.rgb * uniforms.exposure, color.a);\n"
-        @"}\n";
-
-    NSError* error = nil;
-    id<MTLLibrary> library = [device newLibraryWithSource:source options:nil error:&error];
-    if (library == nil) {
-        return nil;
-    }
-
-    MTLRenderPipelineDescriptor* descriptor = [[MTLRenderPipelineDescriptor alloc] init];
-    descriptor.vertexFunction = [library newFunctionWithName:@"doof_game_sky_map_vertex"];
-    descriptor.fragmentFunction = [library newFunctionWithName:@"doof_game_sky_map_fragment"];
-    descriptor.colorAttachments[0].pixelFormat = MTLPixelFormatBGRA8Unorm;
-    if (hasDepthAttachment) {
-        descriptor.depthAttachmentPixelFormat = MTLPixelFormatDepth32Float;
+        native_mesh::configureAlphaBlending(descriptor.colorAttachments[0]);
     }
 
     id<MTLRenderPipelineState> pipeline = [device newRenderPipelineStateWithDescriptor:descriptor error:&error];
@@ -218,22 +78,6 @@ id<MTLRenderPipelineState> skyMapPipeline(id<MTLDevice> device, bool hasDepthAtt
     [library release];
     pipelines[slot] = pipeline;
     return pipelines[slot];
-}
-
-id<MTLSamplerState> skyMapSampler(id<MTLDevice> device) {
-    static id<MTLSamplerState> sampler = nil;
-    if (sampler != nil || device == nil) {
-        return sampler;
-    }
-
-    MTLSamplerDescriptor* descriptor = [[MTLSamplerDescriptor alloc] init];
-    descriptor.minFilter = MTLSamplerMinMagFilterLinear;
-    descriptor.magFilter = MTLSamplerMinMagFilterLinear;
-    descriptor.sAddressMode = MTLSamplerAddressModeRepeat;
-    descriptor.tAddressMode = MTLSamplerAddressModeClampToEdge;
-    sampler = [device newSamplerStateWithDescriptor:descriptor];
-    [descriptor release];
-    return sampler;
 }
 
 void drawSimpleMeshInternal(
@@ -244,17 +88,17 @@ void drawSimpleMeshInternal(
     int64_t metalDeviceHandle,
     int32_t blendMode,
     bool hasDepthAttachment,
-    const SimpleMeshUniforms& uniforms
+    const native_mesh::MatrixUniforms& uniforms
 ) {
     if (!mesh || mesh->indexCount() <= 0) {
         return;
     }
 
-    id<MTLTexture> texture = (__bridge id<MTLTexture>)reinterpret_cast<void*>(metalTextureHandle);
-    id<MTLRenderCommandEncoder> encoder = (__bridge id<MTLRenderCommandEncoder>)reinterpret_cast<void*>(metalRenderCommandEncoderHandle);
-    id<MTLDevice> device = (__bridge id<MTLDevice>)reinterpret_cast<void*>(metalDeviceHandle);
-    id<MTLBuffer> vertexBuffer = (__bridge id<MTLBuffer>)reinterpret_cast<void*>(mesh->metalVertexBufferHandle());
-    id<MTLBuffer> indexBuffer = (__bridge id<MTLBuffer>)reinterpret_cast<void*>(mesh->metalIndexBufferHandle());
+    id<MTLTexture> texture = native_mesh::bridgeMetalHandle<id<MTLTexture>>(metalTextureHandle);
+    id<MTLRenderCommandEncoder> encoder = native_mesh::bridgeMetalHandle<id<MTLRenderCommandEncoder>>(metalRenderCommandEncoderHandle);
+    id<MTLDevice> device = native_mesh::bridgeMetalHandle<id<MTLDevice>>(metalDeviceHandle);
+    id<MTLBuffer> vertexBuffer = native_mesh::bridgeMetalHandle<id<MTLBuffer>>(mesh->metalVertexBufferHandle());
+    id<MTLBuffer> indexBuffer = native_mesh::bridgeMetalHandle<id<MTLBuffer>>(mesh->metalIndexBufferHandle());
     if (encoder == nil || device == nil || vertexBuffer == nil || indexBuffer == nil) {
         return;
     }
@@ -265,7 +109,7 @@ void drawSimpleMeshInternal(
     }
 
     if (textured) {
-        id<MTLSamplerState> sampler = simpleMeshSampler(device);
+        id<MTLSamplerState> sampler = native_mesh::linearSampler(device, MTLSamplerAddressModeClampToEdge);
         if (texture == nil || sampler == nil) {
             return;
         }
@@ -280,32 +124,6 @@ void drawSimpleMeshInternal(
     [encoder drawPrimitives:MTLPrimitiveTypeTriangle
                 vertexStart:0
                 vertexCount:static_cast<NSUInteger>(mesh->indexCount())];
-}
-
-SimpleMeshUniforms makeSimpleMeshUniforms(
-    double m00,
-    double m01,
-    double m02,
-    double m03,
-    double m10,
-    double m11,
-    double m12,
-    double m13,
-    double m20,
-    double m21,
-    double m22,
-    double m23,
-    double m30,
-    double m31,
-    double m32,
-    double m33
-) {
-    return SimpleMeshUniforms {
-        { static_cast<float>(m00), static_cast<float>(m01), static_cast<float>(m02), static_cast<float>(m03) },
-        { static_cast<float>(m10), static_cast<float>(m11), static_cast<float>(m12), static_cast<float>(m13) },
-        { static_cast<float>(m20), static_cast<float>(m21), static_cast<float>(m22), static_cast<float>(m23) },
-        { static_cast<float>(m30), static_cast<float>(m31), static_cast<float>(m32), static_cast<float>(m33) },
-    };
 }
 
 }  // namespace
@@ -354,15 +172,15 @@ int32_t NativeSimpleMesh::indexCount() const {
 }
 
 int64_t NativeSimpleMesh::metalDeviceHandle() const {
-    return reinterpret_cast<int64_t>((__bridge void*)impl_->device);
+    return native_mesh::metalHandle(impl_->device);
 }
 
 int64_t NativeSimpleMesh::metalVertexBufferHandle() const {
-    return reinterpret_cast<int64_t>((__bridge void*)impl_->vertexBuffer);
+    return native_mesh::metalHandle(impl_->vertexBuffer);
 }
 
 int64_t NativeSimpleMesh::metalIndexBufferHandle() const {
-    return reinterpret_cast<int64_t>((__bridge void*)impl_->indexBuffer);
+    return native_mesh::metalHandle(impl_->indexBuffer);
 }
 
 std::shared_ptr<NativeSimpleMeshBuilder> NativeSimpleMeshBuilder::create() {
@@ -415,7 +233,7 @@ std::shared_ptr<NativeSimpleMeshBuilder> NativeSimpleMeshBuilder::addTriangle(in
 }
 
 doof::Result<std::shared_ptr<NativeSimpleMesh>, std::string> NativeSimpleMeshBuilder::build(int64_t metalDeviceHandle) {
-    id<MTLDevice> device = (__bridge id<MTLDevice>)reinterpret_cast<void*>(metalDeviceHandle);
+    id<MTLDevice> device = native_mesh::bridgeMetalHandle<id<MTLDevice>>(metalDeviceHandle);
     if (device == nil) {
         return doof::Result<std::shared_ptr<NativeSimpleMesh>, std::string>::failure("Metal device handle is invalid");
     }
@@ -498,7 +316,7 @@ void drawNativeSimpleMesh(
         metalDeviceHandle,
         blendMode,
         hasDepthAttachment,
-        makeSimpleMeshUniforms(m00, m01, m02, m03, m10, m11, m12, m13, m20, m21, m22, m23, m30, m31, m32, m33)
+        native_mesh::makeMatrixUniforms(m00, m01, m02, m03, m10, m11, m12, m13, m20, m21, m22, m23, m30, m31, m32, m33)
     );
 }
 
@@ -534,66 +352,8 @@ void drawNativeTexturedSimpleMesh(
         metalDeviceHandle,
         blendMode,
         hasDepthAttachment,
-        makeSimpleMeshUniforms(m00, m01, m02, m03, m10, m11, m12, m13, m20, m21, m22, m23, m30, m31, m32, m33)
+        native_mesh::makeMatrixUniforms(m00, m01, m02, m03, m10, m11, m12, m13, m20, m21, m22, m23, m30, m31, m32, m33)
     );
-}
-
-void drawNativeEquirectangularSkyMap(
-    int64_t metalTextureHandle,
-    int64_t metalRenderCommandEncoderHandle,
-    int64_t metalDeviceHandle,
-    bool hasDepthAttachment,
-    int32_t pixelWidth,
-    int32_t pixelHeight,
-    double fovYRadians,
-    double exposure,
-    double rotationM00,
-    double rotationM01,
-    double rotationM02,
-    double rotationM10,
-    double rotationM11,
-    double rotationM12,
-    double rotationM20,
-    double rotationM21,
-    double rotationM22
-) {
-    id<MTLTexture> texture = (__bridge id<MTLTexture>)reinterpret_cast<void*>(metalTextureHandle);
-    id<MTLRenderCommandEncoder> encoder = (__bridge id<MTLRenderCommandEncoder>)reinterpret_cast<void*>(metalRenderCommandEncoderHandle);
-    id<MTLDevice> device = (__bridge id<MTLDevice>)reinterpret_cast<void*>(metalDeviceHandle);
-    if (texture == nil || encoder == nil || device == nil) {
-        return;
-    }
-
-    id<MTLRenderPipelineState> pipeline = skyMapPipeline(device, hasDepthAttachment);
-    id<MTLSamplerState> sampler = skyMapSampler(device);
-    if (pipeline == nil || sampler == nil) {
-        return;
-    }
-
-    SkyMapUniforms uniforms {
-        static_cast<float>(pixelWidth),
-        static_cast<float>(pixelHeight),
-        static_cast<float>(std::tan(fovYRadians * 0.5)),
-        static_cast<float>(exposure),
-        static_cast<float>(rotationM00),
-        static_cast<float>(rotationM01),
-        static_cast<float>(rotationM02),
-        static_cast<float>(rotationM10),
-        static_cast<float>(rotationM11),
-        static_cast<float>(rotationM12),
-        static_cast<float>(rotationM20),
-        static_cast<float>(rotationM21),
-        static_cast<float>(rotationM22),
-        0.0f,
-        0.0f,
-        0.0f,
-    };
-
-    [encoder setRenderPipelineState:pipeline];
-    [encoder setFragmentBytes:&uniforms length:sizeof(uniforms) atIndex:0];
-    [encoder setFragmentTexture:texture atIndex:0];
-    [encoder setFragmentSamplerState:sampler atIndex:0];
-    [encoder drawPrimitives:MTLPrimitiveTypeTriangle vertexStart:0 vertexCount:3];
 }
 
 }  // namespace doof_game

@@ -10,10 +10,13 @@ import {
   RenderPassDescriptor,
   SimpleMesh,
   SimpleModel,
+  SpaceDust,
+  SpaceDustConfig,
   SkyMap,
   Transform,
   Vec3,
   createSphereMeshSpec,
+  drawSpaceDust,
   drawSimpleModel,
   drawEquirectangularSkyMap,
   initGameApp,
@@ -52,6 +55,19 @@ function main(): int {
       .identity()
       .withPosition(Point3(0.0, 0.0, -8.0))
       .withScale(Vec3.xyz(2.4, 2.4, 2.4)),
+  )
+  dust := SpaceDust(
+    app.surface,
+    SpaceDustConfig {
+      particleCount: 2600,
+      seed: 29.0,
+      fieldSize: 42.0,
+      particleSize: 2.1,
+      fadeStart: 5.0,
+      fadeEnd: 19.0,
+      opacity: 0.55,
+      color: Color(0.70, 0.82, 1.0),
+    },
   )
 
   let fovY = 1.0471975512
@@ -111,9 +127,22 @@ function main(): int {
         drawEquirectangularSkyMap(pass, skyMap, fovY, 1.0)
         drawSimpleModel(pass, planet)
         drawSimpleModel(pass, marker)
-        app.requestRender()
       },
     )
+
+    renderer.pass(
+      RenderPassDescriptor {
+        camera: sceneCamera,
+        clear: Clear.none(),
+        depth: Depth.readOnly(),
+        blend: Blend.alpha(),
+      },
+      (pass): void => {
+        drawSpaceDust(pass, dust)
+      },
+    )
+
+    app.requestRender()
   })
 
   app.requestRender()
