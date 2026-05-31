@@ -7,13 +7,14 @@ import {
   GameEventKind,
   Key,
   RenderPassDescriptor,
+  Rotation,
   SkyMap,
   drawEquirectangularSkyMap,
   initGameApp,
 } from "std/game"
 
 function clampPitch(value: double): double {
-  limit := 1.45
+  limit := 83.0
   if value < -limit {
     return -limit
   }
@@ -28,9 +29,9 @@ function main(): int {
   texture := try! app.loadTexture("images/panorama.hdr")
   skyMap := SkyMap { texture: texture }
 
-  let yaw = 0.0
-  let pitch = 0.0
   let fovY = 1.0471975512
+
+  camera := Camera.identity()
 
   app.onEvent((event): void => {
     if event.kind() == GameEventKind.CloseRequested {
@@ -42,8 +43,7 @@ function main(): int {
     }
 
     if event.kind() == GameEventKind.MouseMove {
-      yaw += event.deltaX() * 0.004
-      pitch = clampPitch(pitch + event.deltaY() * 0.004)
+      camera.rotateLocalX(-event.deltaY() * 0.15).rotateLocalY(-event.deltaX() * 0.15)
       app.requestRender()
     }
 
@@ -55,13 +55,13 @@ function main(): int {
   app.onRender((renderer): void => {
     renderer.pass(
       RenderPassDescriptor {
-        camera: Camera.identity(),
+        camera,
         clear: Clear.color(Color.black),
         depth: Depth.disabled(),
         blend: Blend.opaque(),
       },
       (pass): void => {
-        drawEquirectangularSkyMap(pass, skyMap, yaw, pitch, fovY, 1.0)
+        drawEquirectangularSkyMap(pass, skyMap, fovY, 1.0)
       },
     )
   })

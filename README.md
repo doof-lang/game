@@ -243,24 +243,27 @@ skyMap := SkyMap { texture: texture }
 
 renderer.pass(
   RenderPassDescriptor {
-    camera: Camera.identity(),
+    camera: Camera
+      .identity()
+      .withRotation(Rotation.euler(yawDegrees, pitchDegrees, 0.0)),
     clear: Clear.color(Color.black),
     depth: Depth.disabled(),
     blend: Blend.opaque(),
   },
   (pass): void => {
-    drawEquirectangularSkyMap(pass, skyMap, yawRadians, pitchRadians, 1.0471975512, 1.0)
+    drawEquirectangularSkyMap(pass, skyMap, 1.0471975512, 1.0)
   },
 )
 ```
 
 `SkyMap` wraps a loaded 2D panorama texture and
 `drawEquirectangularSkyMap(...)` draws it as a full-screen equirectangular
-environment. The draw helper accepts yaw, pitch, vertical field of view, and
-exposure. It is intended for sky/background rendering, so draw it before opaque
-scene geometry when sharing a depth-enabled pass. `app.loadTexture(...)` accepts
-Radiance `.hdr` RGBE files and uploads them as float Metal textures, so HDRI
-panoramas can be used directly.
+environment. The draw helper uses the active pass camera's rotation while
+ignoring its position, because the sky is treated as infinitely far away. It
+accepts vertical field of view and exposure. It is intended for sky/background
+rendering, so draw it before opaque scene geometry when sharing a depth-enabled
+pass. `app.loadTexture(...)` accepts Radiance `.hdr` RGBE files and uploads them
+as float Metal textures, so HDRI panoramas can be used directly.
 
 ### `GameSurface`
 

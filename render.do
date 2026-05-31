@@ -299,7 +299,7 @@ export class Atlas {
 export class Camera {
   readonly kind: CameraKind
   readonly viewProjection: Mat4
-  readonly transform: Transform = Transform.identity()
+  transform: Transform = Transform.identity()
 
   static screen(): Camera {
     return Camera { kind: CameraKind.Screen, viewProjection: Mat4.identity }
@@ -339,71 +339,79 @@ export class Camera {
   }
 
   withTransform(transform: Transform): Camera {
-    return Camera {
-      kind: kind,
-      viewProjection: viewProjection,
-      transform: transform,
-    }
+    this.transform = transform
+    return this
   }
 
   withPosition(position: Point3): Camera {
-    return withTransform(transform.withPosition(position))
+    transform = transform.withPosition(position)
+    return this
   }
 
   withRotation(rotation: Rotation): Camera {
-    return withTransform(transform.withRotation(rotation))
+    transform = transform.withRotation(rotation)
+    return this
   }
 
   withScale(scale: Vec3): Camera {
-    return withTransform(transform.withScale(scale))
+    transform = transform.withScale(scale)
   }
 
-  movedBy(delta: Vec3): Camera {
-    return movedWorldBy(delta)
+  moveBy(delta: Vec3): Camera {
+    return moveWorldBy(delta)
   }
 
-  movedWorldBy(delta: Vec3): Camera {
-    return withTransform(transform.movedWorldBy(delta))
+  moveWorldBy(delta: Vec3): Camera {
+    transform = transform.movedWorldBy(delta)
+    return this
   }
 
-  movedLocalBy(delta: Vec3): Camera {
+  moveLocalBy(delta: Vec3): Camera {
     return withTransform(transform.movedLocalBy(delta))
   }
 
-  rotatedLocalBy(delta: Rotation): Camera {
+  rotateLocalBy(delta: Rotation): Camera {
     return withTransform(transform.rotatedLocalBy(delta))
   }
 
-  rotatedLocalX(degrees: double): Camera {
-    return withTransform(transform.rotatedLocalX(degrees))
+  rotateLocalX(degrees: double): Camera {
+    transform = transform.rotatedLocalX(degrees)
+    return this
   }
 
-  rotatedLocalY(degrees: double): Camera {
-    return withTransform(transform.rotatedLocalY(degrees))
+  rotateLocalY(degrees: double): Camera {
+    transform = transform.rotatedLocalY(degrees)
+    return this
   }
 
-  rotatedLocalZ(degrees: double): Camera {
-    return withTransform(transform.rotatedLocalZ(degrees))
+  rotateLocalZ(degrees: double): Camera {
+    transform = transform.rotatedLocalZ(degrees)
+    return this
   }
 
-  rotatedWorldX(degrees: double): Camera {
-    return withTransform(transform.rotatedWorldX(degrees))
+  rotateWorldX(degrees: double): Camera {
+    transform = transform.rotatedWorldX(degrees)
+    return this
   }
 
-  rotatedWorldY(degrees: double): Camera {
-    return withTransform(transform.rotatedWorldY(degrees))
+  rotateWorldY(degrees: double): Camera {
+    transform = transform.rotatedWorldY(degrees)
+    return this
   }
 
-  rotatedWorldZ(degrees: double): Camera {
-    return withTransform(transform.rotatedWorldZ(degrees))
+  rotateWorldZ(degrees: double): Camera {
+    transform = transform.rotatedWorldZ(degrees)
+    return this
   }
 
-  scaledBy(factor: double): Camera {
-    return withTransform(transform.scaledBy(factor))
+  scaleBy(factor: double): Camera {
+    transform = transform.scaledBy(factor)
+    return this
   }
 
-  scaledByVec(factor: Vec3): Camera {
-    return withTransform(transform.scaledByVec(factor))
+  scaleByVec(factor: Vec3): Camera {
+    transform = transform.scaledByVec(factor)
+    return this
   }
 
   matrix(surface: GameSurface): Mat4 {
@@ -514,7 +522,7 @@ export class RenderPassDescriptor {
 
 export class RenderPass {
   private readonly gameSurface: GameSurface
-  private readonly passCamera: Camera
+  private passCamera: Camera
   private readonly passBlendModeCode: int
   private readonly native: NativeRenderPass
 

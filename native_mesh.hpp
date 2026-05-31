@@ -108,10 +108,17 @@ void drawNativeEquirectangularSkyMap(
     bool hasDepthAttachment,
     int32_t pixelWidth,
     int32_t pixelHeight,
-    double yawRadians,
-    double pitchRadians,
     double fovYRadians,
-    double exposure
+    double exposure,
+    double rotationM00,
+    double rotationM01,
+    double rotationM02,
+    double rotationM10,
+    double rotationM11,
+    double rotationM12,
+    double rotationM20,
+    double rotationM21,
+    double rotationM22
 );
 
 }  // namespace doof_game

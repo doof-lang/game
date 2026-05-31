@@ -117,7 +117,7 @@ function compileTexturedSimpleMeshSmoke(texture: Texture, surface: GameSurface, 
 
 function compileSkyMapSmoke(texture: Texture, pass: RenderPass): void {
   skyMap := SkyMap { texture: texture }
-  drawEquirectangularSkyMap(pass, skyMap, 0.25, -0.1, 1.0471975512, 1.0)
+  drawEquirectangularSkyMap(pass, skyMap, 1.0471975512, 1.0)
 }
 
 function compileTextureQuadBatchSmoke(texture: Texture, surface: GameSurface, pass: RenderPass): void {

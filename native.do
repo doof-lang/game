@@ -178,10 +178,17 @@ export import function drawNativeEquirectangularSkyMap(
   hasDepthAttachment: bool,
   pixelWidth: int,
   pixelHeight: int,
-  yawRadians: double,
-  pitchRadians: double,
   fovYRadians: double,
   exposure: double,
+  rotationM00: double,
+  rotationM01: double,
+  rotationM02: double,
+  rotationM10: double,
+  rotationM11: double,
+  rotationM12: double,
+  rotationM20: double,
+  rotationM21: double,
+  rotationM22: double,
 ): void from "native_mesh.hpp" as doof_game::drawNativeEquirectangularSkyMap
 
 export import function drawNativeTextureQuadBatch(
