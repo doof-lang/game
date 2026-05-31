@@ -59,7 +59,7 @@ function main(): int {
   app.onRender((renderer): void => {
     renderer.pass(
       RenderPassDescriptor {
-        clear: Clear.colorDepth(Color.rgb(0.03, 0.16, 0.10), 1.0),
+        clear: Clear.colorDepth(Color(0.03, 0.16, 0.10), 1.0),
         depth: Depth.disabled(),
         blend: Blend.alpha(),
       },

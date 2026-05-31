@@ -50,7 +50,7 @@ export class Vec3 {
   }
 
   toPoint3(): Point3 {
-    return Point3.xyz(x, y, z)
+    return Point3(x, y, z)
   }
 
   plus(other: Vec3): Vec3 {
@@ -132,9 +132,7 @@ export class Rotation {
   readonly qz: double
   readonly qw: double
 
-  static identity(): Rotation {
-    return Rotation { qx: 0.0, qy: 0.0, qz: 0.0, qw: 1.0 }
-  }
+  static readonly identity = Rotation { qx: 0.0, qy: 0.0, qz: 0.0, qw: 1.0 }
 
   static x(degrees: double): Rotation {
     return Rotation.axisAngle(Vec3.xAxis, degrees)
@@ -162,7 +160,7 @@ export class Rotation {
   static lookAt(direction: Vec3, up: Vec3): Rotation {
     forward := direction.normalized()
     if forward.lengthSquared() <= EPSILON {
-      return Rotation.identity()
+      return Rotation.identity
     }
 
     let right = forward.cross(up).normalized()
@@ -260,7 +258,7 @@ export class Rotation {
   normalized(): Rotation {
     len := sqrt(qx * qx + qy * qy + qz * qz + qw * qw)
     if len <= EPSILON {
-      return Rotation.identity()
+      return Rotation.identity
     }
     return Rotation { qx: qx / len, qy: qy / len, qz: qz / len, qw: qw / len }
   }
@@ -281,7 +279,7 @@ export class Rotation {
   inverse(): Rotation {
     norm := qx * qx + qy * qy + qz * qz + qw * qw
     if norm <= EPSILON {
-      return Rotation.identity()
+      return Rotation.identity
     }
     return Rotation { qx: -qx / norm, qy: -qy / norm, qz: -qz / norm, qw: qw / norm }
   }
@@ -336,8 +334,8 @@ export class Transform {
 
   static identity(): Transform {
     return Transform {
-      position: Point3.xyz(0.0, 0.0, 0.0),
-      rotation: Rotation.identity(),
+      position: Point3(0.0, 0.0, 0.0),
+      rotation: Rotation.identity,
       scale: Vec3.one,
     }
   }
@@ -359,7 +357,7 @@ export class Transform {
   }
 
   movedWorldBy(delta: Vec3): Transform {
-    return withPosition(Point3.xyz(position.x + delta.x, position.y + delta.y, position.z + delta.z))
+    return withPosition(Point3(position.x + delta.x, position.y + delta.y, position.z + delta.z))
   }
 
   movedLocalBy(delta: Vec3): Transform {
@@ -405,7 +403,7 @@ export class Transform {
   applyPoint(point: Point3): Point3 {
     local := Vec3.xyz(point.x * scale.x, point.y * scale.y, point.z * scale.z)
     rotated := rotation.apply(local)
-    return Point3.xyz(position.x + rotated.x, position.y + rotated.y, position.z + rotated.z)
+    return Point3(position.x + rotated.x, position.y + rotated.y, position.z + rotated.z)
   }
 
   applyVector(vector: Vec3): Vec3 {

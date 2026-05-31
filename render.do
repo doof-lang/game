@@ -71,43 +71,22 @@ export class Color {
   readonly r: double
   readonly g: double
   readonly b: double
-  readonly a: double
+  readonly a: double = 1.0
 
-  static rgba(r: double, g: double, b: double, a: double): Color {
-    return Color { r: r, g: g, b: b, a: a }
-  }
-
-  static rgb(r: double, g: double, b: double): Color {
-    return Color.rgba(r, g, b, 1.0)
-  }
-
-  static transparent(): Color {
-    return Color.rgba(0.0, 0.0, 0.0, 0.0)
-  }
-
-  static black(): Color {
-    return Color.rgb(0.0, 0.0, 0.0)
-  }
-
-  static white(): Color {
-    return Color.rgb(1.0, 1.0, 1.0)
-  }
-
-  static red(): Color {
-    return Color.rgb(1.0, 0.0, 0.0)
-  }
+  static readonly black= Color(0.0, 0.0, 0.0)
+  static readonly white = Color(1.0, 1.0, 1.0)
+  static readonly red = Color(1.0, 0.0, 0.0)
+  static readonly blue = Color(0.0, 0.0, 1.0)
+  static readonly green = Color(0.0, 1.0, 0.0)
+  static readonly transparent = Color(0.0, 0.0, 0.0, 0.0)
 }
 
 export class Point {
   readonly x: double
   readonly y: double
 
-  static xy(x: double, y: double): Point {
-    return Point { x: x, y: y }
-  }
-
   withZ(z: double): Point3 {
-    return Point3.xyz(x, y, z)
+    return Point3(x, y, z)
   }
 }
 
@@ -116,12 +95,8 @@ export class Point3 {
   readonly y: double
   readonly z: double
 
-  static xyz(x: double, y: double, z: double): Point3 {
-    return Point3 { x: x, y: y, z: z }
-  }
-
   xy(): Point {
-    return Point.xy(x, y)
+    return Point(x, y)
   }
 }
 
@@ -150,13 +125,11 @@ export class Mat4 {
   readonly m32: double
   readonly m33: double
 
-  static identity(): Mat4 {
-    return Mat4 {
+  static readonly identity = Mat4 {
       m00: 1.0, m01: 0.0, m02: 0.0, m03: 0.0,
       m10: 0.0, m11: 1.0, m12: 0.0, m13: 0.0,
       m20: 0.0, m21: 0.0, m22: 1.0, m23: 0.0,
       m30: 0.0, m31: 0.0, m32: 0.0, m33: 1.0,
-    }
   }
 
   static translation(x: double, y: double, z: double): Mat4 {
@@ -327,11 +300,11 @@ export class Camera {
   readonly viewProjection: Mat4
 
   static screen(): Camera {
-    return Camera { kind: CameraKind.Screen, viewProjection: Mat4.identity() }
+    return Camera { kind: CameraKind.Screen, viewProjection: Mat4.identity }
   }
 
   static identity(): Camera {
-    return Camera { kind: CameraKind.Identity, viewProjection: Mat4.identity() }
+    return Camera { kind: CameraKind.Identity, viewProjection: Mat4.identity }
   }
 
   static orthographic(
@@ -389,7 +362,7 @@ export class Clear {
   static none(): Clear {
     return Clear {
       kind: ClearKind.None,
-      colorValue: Color.transparent(),
+      colorValue: Color.transparent,
       depthValue: 1.0,
     }
   }
@@ -405,7 +378,7 @@ export class Clear {
   static depth(depthValue: double): Clear {
     return Clear {
       kind: ClearKind.Depth,
-      colorValue: Color.transparent(),
+      colorValue: Color.transparent,
       depthValue: depthValue,
     }
   }

@@ -18,20 +18,20 @@ function createMinimalMesh(surface: GameSurface): SimpleMesh {
   builder := SimpleMeshBuilder.create()
 
   topLeft := builder.vertex{
-    position: Point3.xyz(80.0, 80.0, 0.0),
-    color: Color.rgb(0.95, 0.25, 0.12),
+    position: Point3(80.0, 80.0, 0.0),
+    color: Color(0.95, 0.25, 0.12),
   }
   topRight := builder.vertex{
-    position: Point3.xyz(400.0, 80.0, 0.0),
-    color: Color.rgb(0.98, 0.72, 0.18),
+    position: Point3(400.0, 80.0, 0.0),
+    color: Color(0.98, 0.72, 0.18),
   }
   bottomRight := builder.vertex{
-    position: Point3.xyz(400.0, 280.0, 0.0),
-    color: Color.rgb(0.15, 0.78, 0.42),
+    position: Point3(400.0, 280.0, 0.0),
+    color: Color(0.15, 0.78, 0.42),
   }
   bottomLeft := builder.vertex{
-    position: Point3.xyz(80.0, 280.0, 0.0),
-    color: Color.rgb(0.12, 0.42, 0.95),
+    position: Point3(80.0, 280.0, 0.0),
+    color: Color(0.12, 0.42, 0.95),
   }
 
   builder.triangle(topLeft, topRight, bottomRight)
@@ -58,7 +58,7 @@ function main(): int {
   app.onRender((renderer): void => {
     renderer.pass(
       RenderPassDescriptor {
-        clear: Clear.colorDepth(Color.rgb(0.02, 0.03, 0.04), 1.0),
+        clear: Clear.colorDepth(Color(0.02, 0.03, 0.04), 1.0),
         depth: Depth.disabled(),
         blend: Blend.alpha(),
       },

@@ -5,14 +5,7 @@ import { Rotation, Transform, Vec3 } from "./transform"
 export class SimpleModel {
   readonly mesh: SimpleMesh
   texture: Texture | null = null
-  transform: Transform
-
-  static constructor(
-    mesh: SimpleMesh,
-    texture: Texture | null = null,
-  ): SimpleModel {
-    return SimpleModel(mesh, texture, Transform.identity())
-  }
+  transform: Transform = Transform.identity()
 
   setTransform(transform: Transform): SimpleModel {
     this.transform = transform

@@ -35,11 +35,11 @@ import { Duration } from "std/time"
 function createMesh(surface: GameSurface): SimpleMesh {
   builder := SimpleMeshBuilder.create()
   builder.quad{
-    a: Point3.xyz(80.0, 80.0, 0.0),
-    b: Point3.xyz(300.0, 80.0, 0.0),
-    c: Point3.xyz(300.0, 220.0, 0.0),
-    d: Point3.xyz(80.0, 220.0, 0.0),
-    color: Color.rgb(0.9, 0.2, 0.1),
+    a: Point3(80.0, 80.0, 0.0),
+    b: Point3(300.0, 80.0, 0.0),
+    c: Point3(300.0, 220.0, 0.0),
+    d: Point3(80.0, 220.0, 0.0),
+    color: Color(0.9, 0.2, 0.1),
   }
   return builder.build(surface)
 }
@@ -76,7 +76,7 @@ function main(): int {
     renderer.pass(
       RenderPassDescriptor {
         camera: Camera.screen(),
-        clear: Clear.colorDepth(Color.rgb(0.02, 0.03, 0.04), 1.0),
+        clear: Clear.colorDepth(Color(0.02, 0.03, 0.04), 1.0),
         depth: Depth.readWrite(),
         blend: Blend.opaque(),
       },
@@ -147,7 +147,7 @@ render pipeline state, so actual mesh/sprite helpers will use it when they
 create pipelines.
 
 `RenderPassDescriptor` defaults to the current window surface,
-`Camera.screen()`, `Clear.none()`, `Depth.disabled()`, and `Blend.opaque()`.
+`Camera.screen()`, `Clear.none`, `Depth.disabled()`, and `Blend.opaque()`.
 Offscreen render targets are reserved for a later version.
 
 ### Cameras And Matrices
@@ -175,9 +175,9 @@ drawing applies the active pass camera and model matrix on the GPU.
 
 ```doof
 builder := SimpleMeshBuilder.create()
-i0 := builder.vertex{ position: Point3.xyz(-0.5, -0.5, 0.0), color: Color.rgb(0.0, 0.7, 1.0) }
-i1 := builder.vertex{ position: Point3.xyz(0.5, -0.5, 0.0), color: Color.rgb(0.0, 0.7, 1.0) }
-i2 := builder.vertex{ position: Point3.xyz(0.0, 0.5, 0.0), color: Color.rgb(0.0, 0.7, 1.0) }
+i0 := builder.vertex{ position: Point3(-0.5, -0.5, 0.0), color: Color(0.0, 0.7, 1.0) }
+i1 := builder.vertex{ position: Point3(0.5, -0.5, 0.0), color: Color(0.0, 0.7, 1.0) }
+i2 := builder.vertex{ position: Point3(0.0, 0.5, 0.0), color: Color(0.0, 0.7, 1.0) }
 builder.triangle(i0, i1, i2)
 
 mesh := builder.build(app.surface)

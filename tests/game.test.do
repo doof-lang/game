@@ -63,28 +63,28 @@ function assertPoint3Approx(actual: Point3, expected: Point3): void {
 function compileMeshSmoke(surface: GameSurface, pass: RenderPass): void {
   builder := SimpleMeshBuilder.create()
   a := builder.vertex{
-    position: Point3.xyz(-0.5, -0.5, 0.0),
-    color: Color.rgb(0.0, 0.7, 1.0),
+    position: Point3(-0.5, -0.5, 0.0),
+    color: Color(0.0, 0.7, 1.0),
   }
   b := builder.vertex{
-    position: Point3.xyz(0.5, -0.5, 0.0),
-    color: Color.rgb(0.0, 0.7, 1.0),
+    position: Point3(0.5, -0.5, 0.0),
+    color: Color(0.0, 0.7, 1.0),
   }
   c := builder.vertex{
-    position: Point3.xyz(0.0, 0.5, 0.0),
-    color: Color.rgb(0.0, 0.7, 1.0),
+    position: Point3(0.0, 0.5, 0.0),
+    color: Color(0.0, 0.7, 1.0),
   }
   builder.triangle(a, b, c)
   builder.quad{
-    a: Point3.xyz(-0.25, -0.25, 0.0),
-    b: Point3.xyz(0.25, -0.25, 0.0),
-    c: Point3.xyz(0.25, 0.25, 0.0),
-    d: Point3.xyz(-0.25, 0.25, 0.0),
-    color: Color.rgb(1.0, 0.3, 0.1),
+    a: Point3(-0.25, -0.25, 0.0),
+    b: Point3(0.25, -0.25, 0.0),
+    c: Point3(0.25, 0.25, 0.0),
+    d: Point3(-0.25, 0.25, 0.0),
+    color: Color(1.0, 0.3, 0.1),
   }
 
   mesh := builder.build(surface)
-  drawSimpleMesh(pass, mesh, Mat4.identity())
+  drawSimpleMesh(pass, mesh, Mat4.identity)
 
   model := SimpleModel(mesh)
   model
@@ -97,19 +97,19 @@ function compileMeshSmoke(surface: GameSurface, pass: RenderPass): void {
 function compileTexturedSimpleMeshSmoke(texture: Texture, surface: GameSurface, pass: RenderPass): void {
   builder := SimpleMeshBuilder.create()
   builder.quad{
-    a: Point3.xyz(-0.5, -0.5, 0.0),
-    b: Point3.xyz(0.5, -0.5, 0.0),
-    c: Point3.xyz(0.5, 0.5, 0.0),
-    d: Point3.xyz(-0.5, 0.5, 0.0),
-    color: Color.white(),
-    uvA: Point.xy(0.0, 1.0),
-    uvB: Point.xy(1.0, 1.0),
-    uvC: Point.xy(1.0, 0.0),
-    uvD: Point.xy(0.0, 0.0),
+    a: Point3(-0.5, -0.5, 0.0),
+    b: Point3(0.5, -0.5, 0.0),
+    c: Point3(0.5, 0.5, 0.0),
+    d: Point3(-0.5, 0.5, 0.0),
+    color: Color.white,
+    uvA: Point(0.0, 1.0),
+    uvB: Point(1.0, 1.0),
+    uvC: Point(1.0, 0.0),
+    uvD: Point(0.0, 0.0),
   }
 
   mesh := builder.build(surface)
-  drawTexturedSimpleMesh(pass, mesh, texture, Mat4.identity())
+  drawTexturedSimpleMesh(pass, mesh, texture, Mat4.identity)
   drawSimpleModel(pass, SimpleModel(mesh, texture))
 }
 
@@ -124,12 +124,12 @@ function compileTextureQuadBatchSmoke(texture: Texture, surface: GameSurface, pa
   builder.addQuad(
     Rect.xywh(220.0, 90.0, 121.0, 176.0),
     atlas.cellRect(10, 1),
-    Color.rgba(1.0, 1.0, 1.0, 0.75),
+    Color(1.0, 1.0, 1.0, 0.75),
   )
 
   built := builder.build(surface)
   case built {
-    s: Success -> drawTextureQuadBatch(pass, s.value, Mat4.identity())
+    s: Success -> drawTextureQuadBatch(pass, s.value, Mat4.identity)
     f: Failure -> {}
   }
 }
@@ -161,7 +161,7 @@ function compileGameAppSmoke(): Result<void, string> {
     surface := app.surface
     renderer.pass(
       RenderPassDescriptor {
-        clear: Clear.colorDepth(Color.black(), 1.0),
+        clear: Clear.colorDepth(Color.black, 1.0),
         depth: Depth.readWrite(),
         blend: Blend.opaque(),
       },
@@ -171,8 +171,8 @@ function compileGameAppSmoke(): Result<void, string> {
         deviceHandle := pass.metalDeviceHandle()
         blendCode := pass.nativeBlendModeCode()
         hasDepth := pass.hasDepthAttachment()
-        projected := pass.camera().project(passSurface, Point3.xyz(10.0, 20.0, 0.0))
-        matrixProjected := pass.camera().matrix(passSurface).transformPoint(Point3.xyz(10.0, 20.0, 0.0))
+        projected := pass.camera().project(passSurface, Point3(10.0, 20.0, 0.0))
+        matrixProjected := pass.camera().matrix(passSurface).transformPoint(Point3(10.0, 20.0, 0.0))
         Assert.isTrue(approxEqual(projected.x, matrixProjected.x))
         Assert.isTrue(approxEqual(projected.y, matrixProjected.y))
         Assert.isTrue(approxEqual(projected.z, matrixProjected.z))
@@ -261,12 +261,12 @@ export function testCameraHelpersBuildExpectedKinds(): void {
 }
 
 export function testMat4IdentityTranslationAndScale(): void {
-  point := Point3.xyz(1.0, 2.0, 3.0)
+  point := Point3(1.0, 2.0, 3.0)
   moved := Mat4.translation(4.0, 5.0, 6.0).transformPoint(point)
   scaled := Mat4.scale(2.0, 3.0, 4.0).transformPoint(point)
   combined := Mat4.translation(4.0, 5.0, 6.0).multiply(Mat4.scale(2.0, 3.0, 4.0)).transformPoint(point)
 
-  Assert.equal(Mat4.identity().transformPoint(point).x, 1.0)
+  Assert.equal(Mat4.identity.transformPoint(point).x, 1.0)
   Assert.equal(moved.x, 5.0)
   Assert.equal(moved.y, 7.0)
   Assert.equal(moved.z, 9.0)
@@ -282,9 +282,9 @@ export function testMat4IdentityTranslationAndScale(): void {
 export function testMat4Rotations(): void {
   quarterTurn := 1.5707963267948966
 
-  rotatedX := Mat4.rotationX(quarterTurn).transformPoint(Point3.xyz(0.0, 1.0, 0.0))
-  rotatedY := Mat4.rotationY(quarterTurn).transformPoint(Point3.xyz(0.0, 0.0, 1.0))
-  rotatedZ := Mat4.rotationZ(quarterTurn).transformPoint(Point3.xyz(1.0, 0.0, 0.0))
+  rotatedX := Mat4.rotationX(quarterTurn).transformPoint(Point3(0.0, 1.0, 0.0))
+  rotatedY := Mat4.rotationY(quarterTurn).transformPoint(Point3(0.0, 0.0, 1.0))
+  rotatedZ := Mat4.rotationZ(quarterTurn).transformPoint(Point3(1.0, 0.0, 0.0))
 
   Assert.isTrue(approxEqual(rotatedX.y, 0.0))
   Assert.isTrue(approxEqual(rotatedX.z, 1.0))
@@ -296,8 +296,8 @@ export function testMat4Rotations(): void {
 
 export function testMat4OrthographicMapsBoundsToClipSpace(): void {
   matrix := Mat4.orthographic(10.0, 30.0, 20.0, 60.0, -1.0, 1.0)
-  bottomLeft := matrix.transformPoint(Point3.xyz(10.0, 20.0, 0.0))
-  topRight := matrix.transformPoint(Point3.xyz(30.0, 60.0, 0.0))
+  bottomLeft := matrix.transformPoint(Point3(10.0, 20.0, 0.0))
+  topRight := matrix.transformPoint(Point3(30.0, 60.0, 0.0))
 
   Assert.isTrue(approxEqual(bottomLeft.x, -1.0))
   Assert.isTrue(approxEqual(bottomLeft.y, -1.0))
@@ -308,7 +308,7 @@ export function testMat4OrthographicMapsBoundsToClipSpace(): void {
 
 export function testMat4PerspectiveProducesPerspectiveDivideW(): void {
   matrix := Mat4.perspective(1.5707963267948966, 1.0, 1.0, 10.0)
-  projected := matrix.transformPoint(Point3.xyz(0.0, 0.0, -5.0))
+  projected := matrix.transformPoint(Point3(0.0, 0.0, -5.0))
 
   Assert.isTrue(approxEqual(projected.x, 0.0))
   Assert.isTrue(approxEqual(projected.y, 0.0))
@@ -323,7 +323,7 @@ export function testVec3Helpers(): void {
   Assert.equal(value.length(), 5.0)
   assertVec3Approx(unit, Vec3.xyz(0.6, 0.8, 0.0))
   assertVec3Approx(cross, Vec3.back)
-  Assert.equal(Vec3.fromPoint(Point3.xyz(1.0, 2.0, 3.0)).z, 3.0)
+  Assert.equal(Vec3.fromPoint(Point3(1.0, 2.0, 3.0)).z, 3.0)
 }
 
 export function testRotationCompositionInverseAndSlerp(): void {
@@ -334,7 +334,7 @@ export function testRotationCompositionInverseAndSlerp(): void {
   forward := yawThenPitch.apply(Vec3.forward)
   manualForward := pitch.apply(yaw.apply(Vec3.forward))
   original := yawThenPitch.inverse().apply(forward)
-  halfway := Rotation.slerp(Rotation.identity(), yaw, 0.5).apply(Vec3.forward)
+  halfway := Rotation.slerp(Rotation.identity, yaw, 0.5).apply(Vec3.forward)
 
   assertVec3Approx(Rotation.x(90.0).apply(Vec3.forward), Vec3.up)
   assertVec3Approx(Rotation.x(90.0).apply(Vec3.forward), Rotation.axisAngle(Vec3.xAxis, 90.0).apply(Vec3.forward))
@@ -362,13 +362,13 @@ export function testRotationLookAtAndEuler(): void {
 
 export function testTransformReplacementRelativeMotionAndMatrices(): void {
   t1 := Transform {
-    position: Point3.xyz(0.0, 0.0, -4.0),
+    position: Point3(0.0, 0.0, -4.0),
     rotation: Rotation.y(90.0),
     scale: Vec3.one,
   }
   t2 := t1
-    .withPosition(Point3.xyz(2.0, 0.0, -4.0))
-    .withRotation(Rotation.identity())
+    .withPosition(Point3(2.0, 0.0, -4.0))
+    .withRotation(Rotation.identity)
     .withScale(Vec3.xyz(2.0, 2.0, 2.0))
   t3 := t1
     .movedBy(Vec3.xyz(0.0, 1.0, 0.0))
@@ -376,20 +376,20 @@ export function testTransformReplacementRelativeMotionAndMatrices(): void {
     .scaledBy(1.5)
   localMove := t1.movedLocalBy(Vec3.forward.times(2.0))
   worldMove := t1.movedWorldBy(Vec3.forward.times(2.0))
-  worldPoint := t1.applyPoint(Point3.xyz(0.0, 0.0, -1.0))
+  worldPoint := t1.applyPoint(Point3(0.0, 0.0, -1.0))
   worldVector := t1.applyVector(Vec3.forward)
   localPitch := t1.rotatedLocalX(90.0).applyVector(Vec3.forward)
   worldPitch := t1.rotatedWorldX(90.0).applyVector(Vec3.forward)
   modelMatrix := t1.toMat4()
-  matrixPoint := modelMatrix.transformPoint(Point3.xyz(0.0, 0.0, -1.0))
+  matrixPoint := modelMatrix.transformPoint(Point3(0.0, 0.0, -1.0))
   normalMatrix := t2.toNormalMat3()
 
-  assertPoint3Approx(t2.position, Point3.xyz(2.0, 0.0, -4.0))
+  assertPoint3Approx(t2.position, Point3(2.0, 0.0, -4.0))
   assertVec3Approx(t2.scale, Vec3.xyz(2.0, 2.0, 2.0))
   assertVec3Approx(t3.scale, Vec3.xyz(1.5, 1.5, 1.5))
-  assertPoint3Approx(localMove.position, Point3.xyz(-2.0, 0.0, -4.0))
-  assertPoint3Approx(worldMove.position, Point3.xyz(0.0, 0.0, -6.0))
-  assertPoint3Approx(worldPoint, Point3.xyz(-1.0, 0.0, -4.0))
+  assertPoint3Approx(localMove.position, Point3(-2.0, 0.0, -4.0))
+  assertPoint3Approx(worldMove.position, Point3(0.0, 0.0, -6.0))
+  assertPoint3Approx(worldPoint, Point3(-1.0, 0.0, -4.0))
   assertVec3Approx(worldVector, Vec3.left)
   assertVec3Approx(localPitch, Vec3.up)
   assertVec3Approx(worldPitch, Vec3.left)
@@ -400,7 +400,7 @@ export function testTransformReplacementRelativeMotionAndMatrices(): void {
 }
 
 export function testClearHelpers(): void {
-  color := Color.rgba(0.1, 0.2, 0.3, 0.4)
+  color := Color(0.1, 0.2, 0.3, 0.4)
   clearColor := Clear.color(color)
   clearDepth := Clear.depth(0.5)
   clearColorDepth := Clear.colorDepth(color, 0.25)
@@ -425,10 +425,10 @@ export function testDepthAndBlendHelpers(): void {
 }
 
 export function testPointRectAndColorHelpers(): void {
-  point := Point.xy(3.0, 4.0)
+  point := Point(3.0, 4.0)
   rect := Rect.xywh(10.0, 20.0, 30.0, 40.0)
-  white := Color.white()
-  red := Color.red()
+  white := Color.white
+  red := Color.red
 
   Assert.equal(point.x, 3.0)
   Assert.equal(point.y, 4.0)
@@ -448,7 +448,7 @@ export function testPointRectAndColorHelpers(): void {
 
 export function testSimpleMeshBuilderVertexDefaults(): void {
   builder := SimpleMeshBuilder.create()
-  index := builder.vertex{ position: Point3.xyz(1.0, 2.0, 3.0) }
+  index := builder.vertex{ position: Point3(1.0, 2.0, 3.0) }
   spec := builder.buildSpec()
 
   Assert.equal(index, 0)
@@ -471,25 +471,25 @@ export function testSimpleMeshBuilderVertexDefaults(): void {
 export function testSimpleMeshBuilderTriangleAndQuadSpec(): void {
   builder := SimpleMeshBuilder.create()
   i0 := builder.vertex{
-    position: Point3.xyz(0.0, 0.0, 0.0),
-    color: Color.red(),
-    uv: Point.xy(0.25, 0.5),
-    normal: Point3.xyz(1.0, 0.0, 0.0),
+    position: Point3(0.0, 0.0, 0.0),
+    color: Color.red,
+    uv: Point(0.25, 0.5),
+    normal: Point3(1.0, 0.0, 0.0),
   }
-  i1 := builder.vertex{ position: Point3.xyz(1.0, 0.0, 0.0) }
-  i2 := builder.vertex{ position: Point3.xyz(0.0, 1.0, 0.0) }
+  i1 := builder.vertex{ position: Point3(1.0, 0.0, 0.0) }
+  i2 := builder.vertex{ position: Point3(0.0, 1.0, 0.0) }
   builder.triangle(i0, i1, i2)
   builder.quad{
-    a: Point3.xyz(-1.0, -1.0, 0.0),
-    b: Point3.xyz(1.0, -1.0, 0.0),
-    c: Point3.xyz(1.0, 1.0, 0.0),
-    d: Point3.xyz(-1.0, 1.0, 0.0),
-    color: Color.rgb(0.2, 0.3, 0.4),
-    normal: Point3.xyz(0.0, 1.0, 0.0),
-    uvA: Point.xy(0.0, 1.0),
-    uvB: Point.xy(1.0, 1.0),
-    uvC: Point.xy(1.0, 0.0),
-    uvD: Point.xy(0.0, 0.0),
+    a: Point3(-1.0, -1.0, 0.0),
+    b: Point3(1.0, -1.0, 0.0),
+    c: Point3(1.0, 1.0, 0.0),
+    d: Point3(-1.0, 1.0, 0.0),
+    color: Color(0.2, 0.3, 0.4),
+    normal: Point3(0.0, 1.0, 0.0),
+    uvA: Point(0.0, 1.0),
+    uvB: Point(1.0, 1.0),
+    uvC: Point(1.0, 0.0),
+    uvD: Point(0.0, 0.0),
   }
 
   spec := builder.buildSpec()
