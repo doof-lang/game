@@ -84,6 +84,7 @@ export class SimpleMesh {
 
   vertexCount(): int => native.vertexCount()
   indexCount(): int => native.indexCount()
+  nativeSimpleMesh(): NativeSimpleMesh => native
 }
 
 export class SimpleMeshBuilder {

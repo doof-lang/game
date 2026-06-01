@@ -7,8 +7,7 @@
       "extraCopyPaths": [
         "native_game.hpp",
         "native_mesh.hpp",
-        "native_mesh_internal.hpp",
-        "native_sprite.hpp"
+        "native_mesh_internal.hpp"
       ],
       "macos": {
         "sourceFiles": [
@@ -16,8 +15,7 @@
           "native_mesh.mm",
           "native_mesh_internal.mm",
           "native_skymap.mm",
-          "native_space_dust.mm",
-          "native_sprite.mm"
+          "native_space_dust.mm"
         ],
         "frameworks": [
           "Cocoa",

@@ -5,11 +5,11 @@ export { InputState } from "./input"
 export { keyCode, keyFromCode } from "./keys"
 export { SimpleMesh, SimpleMeshBuilder, SimpleMeshSpec, drawSimpleMesh, drawTexturedSimpleMesh } from "./mesh"
 export { SimpleModel, drawSimpleModel } from "./model"
+export { SimpleModelBatch, SimpleModelInstance, SimpleModelInstanceConfig, Vec2, drawSimpleModelBatch } from "./model_batch"
 export { ObjError, loadObjMeshSpec, parseObjMeshSpec } from "./obj"
 export { mouseButtonCode, mouseButtonFromCode } from "./mouse"
 export { createSphereMeshSpec } from "./sphere"
 export { SkyMap, drawEquirectangularSkyMap } from "./sky"
-export { TextureQuadBatch, TextureQuadBatchBuilder, drawTextureQuadBatch } from "./sprite"
 export {
   Blend,
   BlendMode,

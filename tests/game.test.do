@@ -12,7 +12,6 @@ import {
   Clear,
   ClearKind,
   Color,
-  Cull,
   CullMode,
   Depth,
   DepthMode,
@@ -29,20 +28,20 @@ import {
   Rotation,
   SkyMap,
   SimpleModel,
+  SimpleModelBatch,
   SimpleMeshBuilder,
   Texture,
-  TextureQuadBatchBuilder,
   Transform,
+  Vec2,
   Vec3,
-  Winding,
   WindingMode,
   RenderPassDescriptor,
   createSphereMeshSpec,
+  drawSimpleModelBatch,
   drawSimpleModel,
   drawSimpleMesh,
   drawEquirectangularSkyMap,
   drawTexturedSimpleMesh,
-  drawTextureQuadBatch,
   gameEventKindFromCode,
   initGameApp,
   keyCode,
@@ -137,25 +136,43 @@ function compileSkyMapSmoke(texture: Texture, pass: RenderPass): void {
   drawEquirectangularSkyMap(pass, skyMap, 1.0471975512, 1.0)
 }
 
-function compileTextureQuadBatchSmoke(texture: Texture, surface: GameSurface, pass: RenderPass): void {
-  atlas := Atlas {
+function compileSimpleModelBatchSmoke(texture: Texture, surface: GameSurface, pass: RenderPass): void {
+  builder := SimpleMeshBuilder.create()
+  builder.quad{
+    a: Point3(0.0, 0.0, 0.0),
+    b: Point3(121.0, 0.0, 0.0),
+    c: Point3(121.0, 176.0, 0.0),
+    d: Point3(0.0, 176.0, 0.0),
+    color: Color.white,
+    uvA: Point(0.0, 0.0),
+    uvB: Point(1.0, 0.0),
+    uvC: Point(1.0, 1.0),
+    uvD: Point(0.0, 1.0),
+  }
+  mesh := builder.build(surface)
+  batch := SimpleModelBatch {
+    surface: surface,
+    mesh: mesh,
     texture: texture,
-    columns: 14,
-    rows: 4,
+    capacity: 4,
   }
-  builder := TextureQuadBatchBuilder.forAtlas(atlas)
-  builder.addAtlasCell(atlas, 0, 0, Rect.xywh(80.0, 90.0, 121.0, 176.0))
-  builder.addQuad(
-    Rect.xywh(220.0, 90.0, 121.0, 176.0),
-    atlas.cellRect(10, 1),
-    Color(1.0, 1.0, 1.0, 0.75),
-  )
+  first := batch.add{
+    transform: Transform.identity().withPosition(Point3(80.0, 90.0, 0.0)),
+    uvOffset: Vec2.zero,
+    uvScale: Vec2.xy(1.0 / 14.0, 1.0 / 4.0),
+  }
+  second := batch.add{
+    transform: Transform.identity().withPosition(Point3(220.0, 90.0, 0.0)),
+    tint: Color(1.0, 1.0, 1.0, 0.75),
+    uvOffset: Vec2.xy(10.0 / 14.0, 1.0 / 4.0),
+    uvScale: Vec2.xy(1.0 / 14.0, 1.0 / 4.0),
+  }
+  first.moveWorldBy(Vec3.xyz(1.0, 0.0, 0.0))
+  second.remove()
 
-  built := builder.build(surface)
-  case built {
-    s: Success -> drawTextureQuadBatch(pass, s.value, Mat4.identity)
-    f: Failure -> {}
-  }
+  Assert.equal(batch.count(), 1)
+  Assert.isFalse(second.isLive())
+  drawSimpleModelBatch(pass, batch)
 }
 
 function compileGameAppSmoke(): Result<void, string> {
@@ -275,8 +292,8 @@ export function testRenderPassDescriptorDefaults(): void {
   Assert.equal(desc.clear.depthValue, 1.0)
   Assert.equal(desc.depth.mode, DepthMode.Disabled)
   Assert.equal(desc.blend.mode, BlendMode.Opaque)
-  Assert.equal(desc.winding.mode, WindingMode.CounterClockwise)
-  Assert.equal(desc.cull.mode, CullMode.None)
+  Assert.equal(desc.winding, WindingMode.CounterClockwise)
+  Assert.equal(desc.cull, CullMode.None)
 }
 
 export function testCameraHelpersBuildExpectedKinds(): void {
@@ -452,14 +469,6 @@ export function testDepthAndBlendHelpers(): void {
   Assert.equal(Depth.readWrite().mode, DepthMode.ReadWrite)
   Assert.equal(Blend.opaque().mode, BlendMode.Opaque)
   Assert.equal(Blend.alpha().mode, BlendMode.Alpha)
-}
-
-export function testWindingAndCullHelpers(): void {
-  Assert.equal(Winding.clockwise().mode, WindingMode.Clockwise)
-  Assert.equal(Winding.counterClockwise().mode, WindingMode.CounterClockwise)
-  Assert.equal(Cull.none().mode, CullMode.None)
-  Assert.equal(Cull.front().mode, CullMode.Front)
-  Assert.equal(Cull.back().mode, CullMode.Back)
 }
 
 export function testPointRectAndColorHelpers(): void {

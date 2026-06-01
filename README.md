@@ -245,10 +245,35 @@ normals.
 loadedTexture := try! app.loadTexture("/path/to/card_atlas.png")
 atlas := Atlas { texture: loadedTexture, columns: 14, rows: 4 }
 
-builder := TextureQuadBatchBuilder.forAtlas(atlas)
-builder.addAtlasCell(atlas, 0, 0, Rect.xywh(80.0, 90.0, 121.0, 176.0))
-builder.addAtlasCell(atlas, 10, 1, Rect.xywh(220.0, 90.0, 121.0, 176.0))
-batch := try! builder.build(app.surface)
+cardMesh := SimpleMeshBuilder
+  .create()
+  .quad{
+    a: Point3(0.0, 0.0, 0.0),
+    b: Point3(121.0, 0.0, 0.0),
+    c: Point3(121.0, 176.0, 0.0),
+    d: Point3(0.0, 176.0, 0.0),
+    color: Color.white,
+    uvA: Point(0.0, 0.0),
+    uvB: Point(1.0, 0.0),
+    uvC: Point(1.0, 1.0),
+    uvD: Point(0.0, 1.0),
+  }
+  .build(app.surface)
+
+batch := SimpleModelBatch {
+  surface: app.surface,
+  mesh: cardMesh,
+  texture: loadedTexture,
+  capacity: 100,
+}
+
+tree := batch.add{
+  transform: Transform.identity().withPosition(Point3(80.0, 90.0, 0.0)),
+  tint: Color.white,
+  uvOffset: Vec2.zero,
+  uvScale: Vec2.xy(1.0 / 14.0, 1.0 / 4.0),
+}
+tree.moveWorldBy(Vec3.xyz(0.0, 1.0, 0.0))
 
 renderer.pass(
   RenderPassDescriptor {
@@ -256,7 +281,7 @@ renderer.pass(
     blend: Blend.alpha(),
   },
   (pass): void => {
-    drawTextureQuadBatch(pass, batch)
+    drawSimpleModelBatch(pass, batch)
   },
 )
 ```
@@ -265,10 +290,11 @@ renderer.pass(
 load textures during setup before `run()`. `Renderer.loadTexture(path)` remains
 available as the same cached lookup for render-time convenience. Both decode and
 upload only when the texture is not already alive for the current device.
-`TextureQuadBatchBuilder` records destination/source rectangles during setup,
-then `drawTextureQuadBatch(...)` draws every quad in that batch with one Metal
-draw call. Use it for sprites, cards, tile strips, and other repeated quads that
-share one texture.
+`SimpleModelBatch` stores repeated instances of one mesh and optional shared
+texture, then `drawSimpleModelBatch(...)` draws the live instances with one Metal
+instanced draw call. Instance handles update their batch slot through ergonomic
+transform, tint, and UV helpers. Removing an instance keeps the live slots packed,
+and later use of the removed handle is a programmer error.
 
 ### Equirectangular Sky Maps
 
@@ -344,7 +370,7 @@ the key/button is held.
 ## Samples
 
 - `samples/minimal` draws a screen-space simple mesh.
-- `samples/cards` draws textured atlas sprites with one texture-quad batch draw.
+- `samples/cards` draws textured atlas cards with one simple-model batch draw.
 - `samples/cube` draws a timer-driven spinning cube with one static simple mesh.
 - `samples/skymap` draws an equirectangular panorama, a textured sphere planet,
   and a loaded OBJ mesh while mouse movement steers the camera.

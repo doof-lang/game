@@ -9,6 +9,15 @@ namespace {
 
 using native_mesh::SimpleMeshVertex;
 
+struct SimpleModelInstance {
+    float row0[4];
+    float row1[4];
+    float row2[4];
+    float row3[4];
+    float tint[4];
+    float uv[4];
+};
+
 id<MTLRenderPipelineState> simpleMeshPipeline(id<MTLDevice> device, int32_t blendMode, bool hasDepthAttachment, bool textured) {
     if (device == nil) {
         return nil;
@@ -65,6 +74,80 @@ id<MTLRenderPipelineState> simpleMeshPipeline(id<MTLDevice> device, int32_t blen
     MTLRenderPipelineDescriptor* descriptor = [[MTLRenderPipelineDescriptor alloc] init];
     descriptor.vertexFunction = [library newFunctionWithName:@"doof_game_simple_mesh_vertex"];
     descriptor.fragmentFunction = [library newFunctionWithName:(textured ? @"doof_game_textured_simple_mesh_fragment" : @"doof_game_simple_mesh_fragment")];
+    descriptor.colorAttachments[0].pixelFormat = MTLPixelFormatBGRA8Unorm;
+    native_mesh::configureDepthAttachment(descriptor, hasDepthAttachment);
+    if (blendMode == 1) {
+        native_mesh::configureAlphaBlending(descriptor.colorAttachments[0]);
+    }
+
+    id<MTLRenderPipelineState> pipeline = [device newRenderPipelineStateWithDescriptor:descriptor error:&error];
+    [descriptor.vertexFunction release];
+    [descriptor.fragmentFunction release];
+    [descriptor release];
+    [library release];
+    pipelines[slot] = pipeline;
+    return pipelines[slot];
+}
+
+id<MTLRenderPipelineState> simpleModelBatchPipeline(id<MTLDevice> device, int32_t blendMode, bool hasDepthAttachment, bool textured) {
+    if (device == nil) {
+        return nil;
+    }
+
+    static id<MTLRenderPipelineState> pipelines[8] = {};
+    static bool attempted[8] = {};
+
+    int32_t slot = (textured ? 4 : 0) + (blendMode == 1 ? 2 : 0) + (hasDepthAttachment ? 1 : 0);
+    if (pipelines[slot] != nil) {
+        return pipelines[slot];
+    }
+    if (attempted[slot]) {
+        return nil;
+    }
+    attempted[slot] = true;
+
+    NSString* source =
+        @"#include <metal_stdlib>\n"
+        @"using namespace metal;\n"
+        @"struct VertexIn { packed_float4 position; packed_float4 color; packed_float2 uv; packed_float4 normal; };\n"
+        @"struct Instance { float4 row0; float4 row1; float4 row2; float4 row3; float4 tint; float4 uv; };\n"
+        @"struct Uniforms { float4 row0; float4 row1; float4 row2; float4 row3; };\n"
+        @"struct VertexOut { float4 position [[position]]; float4 color; float2 uv; float3 normal; };\n"
+        @"vertex VertexOut doof_game_simple_model_batch_vertex(const device VertexIn* vertices [[buffer(0)]], constant Uniforms& uniforms [[buffer(1)]], const device uint* indices [[buffer(2)]], const device Instance* instances [[buffer(3)]], uint vertexId [[vertex_id]], uint instanceId [[instance_id]]) {\n"
+        @"  VertexIn meshVertex = vertices[indices[vertexId]];\n"
+        @"  Instance inst = instances[instanceId];\n"
+        @"  float4 local = meshVertex.position;\n"
+        @"  float4 world = float4(dot(inst.row0, local), dot(inst.row1, local), dot(inst.row2, local), dot(inst.row3, local));\n"
+        @"  VertexOut out;\n"
+        @"  out.position = float4(dot(uniforms.row0, world), dot(uniforms.row1, world), dot(uniforms.row2, world), dot(uniforms.row3, world));\n"
+        @"  out.color = meshVertex.color * inst.tint;\n"
+        @"  out.uv = meshVertex.uv * inst.uv.zw + inst.uv.xy;\n"
+        @"  out.normal = meshVertex.normal.xyz;\n"
+        @"  return out;\n"
+        @"}\n"
+        @"float4 doof_game_apply_simple_model_batch_light(float4 base, float3 normal) {\n"
+        @"  float len = max(length(normal), 0.0001);\n"
+        @"  float3 n = normal / len;\n"
+        @"  float3 light = normalize(float3(0.35, 0.60, 0.72));\n"
+        @"  float amount = 0.25 + 0.75 * max(dot(n, light), 0.0);\n"
+        @"  return float4(base.rgb * amount, base.a);\n"
+        @"}\n"
+        @"fragment float4 doof_game_simple_model_batch_fragment(VertexOut in [[stage_in]]) {\n"
+        @"  return doof_game_apply_simple_model_batch_light(in.color, in.normal);\n"
+        @"}\n"
+        @"fragment float4 doof_game_textured_simple_model_batch_fragment(VertexOut in [[stage_in]], texture2d<float> tex [[texture(0)]], sampler textureSampler [[sampler(0)]]) {\n"
+        @"  return doof_game_apply_simple_model_batch_light(tex.sample(textureSampler, in.uv) * in.color, in.normal);\n"
+        @"}\n";
+
+    NSError* error = nil;
+    id<MTLLibrary> library = [device newLibraryWithSource:source options:nil error:&error];
+    if (library == nil) {
+        return nil;
+    }
+
+    MTLRenderPipelineDescriptor* descriptor = [[MTLRenderPipelineDescriptor alloc] init];
+    descriptor.vertexFunction = [library newFunctionWithName:@"doof_game_simple_model_batch_vertex"];
+    descriptor.fragmentFunction = [library newFunctionWithName:(textured ? @"doof_game_textured_simple_model_batch_fragment" : @"doof_game_simple_model_batch_fragment")];
     descriptor.colorAttachments[0].pixelFormat = MTLPixelFormatBGRA8Unorm;
     native_mesh::configureDepthAttachment(descriptor, hasDepthAttachment);
     if (blendMode == 1) {
@@ -156,6 +239,26 @@ struct NativeSimpleMesh::Impl {
 struct NativeSimpleMeshBuilder::Impl {
     std::vector<SimpleMeshVertex> vertices;
     std::vector<uint32_t> indices;
+};
+
+struct NativeSimpleModelBatch::Impl {
+    id<MTLDevice> device = nil;
+    id<MTLBuffer> instanceBuffer = nil;
+    int32_t capacity = 0;
+    int32_t count = 0;
+
+    Impl(void* rawDevice, void* rawInstanceBuffer, int32_t capacity)
+        : device((__bridge id<MTLDevice>)rawDevice),
+          instanceBuffer((__bridge id<MTLBuffer>)rawInstanceBuffer),
+          capacity(capacity) {
+        [device retain];
+        [instanceBuffer retain];
+    }
+
+    ~Impl() {
+        [instanceBuffer release];
+        [device release];
+    }
 };
 
 NativeSimpleMesh::NativeSimpleMesh(void* device, void* vertexBuffer, void* indexBuffer, int32_t vertexCount, int32_t indexCount)
@@ -285,6 +388,104 @@ doof::Result<std::shared_ptr<NativeSimpleMesh>, std::string> NativeSimpleMeshBui
     return doof::Result<std::shared_ptr<NativeSimpleMesh>, std::string>::success(mesh);
 }
 
+doof::Result<std::shared_ptr<NativeSimpleModelBatch>, std::string> NativeSimpleModelBatch::create(int64_t metalDeviceHandle, int32_t capacity) {
+    id<MTLDevice> device = native_mesh::bridgeMetalHandle<id<MTLDevice>>(metalDeviceHandle);
+    if (device == nil) {
+        return doof::Result<std::shared_ptr<NativeSimpleModelBatch>, std::string>::failure("Metal device handle is invalid");
+    }
+
+    if (capacity <= 0) {
+        return doof::Result<std::shared_ptr<NativeSimpleModelBatch>, std::string>::failure("Simple model batch capacity must be positive");
+    }
+
+    id<MTLBuffer> instanceBuffer = [device newBufferWithLength:static_cast<NSUInteger>(capacity) * sizeof(SimpleModelInstance)
+                                                       options:MTLResourceStorageModeShared];
+    if (instanceBuffer == nil) {
+        return doof::Result<std::shared_ptr<NativeSimpleModelBatch>, std::string>::failure("Failed to create simple model batch instance buffer");
+    }
+
+    auto batch = std::make_shared<NativeSimpleModelBatch>(
+        (__bridge void*)device,
+        (__bridge void*)instanceBuffer,
+        capacity
+    );
+
+    [instanceBuffer release];
+
+    return doof::Result<std::shared_ptr<NativeSimpleModelBatch>, std::string>::success(batch);
+}
+
+NativeSimpleModelBatch::NativeSimpleModelBatch(void* device, void* instanceBuffer, int32_t capacity)
+    : impl_(std::make_shared<Impl>(device, instanceBuffer, capacity)) {}
+
+NativeSimpleModelBatch::~NativeSimpleModelBatch() = default;
+
+int32_t NativeSimpleModelBatch::capacity() const {
+    return impl_->capacity;
+}
+
+int32_t NativeSimpleModelBatch::count() const {
+    return impl_->count;
+}
+
+void NativeSimpleModelBatch::setCount(int32_t count) {
+    if (count < 0) {
+        impl_->count = 0;
+        return;
+    }
+    if (count > impl_->capacity) {
+        impl_->count = impl_->capacity;
+        return;
+    }
+    impl_->count = count;
+}
+
+void NativeSimpleModelBatch::setInstance(
+    int32_t slot,
+    double m00,
+    double m01,
+    double m02,
+    double m03,
+    double m10,
+    double m11,
+    double m12,
+    double m13,
+    double m20,
+    double m21,
+    double m22,
+    double m23,
+    double m30,
+    double m31,
+    double m32,
+    double m33,
+    double red,
+    double green,
+    double blue,
+    double alpha,
+    double uvOffsetX,
+    double uvOffsetY,
+    double uvScaleX,
+    double uvScaleY
+) {
+    if (slot < 0 || slot >= impl_->capacity || impl_->instanceBuffer == nil) {
+        return;
+    }
+
+    auto* instances = static_cast<SimpleModelInstance*>([impl_->instanceBuffer contents]);
+    instances[slot] = SimpleModelInstance {
+        { static_cast<float>(m00), static_cast<float>(m01), static_cast<float>(m02), static_cast<float>(m03) },
+        { static_cast<float>(m10), static_cast<float>(m11), static_cast<float>(m12), static_cast<float>(m13) },
+        { static_cast<float>(m20), static_cast<float>(m21), static_cast<float>(m22), static_cast<float>(m23) },
+        { static_cast<float>(m30), static_cast<float>(m31), static_cast<float>(m32), static_cast<float>(m33) },
+        { static_cast<float>(red), static_cast<float>(green), static_cast<float>(blue), static_cast<float>(alpha) },
+        { static_cast<float>(uvOffsetX), static_cast<float>(uvOffsetY), static_cast<float>(uvScaleX), static_cast<float>(uvScaleY) },
+    };
+}
+
+int64_t NativeSimpleModelBatch::metalInstanceBufferHandle() const {
+    return native_mesh::metalHandle(impl_->instanceBuffer);
+}
+
 void drawNativeSimpleMesh(
     std::shared_ptr<NativeSimpleMesh> mesh,
     int64_t metalRenderCommandEncoderHandle,
@@ -354,6 +555,78 @@ void drawNativeTexturedSimpleMesh(
         hasDepthAttachment,
         native_mesh::makeMatrixUniforms(m00, m01, m02, m03, m10, m11, m12, m13, m20, m21, m22, m23, m30, m31, m32, m33)
     );
+}
+
+void drawNativeSimpleModelBatch(
+    std::shared_ptr<NativeSimpleMesh> mesh,
+    std::shared_ptr<NativeSimpleModelBatch> batch,
+    int64_t metalTextureHandle,
+    bool textured,
+    int64_t metalRenderCommandEncoderHandle,
+    int64_t metalDeviceHandle,
+    int32_t blendMode,
+    bool hasDepthAttachment,
+    double m00,
+    double m01,
+    double m02,
+    double m03,
+    double m10,
+    double m11,
+    double m12,
+    double m13,
+    double m20,
+    double m21,
+    double m22,
+    double m23,
+    double m30,
+    double m31,
+    double m32,
+    double m33
+) {
+    if (!mesh || !batch || mesh->indexCount() <= 0 || batch->count() <= 0) {
+        return;
+    }
+
+    id<MTLTexture> texture = native_mesh::bridgeMetalHandle<id<MTLTexture>>(metalTextureHandle);
+    id<MTLRenderCommandEncoder> encoder = native_mesh::bridgeMetalHandle<id<MTLRenderCommandEncoder>>(metalRenderCommandEncoderHandle);
+    id<MTLDevice> device = native_mesh::bridgeMetalHandle<id<MTLDevice>>(metalDeviceHandle);
+    id<MTLBuffer> vertexBuffer = native_mesh::bridgeMetalHandle<id<MTLBuffer>>(mesh->metalVertexBufferHandle());
+    id<MTLBuffer> indexBuffer = native_mesh::bridgeMetalHandle<id<MTLBuffer>>(mesh->metalIndexBufferHandle());
+    id<MTLBuffer> instanceBuffer = native_mesh::bridgeMetalHandle<id<MTLBuffer>>(batch->metalInstanceBufferHandle());
+    if (encoder == nil || device == nil || vertexBuffer == nil || indexBuffer == nil || instanceBuffer == nil) {
+        return;
+    }
+
+    id<MTLRenderPipelineState> pipeline = simpleModelBatchPipeline(device, blendMode, hasDepthAttachment, textured);
+    if (pipeline == nil) {
+        return;
+    }
+
+    if (textured) {
+        id<MTLSamplerState> sampler = native_mesh::linearSampler(device, MTLSamplerAddressModeClampToEdge);
+        if (texture == nil || sampler == nil) {
+            return;
+        }
+        [encoder setFragmentTexture:texture atIndex:0];
+        [encoder setFragmentSamplerState:sampler atIndex:0];
+    }
+
+    native_mesh::MatrixUniforms uniforms = native_mesh::makeMatrixUniforms(
+        m00, m01, m02, m03,
+        m10, m11, m12, m13,
+        m20, m21, m22, m23,
+        m30, m31, m32, m33
+    );
+
+    [encoder setRenderPipelineState:pipeline];
+    [encoder setVertexBuffer:vertexBuffer offset:0 atIndex:0];
+    [encoder setVertexBytes:&uniforms length:sizeof(uniforms) atIndex:1];
+    [encoder setVertexBuffer:indexBuffer offset:0 atIndex:2];
+    [encoder setVertexBuffer:instanceBuffer offset:0 atIndex:3];
+    [encoder drawPrimitives:MTLPrimitiveTypeTriangle
+                vertexStart:0
+                vertexCount:static_cast<NSUInteger>(mesh->indexCount())
+              instanceCount:static_cast<NSUInteger>(batch->count())];
 }
 
 }  // namespace doof_game

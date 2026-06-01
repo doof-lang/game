@@ -52,6 +52,49 @@ private:
     std::shared_ptr<Impl> impl_;
 };
 
+class NativeSimpleModelBatch {
+public:
+    static doof::Result<std::shared_ptr<NativeSimpleModelBatch>, std::string> create(int64_t metalDeviceHandle, int32_t capacity);
+    NativeSimpleModelBatch(void* device, void* instanceBuffer, int32_t capacity);
+    ~NativeSimpleModelBatch();
+
+    int32_t capacity() const;
+    int32_t count() const;
+    void setCount(int32_t count);
+    void setInstance(
+        int32_t slot,
+        double m00,
+        double m01,
+        double m02,
+        double m03,
+        double m10,
+        double m11,
+        double m12,
+        double m13,
+        double m20,
+        double m21,
+        double m22,
+        double m23,
+        double m30,
+        double m31,
+        double m32,
+        double m33,
+        double red,
+        double green,
+        double blue,
+        double alpha,
+        double uvOffsetX,
+        double uvOffsetY,
+        double uvScaleX,
+        double uvScaleY
+    );
+    int64_t metalInstanceBufferHandle() const;
+
+private:
+    struct Impl;
+    std::shared_ptr<Impl> impl_;
+};
+
 class NativeSpaceDust {
 public:
     NativeSpaceDust(void* device, void* particleBuffer, int32_t particleCount);
@@ -107,6 +150,33 @@ void drawNativeSimpleMesh(
 void drawNativeTexturedSimpleMesh(
     std::shared_ptr<NativeSimpleMesh> mesh,
     int64_t metalTextureHandle,
+    int64_t metalRenderCommandEncoderHandle,
+    int64_t metalDeviceHandle,
+    int32_t blendMode,
+    bool hasDepthAttachment,
+    double m00,
+    double m01,
+    double m02,
+    double m03,
+    double m10,
+    double m11,
+    double m12,
+    double m13,
+    double m20,
+    double m21,
+    double m22,
+    double m23,
+    double m30,
+    double m31,
+    double m32,
+    double m33
+);
+
+void drawNativeSimpleModelBatch(
+    std::shared_ptr<NativeSimpleMesh> mesh,
+    std::shared_ptr<NativeSimpleModelBatch> batch,
+    int64_t metalTextureHandle,
+    bool textured,
     int64_t metalRenderCommandEncoderHandle,
     int64_t metalDeviceHandle,
     int32_t blendMode,
