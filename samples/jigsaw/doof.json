@@ -1,0 +1,28 @@
+{
+  "name": "std-game-jigsaw-sample",
+  "version": "0.1.0",
+  "license": "ISC",
+  "build": {
+    "native": {
+      "extraCopyPaths": [
+        "native_jigsaw.hpp"
+      ],
+      "macos": {
+        "sourceFiles": [
+          "native_jigsaw.mm"
+        ],
+        "frameworks": [
+          "AppKit",
+          "CoreGraphics",
+          "Foundation",
+          "ImageIO"
+        ]
+      }
+    }
+  },
+  "dependencies": {
+    "std/game": {
+      "path": "../.."
+    }
+  }
+}

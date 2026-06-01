@@ -992,7 +992,8 @@ CVReturn displayLinkCallback(
 - (NSPoint)gamePointForEvent:(NSEvent*)event {
     NSPoint point = [self convertPoint:[event locationInWindow] fromView:nil];
     NSRect bounds = [self bounds];
-    return NSMakePoint(point.x, bounds.size.height - point.y);
+    NSPoint flipped = NSMakePoint(point.x, bounds.size.height - point.y);
+    return [self convertPointToBacking:flipped];
 }
 
 - (void)mouseDown:(NSEvent*)event {
@@ -1031,8 +1032,9 @@ CVReturn displayLinkCallback(
 
 - (void)mouseMoved:(NSEvent*)event {
     NSPoint point = [self gamePointForEvent:event];
-    double dx = [event deltaX];
-    double dy = [event deltaY];
+    NSSize delta = [self convertSizeToBacking:NSMakeSize([event deltaX], [event deltaY])];
+    double dx = delta.width;
+    double dy = delta.height;
     state_->input->setMousePosition(point.x, point.y);
     state_->input->addMouseDelta(dx, dy);
     state_->emit(std::make_shared<doof_game::NativeGameEvent>(

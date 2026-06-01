@@ -2,3 +2,4 @@ build
 *.hdr
 .DS_Store
 samples/skymap/images/earth_daymap.jpg
+samples/jigsaw/images/*
