@@ -21,6 +21,7 @@ import {
   initGameApp,
 } from "std/game"
 import { min } from "std/math"
+import { randomInt } from "std/random"
 
 import function buildJigsawAtlas(
   photoPath: string,
@@ -42,6 +43,8 @@ class PuzzleLayout {
   step: double
   originX: double
   originY: double
+  boardWidth: double
+  boardHeight: double
 }
 
 class Piece {
@@ -70,10 +73,12 @@ function createLayout(surface: GameSurface): PuzzleLayout {
   boardWidth := step * double(COLUMNS - 1) + pieceSize
   boardHeight := step * double(ROWS - 1) + pieceSize
   return PuzzleLayout {
-    pieceSize: pieceSize,
-    step: step,
+    pieceSize,
+    step,
     originX: (surfaceWidth - boardWidth) * 0.5,
     originY: (surfaceHeight - boardHeight) * 0.5,
+    boardWidth,
+    boardHeight,
   }
 }
 
@@ -107,8 +112,8 @@ function createPieces(layout: PuzzleLayout): Piece[] {
         id: id,
         column: column,
         row: row,
-        x: homeX + scatterX,
-        y: homeY + scatterY,
+        x: randomInt(int(layout.boardWidth)),
+        y: randomInt(int(layout.boardHeight)),
       })
     }
   }
