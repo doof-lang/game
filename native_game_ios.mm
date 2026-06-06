@@ -1,29 +1,31 @@
 #include "native_game.hpp"
 
-#import <AppKit/AppKit.h>
-#import <CoreGraphics/CGDirectDisplayMetal.h>
-#import <CoreVideo/CoreVideo.h>
+#import <CoreGraphics/CoreGraphics.h>
+#import <Foundation/Foundation.h>
+#import <ImageIO/ImageIO.h>
 #import <Metal/Metal.h>
+#import <QuartzCore/CADisplayLink.h>
 #import <QuartzCore/CAMetalLayer.h>
+#import <UIKit/UIKit.h>
 #import <dispatch/dispatch.h>
 
 #include <algorithm>
 #include <atomic>
 #include <chrono>
-#include <cstdint>
 #include <cctype>
 #include <cmath>
+#include <condition_variable>
 #include <cstdio>
 #include <fstream>
 #include <iterator>
 #include <memory>
 #include <mutex>
 #include <sstream>
-#include <vector>
-#include <thread>
+#include <string>
 #include <unordered_map>
 #include <unordered_set>
 #include <utility>
+#include <vector>
 
 namespace doof_game {
 
@@ -39,80 +41,14 @@ constexpr int32_t kKindMouseMove = 6;
 constexpr int32_t kKindMouseWheel = 7;
 
 constexpr int32_t kKeyUnknown = 0;
-constexpr int32_t kKeyA = 1;
-constexpr int32_t kKeyB = 2;
-constexpr int32_t kKeyC = 3;
-constexpr int32_t kKeyD = 4;
-constexpr int32_t kKeyE = 5;
-constexpr int32_t kKeyF = 6;
-constexpr int32_t kKeyG = 7;
-constexpr int32_t kKeyH = 8;
-constexpr int32_t kKeyI = 9;
-constexpr int32_t kKeyJ = 10;
-constexpr int32_t kKeyK = 11;
-constexpr int32_t kKeyL = 12;
-constexpr int32_t kKeyM = 13;
-constexpr int32_t kKeyN = 14;
-constexpr int32_t kKeyO = 15;
-constexpr int32_t kKeyP = 16;
-constexpr int32_t kKeyQ = 17;
-constexpr int32_t kKeyR = 18;
-constexpr int32_t kKeyS = 19;
-constexpr int32_t kKeyT = 20;
-constexpr int32_t kKeyU = 21;
-constexpr int32_t kKeyV = 22;
-constexpr int32_t kKeyW = 23;
-constexpr int32_t kKeyX = 24;
-constexpr int32_t kKeyY = 25;
-constexpr int32_t kKeyZ = 26;
-constexpr int32_t kKeyDigit0 = 27;
-constexpr int32_t kKeyDigit1 = 28;
-constexpr int32_t kKeyDigit2 = 29;
-constexpr int32_t kKeyDigit3 = 30;
-constexpr int32_t kKeyDigit4 = 31;
-constexpr int32_t kKeyDigit5 = 32;
-constexpr int32_t kKeyDigit6 = 33;
-constexpr int32_t kKeyDigit7 = 34;
-constexpr int32_t kKeyDigit8 = 35;
-constexpr int32_t kKeyDigit9 = 36;
-constexpr int32_t kKeyArrowLeft = 37;
-constexpr int32_t kKeyArrowRight = 38;
-constexpr int32_t kKeyArrowUp = 39;
-constexpr int32_t kKeyArrowDown = 40;
-constexpr int32_t kKeyEscape = 41;
-constexpr int32_t kKeyEnter = 42;
-constexpr int32_t kKeySpace = 43;
-constexpr int32_t kKeyBackspace = 44;
-constexpr int32_t kKeyTab = 45;
-constexpr int32_t kKeyShift = 46;
-constexpr int32_t kKeyControl = 47;
-constexpr int32_t kKeyOption = 48;
-constexpr int32_t kKeyCommand = 49;
-constexpr int32_t kKeyF1 = 50;
-constexpr int32_t kKeyF2 = 51;
-constexpr int32_t kKeyF3 = 52;
-constexpr int32_t kKeyF4 = 53;
-constexpr int32_t kKeyF5 = 54;
-constexpr int32_t kKeyF6 = 55;
-constexpr int32_t kKeyF7 = 56;
-constexpr int32_t kKeyF8 = 57;
-constexpr int32_t kKeyF9 = 58;
-constexpr int32_t kKeyF10 = 59;
-constexpr int32_t kKeyF11 = 60;
-constexpr int32_t kKeyF12 = 61;
-
 constexpr int32_t kMouseLeft = 0;
-constexpr int32_t kMouseRight = 1;
-constexpr int32_t kMouseMiddle = 2;
 constexpr int32_t kMouseOther = 3;
 
-constexpr int32_t kClearNone = 0;
 constexpr int32_t kClearColor = 1;
 constexpr int32_t kClearDepth = 2;
 constexpr int32_t kClearColorDepth = 3;
 
 constexpr int32_t kDepthDisabled = 0;
-constexpr int32_t kDepthReadOnly = 1;
 constexpr int32_t kDepthReadWrite = 2;
 
 constexpr int32_t kWindingClockwise = 0;
@@ -133,6 +69,8 @@ struct GameRuntimeState;
 GameRuntimeState* gActiveState = nullptr;
 std::mutex gDepthTextureCacheMutex;
 std::unordered_map<void*, DepthTextureCacheEntry> gDepthTextureCache;
+
+std::string resolveReadableAssetPath(const std::string& path);
 
 id<MTLTexture> cachedDepthTextureForLayer(CAMetalLayer* layer, id<MTLDevice> device, id<CAMetalDrawable> drawable) {
     if (layer == nil || device == nil || drawable == nil) {
@@ -177,89 +115,6 @@ void releaseCachedDepthTextureForLayer(CAMetalLayer* layer) {
     }
     [it->second.texture release];
     gDepthTextureCache.erase(it);
-}
-
-int32_t mapKeyCode(unsigned short keyCode) {
-    switch (keyCode) {
-        case 0: return kKeyA;
-        case 1: return kKeyS;
-        case 2: return kKeyD;
-        case 3: return kKeyF;
-        case 4: return kKeyH;
-        case 5: return kKeyG;
-        case 6: return kKeyZ;
-        case 7: return kKeyX;
-        case 8: return kKeyC;
-        case 9: return kKeyV;
-        case 11: return kKeyB;
-        case 12: return kKeyQ;
-        case 13: return kKeyW;
-        case 14: return kKeyE;
-        case 15: return kKeyR;
-        case 16: return kKeyY;
-        case 17: return kKeyT;
-        case 18: return kKeyDigit1;
-        case 19: return kKeyDigit2;
-        case 20: return kKeyDigit3;
-        case 21: return kKeyDigit4;
-        case 22: return kKeyDigit6;
-        case 23: return kKeyDigit5;
-        case 25: return kKeyDigit9;
-        case 26: return kKeyDigit7;
-        case 28: return kKeyDigit8;
-        case 29: return kKeyDigit0;
-        case 31: return kKeyO;
-        case 32: return kKeyU;
-        case 34: return kKeyI;
-        case 35: return kKeyP;
-        case 36: return kKeyEnter;
-        case 37: return kKeyL;
-        case 38: return kKeyJ;
-        case 40: return kKeyK;
-        case 45: return kKeyN;
-        case 46: return kKeyM;
-        case 48: return kKeyTab;
-        case 49: return kKeySpace;
-        case 51: return kKeyBackspace;
-        case 53: return kKeyEscape;
-        case 55: return kKeyCommand;
-        case 56: return kKeyShift;
-        case 58: return kKeyOption;
-        case 59: return kKeyControl;
-        case 60: return kKeyShift;
-        case 61: return kKeyOption;
-        case 62: return kKeyControl;
-        case 96: return kKeyF5;
-        case 97: return kKeyF6;
-        case 98: return kKeyF7;
-        case 99: return kKeyF3;
-        case 100: return kKeyF8;
-        case 101: return kKeyF9;
-        case 103: return kKeyF11;
-        case 109: return kKeyF10;
-        case 111: return kKeyF12;
-        case 118: return kKeyF4;
-        case 120: return kKeyF2;
-        case 122: return kKeyF1;
-        case 123: return kKeyArrowLeft;
-        case 124: return kKeyArrowRight;
-        case 125: return kKeyArrowDown;
-        case 126: return kKeyArrowUp;
-        default: return kKeyUnknown;
-    }
-}
-
-int32_t mapMouseButton(NSInteger buttonNumber) {
-    if (buttonNumber == 0) {
-        return kMouseLeft;
-    }
-    if (buttonNumber == 1) {
-        return kMouseRight;
-    }
-    if (buttonNumber == 2) {
-        return kMouseMiddle;
-    }
-    return kMouseOther;
 }
 
 std::string textureCacheKey(int64_t metalDeviceHandle, const std::string& path) {
@@ -325,60 +180,6 @@ bool parseHdrResolution(const std::string& line, int32_t& width, int32_t& height
     width = static_cast<int32_t>(parsedWidth);
     height = static_cast<int32_t>(parsedHeight);
     return true;
-}
-
-MTLWinding metalWindingForMode(int32_t windingMode) {
-    switch (windingMode) {
-        case kWindingClockwise:
-            return MTLWindingClockwise;
-        case kWindingCounterClockwise:
-        default:
-            return MTLWindingCounterClockwise;
-    }
-}
-
-MTLCullMode metalCullModeForMode(int32_t cullMode) {
-    switch (cullMode) {
-        case kCullFront:
-            return MTLCullModeFront;
-        case kCullBack:
-            return MTLCullModeBack;
-        case kCullNone:
-        default:
-            return MTLCullModeNone;
-    }
-}
-
-NSString* nsString(const std::string& value) {
-    return [NSString stringWithUTF8String:value.c_str()];
-}
-
-bool fileExists(const std::string& path) {
-    return [[NSFileManager defaultManager] fileExistsAtPath:nsString(path)];
-}
-
-std::string bundleResourcePathForRelativePath(const std::string& path) {
-    if (path.empty() || path[0] == '/') {
-        return path;
-    }
-
-    NSBundle* bundle = [NSBundle mainBundle];
-    NSString* resourcePath = [bundle resourcePath];
-    if (resourcePath == nil) {
-        return path;
-    }
-
-    NSString* resolved = [resourcePath stringByAppendingPathComponent:nsString(path)];
-    return std::string([resolved fileSystemRepresentation]);
-}
-
-std::string resolveReadableAssetPath(const std::string& path) {
-    if (fileExists(path)) {
-        return path;
-    }
-
-    std::string bundled = bundleResourcePathForRelativePath(path);
-    return fileExists(bundled) ? bundled : path;
 }
 
 float rgbeToFloat(uint8_t value, uint8_t exponent) {
@@ -504,83 +305,63 @@ doof::Result<std::shared_ptr<NativeTexture>, std::string> loadRadianceHdrTexture
                  withBytes:pixels.data()
                bytesPerRow:static_cast<NSUInteger>(width) * 4u * sizeof(float)];
 
-    auto native = std::make_shared<NativeTexture>(
-        (__bridge void*)texture,
-        width,
-        height
-    );
+    auto native = std::make_shared<NativeTexture>((__bridge void*)texture, width, height);
     [texture release];
     return doof::Result<std::shared_ptr<NativeTexture>, std::string>::success(native);
 }
 
-NSScreen* targetLaunchScreen() {
-    NSArray<NSScreen*>* screens = [NSScreen screens];
-    if ([screens count] == 0) {
-        return [NSScreen mainScreen];
+MTLWinding metalWindingForMode(int32_t windingMode) {
+    switch (windingMode) {
+        case kWindingClockwise:
+            return MTLWindingClockwise;
+        case kWindingCounterClockwise:
+        default:
+            return MTLWindingCounterClockwise;
     }
-
-    NSPoint mouseLocation = [NSEvent mouseLocation];
-    for (NSScreen* screen in screens) {
-        if (NSMouseInRect(mouseLocation, [screen frame], NO)) {
-            return screen;
-        }
-    }
-
-    NSScreen* mainScreen = [NSScreen mainScreen];
-    return mainScreen != nil ? mainScreen : [screens objectAtIndex:0];
 }
 
-CGDirectDisplayID directDisplayIdForScreen(NSScreen* screen) {
-    if (screen == nil) {
-        return kCGNullDirectDisplay;
+MTLCullMode metalCullModeForMode(int32_t cullMode) {
+    switch (cullMode) {
+        case kCullFront:
+            return MTLCullModeFront;
+        case kCullBack:
+            return MTLCullModeBack;
+        case kCullNone:
+        default:
+            return MTLCullModeNone;
     }
-
-    NSNumber* screenNumber = [[screen deviceDescription] objectForKey:@"NSScreenNumber"];
-    if (screenNumber == nil) {
-        return kCGNullDirectDisplay;
-    }
-    return static_cast<CGDirectDisplayID>([screenNumber unsignedIntValue]);
 }
 
-id<MTLDevice> newMetalDeviceForScreen(NSScreen* screen) {
-    CGDirectDisplayID displayID = directDisplayIdForScreen(screen);
-    if (displayID != kCGNullDirectDisplay) {
-        id<MTLDevice> device = CGDirectDisplayCopyCurrentMetalDevice(displayID);
-        if (device != nil) {
-            return device;
-        }
-    }
-
-    return MTLCreateSystemDefaultDevice();
+NSString* nsString(const std::string& value) {
+    return [NSString stringWithUTF8String:value.c_str()];
 }
 
-double backingScaleForScreen(NSScreen* screen) {
-    if (screen != nil) {
-        double scale = [screen backingScaleFactor];
-        return scale > 0.0 ? scale : 1.0;
-    }
-
-    NSScreen* mainScreen = [NSScreen mainScreen];
-    if (mainScreen != nil) {
-        double scale = [mainScreen backingScaleFactor];
-        return scale > 0.0 ? scale : 1.0;
-    }
-
-    return 1.0;
+bool fileExists(const std::string& path) {
+    return [[NSFileManager defaultManager] fileExistsAtPath:nsString(path)];
 }
 
-void updateLayerDrawableSizeForScreen(CAMetalLayer* layer, NSScreen* screen) {
-    if (layer == nil) {
-        return;
+std::string bundleResourcePathForRelativePath(const std::string& path) {
+    if (path.empty() || path[0] == '/') {
+        return path;
     }
 
-    double scale = backingScaleForScreen(screen);
-    NSSize pointSize = screen != nil ? [screen frame].size : NSMakeSize(1.0, 1.0);
-    layer.contentsScale = scale;
-    layer.drawableSize = CGSizeMake(
-        std::max(pointSize.width * scale, 1.0),
-        std::max(pointSize.height * scale, 1.0)
-    );
+    NSBundle* bundle = [NSBundle mainBundle];
+    NSString* resourcePath = [bundle resourcePath];
+    if (resourcePath == nil) {
+        return path;
+    }
+
+    NSString* resolved = [resourcePath stringByAppendingPathComponent:nsString(path)];
+    return std::string([resolved fileSystemRepresentation]);
+}
+
+std::string resolveReadableAssetPath(const std::string& path) {
+    if (fileExists(path)) {
+        return path;
+    }
+
+    std::string bundled = bundleResourcePathForRelativePath(path);
+    return fileExists(bundled) ? bundled : path;
 }
 
 }  // namespace
@@ -720,37 +501,57 @@ struct NativeGameApp::Impl {
     std::shared_ptr<NativeGameSurface> surface;
     std::string initializationError;
     std::atomic<double> framesPerSecond = 0.0;
-    NSScreen* screen = nil;
-    CGDirectDisplayID displayID = kCGNullDirectDisplay;
 
     explicit Impl(std::string title)
         : title(std::move(title)),
           input(std::make_shared<NativeInputState>()) {
-        screen = [targetLaunchScreen() retain];
-        displayID = directDisplayIdForScreen(screen);
+        __block id<MTLDevice> device = nil;
+        __block id<MTLCommandQueue> commandQueue = nil;
+        __block CAMetalLayer* layer = nil;
 
-        id<MTLDevice> device = newMetalDeviceForScreen(screen);
+        dispatch_sync(dispatch_get_main_queue(), ^{
+            device = MTLCreateSystemDefaultDevice();
+            if (device == nil) {
+                return;
+            }
+            commandQueue = [device newCommandQueue];
+            if (commandQueue == nil) {
+                return;
+            }
+            layer = [[CAMetalLayer alloc] init];
+            layer.device = device;
+            layer.pixelFormat = MTLPixelFormatBGRA8Unorm;
+            layer.framebufferOnly = YES;
+            layer.opaque = YES;
+            layer.maximumDrawableCount = 3;
+            UIScreen* screen = UIScreen.mainScreen;
+            CGFloat scale = screen != nil ? screen.scale : 1.0;
+            CGSize size = screen != nil ? screen.bounds.size : CGSizeMake(1.0, 1.0);
+            layer.contentsScale = scale;
+            layer.drawableSize = CGSizeMake(
+                std::max(size.width * scale, 1.0),
+                std::max(size.height * scale, 1.0)
+            );
+        });
+
         if (device == nil) {
             initializationError = "Metal device initialization failed";
             surface = std::make_shared<NativeGameSurface>(nullptr, nullptr, nullptr);
             return;
         }
-
-        id<MTLCommandQueue> commandQueue = [device newCommandQueue];
         if (commandQueue == nil) {
             initializationError = "Metal command queue initialization failed";
             surface = std::make_shared<NativeGameSurface>(nullptr, nullptr, nullptr);
             [device release];
             return;
         }
-
-        CAMetalLayer* layer = [[CAMetalLayer alloc] init];
-        layer.device = device;
-        layer.pixelFormat = MTLPixelFormatBGRA8Unorm;
-        layer.framebufferOnly = YES;
-        layer.opaque = YES;
-        layer.maximumDrawableCount = 3;
-        updateLayerDrawableSizeForScreen(layer, screen);
+        if (layer == nil) {
+            initializationError = "Metal layer initialization failed";
+            surface = std::make_shared<NativeGameSurface>(nullptr, nullptr, nullptr);
+            [commandQueue release];
+            [device release];
+            return;
+        }
 
         surface = std::make_shared<NativeGameSurface>(
             (__bridge void*)device,
@@ -762,168 +563,74 @@ struct NativeGameApp::Impl {
         [commandQueue release];
         [device release];
     }
-
-    ~Impl() {
-        [screen release];
-    }
 };
 
+}  // namespace doof_game
+
+@interface DoofGameDisplayLinkTarget : NSObject {
+@public
+    doof_game::GameRuntimeState* state_;
+}
+- (instancetype)initWithState:(doof_game::GameRuntimeState*)state;
+- (void)tick:(CADisplayLink*)displayLink;
+@end
+
+@interface DoofGameIOSView : UIView {
+@public
+    doof_game::GameRuntimeState* state_;
+}
+- (instancetype)initWithState:(doof_game::GameRuntimeState*)state frame:(CGRect)frame;
+@end
+
+namespace doof_game {
 namespace {
 
-struct GameRuntimeState : std::enable_shared_from_this<GameRuntimeState> {
-    std::shared_ptr<NativeInputState> input;
-    std::shared_ptr<NativeGameSurface> surface;
-    doof::callback<void(std::shared_ptr<NativeGameEvent>, std::shared_ptr<NativeInputState>)> onEvent;
-    doof::callback<void(std::shared_ptr<NativeGameSurface>, std::shared_ptr<NativeInputState>)> onRender;
-    doof::callback<int32_t()> drainEvents;
-    std::atomic<double>* framesPerSecond = nullptr;
-    CVDisplayLinkRef displayLink = nullptr;
-    std::atomic_bool running = true;
-    std::atomic_bool renderRequested = false;
-    std::atomic_bool renderCallbackPending = false;
-    std::atomic_bool displayLinkRunning = false;
-    std::atomic_bool drainPending = false;
-    std::chrono::steady_clock::time_point fpsWindowStart = std::chrono::steady_clock::now();
-    int32_t fpsFrameCount = 0;
-    bool shiftDown = false;
-    bool controlDown = false;
-    bool optionDown = false;
-    bool commandDown = false;
-
-    void emit(std::shared_ptr<NativeGameEvent> event) {
-        onEvent.call(event, input);
-    }
-
-    void resetFrameDeltas() {
-        input->resetFrameDeltas();
-    }
-
-    void requestRender() {
-        renderRequested.store(true);
-        if (!displayLinkRunning.load()) {
-            scheduleDisplayLinkStart();
-        }
-    }
-
-    void scheduleDisplayLinkStart() {
-        auto self = shared_from_this();
-        dispatch_async(dispatch_get_main_queue(), ^{
-            self->startDisplayLinkIfNeeded();
-        });
-    }
-
-    void startDisplayLinkIfNeeded() {
-        if (!running.load() || displayLink == nullptr || !renderRequested.load()) {
-            return;
-        }
-        if (!displayLinkRunning.exchange(true)) {
-            CVDisplayLinkStart(displayLink);
-        }
-    }
-
-    void stopDisplayLink() {
-        if (displayLink != nullptr && displayLinkRunning.exchange(false)) {
-            CVDisplayLinkStop(displayLink);
-        }
-    }
-
-    void scheduleRender() {
-        if (renderCallbackPending.exchange(true)) {
-            return;
+UIWindow* fallbackApplicationWindow() {
+    NSSet<UIScene*>* scenes = UIApplication.sharedApplication.connectedScenes;
+    for (UIScene* scene in scenes) {
+        if (![scene isKindOfClass:[UIWindowScene class]]) {
+            continue;
         }
 
-        auto self = shared_from_this();
-        dispatch_async(dispatch_get_main_queue(), ^{
-            self->renderOnMain();
-            self->renderCallbackPending.store(false);
-        });
-    }
-
-    void renderOnMain() {
-        if (!running.load()) {
-            stopDisplayLink();
-            return;
+        UIWindowScene* windowScene = (UIWindowScene*)scene;
+        if (windowScene.activationState != UISceneActivationStateForegroundActive) {
+            continue;
         }
 
-        if (!renderRequested.exchange(false)) {
-            stopDisplayLink();
-            return;
-        }
-
-        onRender.call(surface, input);
-        recordRenderedFrame();
-        resetFrameDeltas();
-
-        if (!renderRequested.load()) {
-            stopDisplayLink();
-        }
-    }
-
-    void scheduleDrainEvents() {
-        if (drainPending.exchange(true)) {
-            return;
-        }
-
-        auto self = shared_from_this();
-        dispatch_async(dispatch_get_main_queue(), ^{
-            self->drainPending.store(false);
-            if (self->running.load()) {
-                self->drainEvents.call();
+        for (UIWindow* window in windowScene.windows) {
+            if (window.isKeyWindow) {
+                return window;
             }
-        });
-    }
-
-    void stop() {
-        running.store(false);
-        stopDisplayLink();
-        dispatch_async(dispatch_get_main_queue(), ^{
-            [NSApp stop:nil];
-            CFRunLoopStop(CFRunLoopGetMain());
-        });
-    }
-
-    void recordRenderedFrame() {
-        ++fpsFrameCount;
-        auto now = std::chrono::steady_clock::now();
-        std::chrono::duration<double> elapsed = now - fpsWindowStart;
-        if (elapsed.count() < 1.0) {
-            return;
         }
 
-        if (framesPerSecond != nullptr) {
-            framesPerSecond->store(static_cast<double>(fpsFrameCount) / elapsed.count());
+        UIWindow* firstWindow = windowScene.windows.firstObject;
+        if (firstWindow != nil) {
+            return firstWindow;
         }
-        fpsFrameCount = 0;
-        fpsWindowStart = now;
     }
 
-    void setKey(int32_t key, bool isDown) {
-        if (key == kKeyUnknown) {
-            return;
-        }
-        input->setKeyDownCode(key, isDown);
-        emit(std::make_shared<NativeGameEvent>(isDown ? kKindKeyDown : kKindKeyUp, key));
-    }
+    return nil;
+}
 
-    void updateModifier(int32_t key, bool& previous, bool current) {
-        if (previous == current) {
-            return;
-        }
-        previous = current;
-        setKey(key, current);
-    }
-};
-
-void updateLayerDrawableSize(NSView* view, const std::shared_ptr<NativeGameSurface>& surface) {
-    if (!view || !surface) {
+void updateLayerDrawableSize(UIView* view, const std::shared_ptr<NativeGameSurface>& surface) {
+    if (view == nil || !surface) {
         return;
     }
 
     CAMetalLayer* layer = (__bridge CAMetalLayer*)reinterpret_cast<void*>(surface->metalLayerHandle());
-    NSSize pointSize = [view bounds].size;
-    NSSize pixelSize = [view convertSizeToBacking:pointSize];
-    layer.contentsScale = [view window] ? [[view window] backingScaleFactor] : [NSScreen mainScreen].backingScaleFactor;
-    layer.drawableSize = CGSizeMake(std::max(pixelSize.width, 1.0), std::max(pixelSize.height, 1.0));
+    if (layer == nil) {
+        return;
+    }
+
+    UIScreen* screen = view.window != nil ? view.window.screen : UIScreen.mainScreen;
+    CGFloat scale = screen != nil ? screen.scale : 1.0;
+    CGSize pointSize = view.bounds.size;
+    layer.contentsScale = scale;
+    layer.frame = view.bounds;
+    layer.drawableSize = CGSizeMake(
+        std::max(pointSize.width * scale, 1.0),
+        std::max(pointSize.height * scale, 1.0)
+    );
 }
 
 std::shared_ptr<NativeGameEvent> makeResizeEvent(const std::shared_ptr<NativeGameSurface>& surface) {
@@ -942,132 +649,327 @@ std::shared_ptr<NativeGameEvent> makeResizeEvent(const std::shared_ptr<NativeGam
     );
 }
 
-CVReturn displayLinkCallback(
-    CVDisplayLinkRef displayLink,
-    const CVTimeStamp* now,
-    const CVTimeStamp* outputTime,
-    CVOptionFlags flagsIn,
-    CVOptionFlags* flagsOut,
-    void* displayLinkContext
-) {
-    (void)displayLink;
-    (void)now;
-    (void)outputTime;
-    (void)flagsIn;
-    (void)flagsOut;
-
-    auto* state = static_cast<GameRuntimeState*>(displayLinkContext);
-    if (state == nullptr || !state->running.load()) {
-        return kCVReturnSuccess;
+CGPoint gamePointForTouch(UIView* view, UITouch* touch) {
+    if (view == nil || touch == nil) {
+        return CGPointZero;
     }
 
-    state->scheduleRender();
+    CGPoint point = [touch locationInView:view];
+    UIScreen* screen = view.window != nil ? view.window.screen : UIScreen.mainScreen;
+    CGFloat scale = screen != nil ? screen.scale : 1.0;
+    return CGPointMake(point.x * scale, point.y * scale);
+}
 
-    return kCVReturnSuccess;
+struct GameRuntimeState : std::enable_shared_from_this<GameRuntimeState> {
+    std::shared_ptr<NativeInputState> input;
+    std::shared_ptr<NativeGameSurface> surface;
+    doof::callback<void(std::shared_ptr<NativeGameEvent>, std::shared_ptr<NativeInputState>)> onEvent;
+    doof::callback<void(std::shared_ptr<NativeGameSurface>, std::shared_ptr<NativeInputState>)> onRender;
+    doof::callback<int32_t()> drainEvents;
+    std::atomic<double>* framesPerSecond = nullptr;
+    CADisplayLink* displayLink = nil;
+    DoofGameDisplayLinkTarget* displayLinkTarget = nil;
+    DoofGameIOSView* view = nil;
+    std::atomic_bool running = true;
+    std::atomic_bool renderRequested = false;
+    std::atomic_bool renderCallbackPending = false;
+    std::atomic_bool drainPending = false;
+    std::mutex completionMutex;
+    std::condition_variable completionReady;
+    std::chrono::steady_clock::time_point fpsWindowStart = std::chrono::steady_clock::now();
+    int32_t fpsFrameCount = 0;
+
+    void emit(std::shared_ptr<NativeGameEvent> event) {
+        doof::detail::ActiveActorScope active(&doof::detail::ApplicationDomain::shared());
+        onEvent.call(event, input);
+    }
+
+    void resetFrameDeltas() {
+        input->resetFrameDeltas();
+    }
+
+    void requestRender() {
+        renderRequested.store(true);
+    }
+
+    void scheduleRender() {
+        if (renderCallbackPending.exchange(true)) {
+            return;
+        }
+
+        auto self = shared_from_this();
+        dispatch_async(dispatch_get_main_queue(), ^{
+            self->renderOnMain();
+            self->renderCallbackPending.store(false);
+        });
+    }
+
+    void renderOnMain() {
+        if (!running.load()) {
+            return;
+        }
+
+        if (!renderRequested.exchange(false)) {
+            return;
+        }
+
+        {
+            doof::detail::ActiveActorScope active(&doof::detail::ApplicationDomain::shared());
+            onRender.call(surface, input);
+        }
+        recordRenderedFrame();
+        resetFrameDeltas();
+    }
+
+    void scheduleDrainEvents() {
+        if (drainPending.exchange(true)) {
+            return;
+        }
+
+        auto self = shared_from_this();
+        dispatch_async(dispatch_get_main_queue(), ^{
+            self->drainPending.store(false);
+            if (self->running.load()) {
+                doof::detail::ActiveActorScope active(&doof::detail::ApplicationDomain::shared());
+                self->drainEvents.call();
+            }
+        });
+    }
+
+    void stop() {
+        if (!running.exchange(false)) {
+            return;
+        }
+
+        auto self = shared_from_this();
+        dispatch_async(dispatch_get_main_queue(), ^{
+            if (self->displayLink != nil) {
+                [self->displayLink invalidate];
+                [self->displayLink release];
+                self->displayLink = nil;
+            }
+            if (self->displayLinkTarget != nil) {
+                [self->displayLinkTarget release];
+                self->displayLinkTarget = nil;
+            }
+            if (self->view != nil) {
+                [self->view removeFromSuperview];
+                [self->view release];
+                self->view = nil;
+            }
+            self->completionReady.notify_all();
+        });
+    }
+
+    void recordRenderedFrame() {
+        ++fpsFrameCount;
+        auto now = std::chrono::steady_clock::now();
+        std::chrono::duration<double> elapsed = now - fpsWindowStart;
+        if (elapsed.count() < 1.0) {
+            return;
+        }
+
+        if (framesPerSecond != nullptr) {
+            framesPerSecond->store(static_cast<double>(fpsFrameCount) / elapsed.count());
+        }
+        fpsFrameCount = 0;
+        fpsWindowStart = now;
+    }
+};
+
+std::string installIOSSurface(const std::shared_ptr<GameRuntimeState>& state) {
+    __block NSString* errorMessage = nil;
+
+    dispatch_sync(dispatch_get_main_queue(), ^{
+        UIWindow* window = nil;
+        id delegate = UIApplication.sharedApplication.delegate;
+        if ([delegate respondsToSelector:@selector(window)]) {
+            window = [delegate window];
+        }
+        if (window == nil) {
+            window = fallbackApplicationWindow();
+        }
+        if (window == nil) {
+            errorMessage = @"UIApplication window is not ready";
+            return;
+        }
+
+        UIViewController* rootViewController = window.rootViewController;
+        if (rootViewController == nil) {
+            rootViewController = [[[UIViewController alloc] init] autorelease];
+            window.rootViewController = rootViewController;
+        }
+
+        UIView* rootView = rootViewController.view;
+        if (rootView == nil) {
+            errorMessage = @"UIApplication root view is not ready";
+            return;
+        }
+
+        rootView.backgroundColor = UIColor.blackColor;
+
+        DoofGameIOSView* view = [[DoofGameIOSView alloc] initWithState:state.get() frame:rootView.bounds];
+        view.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
+        [rootView addSubview:view];
+        state->view = view;
+
+        CAMetalLayer* layer = (__bridge CAMetalLayer*)reinterpret_cast<void*>(state->surface->metalLayerHandle());
+        [view.layer addSublayer:layer];
+        updateLayerDrawableSize(view, state->surface);
+
+        DoofGameDisplayLinkTarget* target = [[DoofGameDisplayLinkTarget alloc] initWithState:state.get()];
+        CADisplayLink* displayLink = [CADisplayLink displayLinkWithTarget:target selector:@selector(tick:)];
+        displayLink.preferredFramesPerSecond = 60;
+        [displayLink addToRunLoop:[NSRunLoop mainRunLoop] forMode:NSRunLoopCommonModes];
+        state->displayLinkTarget = target;
+        state->displayLink = [displayLink retain];
+    });
+
+    return errorMessage != nil ? std::string([errorMessage UTF8String]) : std::string();
+}
+
+doof::Result<void, std::string> loadTextureWithCGImageSource(
+    const std::string& path,
+    id<MTLDevice> device,
+    std::shared_ptr<NativeTexture>& out
+) {
+    std::string resolvedPath = resolveReadableAssetPath(path);
+    NSURL* url = [NSURL fileURLWithPath:nsString(resolvedPath)];
+    CGImageSourceRef source = CGImageSourceCreateWithURL((__bridge CFURLRef)url, nullptr);
+    if (source == nullptr) {
+        return doof::Result<void, std::string>::failure("Failed to load image: " + path);
+    }
+
+    CGImageRef image = CGImageSourceCreateImageAtIndex(source, 0, nullptr);
+    CFRelease(source);
+    if (image == nullptr) {
+        return doof::Result<void, std::string>::failure("Failed to decode image: " + path);
+    }
+
+    const size_t width = CGImageGetWidth(image);
+    const size_t height = CGImageGetHeight(image);
+    if (width == 0 || height == 0) {
+        CGImageRelease(image);
+        return doof::Result<void, std::string>::failure("Image is empty: " + path);
+    }
+
+    std::vector<uint8_t> pixels(width * height * 4u);
+    CGColorSpaceRef colorSpace = CGColorSpaceCreateDeviceRGB();
+    CGContextRef context = CGBitmapContextCreate(
+        pixels.data(),
+        width,
+        height,
+        8,
+        width * 4u,
+        colorSpace,
+        kCGImageAlphaPremultipliedLast | kCGBitmapByteOrder32Big
+    );
+    CGColorSpaceRelease(colorSpace);
+    if (context == nullptr) {
+        CGImageRelease(image);
+        return doof::Result<void, std::string>::failure("Failed to create image decode context: " + path);
+    }
+
+    CGContextClearRect(context, CGRectMake(0, 0, static_cast<CGFloat>(width), static_cast<CGFloat>(height)));
+    CGContextDrawImage(context, CGRectMake(0, 0, static_cast<CGFloat>(width), static_cast<CGFloat>(height)), image);
+    CGContextRelease(context);
+    CGImageRelease(image);
+
+    MTLTextureDescriptor* descriptor = [MTLTextureDescriptor texture2DDescriptorWithPixelFormat:MTLPixelFormatRGBA8Unorm
+                                                                                          width:width
+                                                                                         height:height
+                                                                                      mipmapped:NO];
+    descriptor.usage = MTLTextureUsageShaderRead;
+    id<MTLTexture> texture = [device newTextureWithDescriptor:descriptor];
+    if (texture == nil) {
+        return doof::Result<void, std::string>::failure("Failed to create texture: " + path);
+    }
+
+    [texture replaceRegion:MTLRegionMake2D(0, 0, width, height)
+               mipmapLevel:0
+                 withBytes:pixels.data()
+               bytesPerRow:width * 4u];
+
+    out = std::make_shared<NativeTexture>(
+        (__bridge void*)texture,
+        static_cast<int32_t>(width),
+        static_cast<int32_t>(height)
+    );
+    [texture release];
+    return doof::Result<void, std::string>::success();
 }
 
 }  // namespace
-
 }  // namespace doof_game
 
-@interface DoofGameWindow : NSWindow
-@end
+@implementation DoofGameDisplayLinkTarget
 
-@implementation DoofGameWindow
-
-- (BOOL)canBecomeKeyWindow {
-    return YES;
-}
-
-- (BOOL)canBecomeMainWindow {
-    return YES;
-}
-
-@end
-
-@interface DoofGameView : NSView {
-@public
-    doof_game::GameRuntimeState* state_;
-}
-- (instancetype)initWithState:(doof_game::GameRuntimeState*)state frame:(NSRect)frame;
-@end
-
-@implementation DoofGameView
-
-- (instancetype)initWithState:(doof_game::GameRuntimeState*)state frame:(NSRect)frame {
-    self = [super initWithFrame:frame];
+- (instancetype)initWithState:(doof_game::GameRuntimeState*)state {
+    self = [super init];
     if (self) {
         state_ = state;
-        [self setWantsLayer:YES];
-        [self setLayer:(__bridge CAMetalLayer*)reinterpret_cast<void*>(state->surface->metalLayerHandle())];
-        [self setAutoresizingMask:NSViewWidthSizable | NSViewHeightSizable];
-        [self setAcceptsTouchEvents:NO];
-        [self.window makeFirstResponder:self];
     }
     return self;
 }
 
-- (BOOL)acceptsFirstResponder {
-    return YES;
+- (void)tick:(CADisplayLink*)displayLink {
+    (void)displayLink;
+    if (state_ != nullptr && state_->running.load()) {
+        state_->scheduleDrainEvents();
+        state_->scheduleRender();
+    }
 }
 
-- (BOOL)canBecomeKeyView {
-    return YES;
+@end
+
+@implementation DoofGameIOSView
+
+- (instancetype)initWithState:(doof_game::GameRuntimeState*)state frame:(CGRect)frame {
+    self = [super initWithFrame:frame];
+    if (self) {
+        state_ = state;
+        self.backgroundColor = UIColor.blackColor;
+        self.multipleTouchEnabled = NO;
+        self.opaque = YES;
+    }
+    return self;
 }
 
-- (void)setFrameSize:(NSSize)newSize {
-    [super setFrameSize:newSize];
+- (void)layoutSubviews {
+    [super layoutSubviews];
     doof_game::updateLayerDrawableSize(self, state_->surface);
     state_->emit(doof_game::makeResizeEvent(state_->surface));
     state_->requestRender();
 }
 
-- (NSPoint)gamePointForEvent:(NSEvent*)event {
-    NSPoint point = [self convertPoint:[event locationInWindow] fromView:nil];
-    NSRect bounds = [self bounds];
-    NSPoint flipped = NSMakePoint(point.x, bounds.size.height - point.y);
-    return [self convertPointToBacking:flipped];
+- (void)didMoveToWindow {
+    [super didMoveToWindow];
+    doof_game::updateLayerDrawableSize(self, state_->surface);
+    state_->emit(doof_game::makeResizeEvent(state_->surface));
+    state_->requestRender();
 }
 
-- (void)mouseDown:(NSEvent*)event {
-    NSInteger button = [event buttonNumber];
-    int32_t mapped = doof_game::mapMouseButton(button);
-    state_->input->setMouseButtonDownCode(mapped, true);
-    NSPoint point = [self gamePointForEvent:event];
+- (void)touchesBegan:(NSSet<UITouch*>*)touches withEvent:(UIEvent*)event {
+    (void)event;
+    UITouch* touch = [touches anyObject];
+    CGPoint point = doof_game::gamePointForTouch(self, touch);
+    state_->input->setMouseButtonDownCode(doof_game::kMouseLeft, true);
     state_->input->setMousePosition(point.x, point.y);
-    state_->emit(std::make_shared<doof_game::NativeGameEvent>(doof_game::kKindMouseDown, doof_game::kKeyUnknown, mapped, point.x, point.y));
+    state_->emit(std::make_shared<doof_game::NativeGameEvent>(
+        doof_game::kKindMouseDown,
+        doof_game::kKeyUnknown,
+        doof_game::kMouseLeft,
+        point.x,
+        point.y
+    ));
 }
 
-- (void)rightMouseDown:(NSEvent*)event {
-    [self mouseDown:event];
-}
-
-- (void)otherMouseDown:(NSEvent*)event {
-    [self mouseDown:event];
-}
-
-- (void)mouseUp:(NSEvent*)event {
-    NSInteger button = [event buttonNumber];
-    int32_t mapped = doof_game::mapMouseButton(button);
-    state_->input->setMouseButtonDownCode(mapped, false);
-    NSPoint point = [self gamePointForEvent:event];
-    state_->input->setMousePosition(point.x, point.y);
-    state_->emit(std::make_shared<doof_game::NativeGameEvent>(doof_game::kKindMouseUp, doof_game::kKeyUnknown, mapped, point.x, point.y));
-}
-
-- (void)rightMouseUp:(NSEvent*)event {
-    [self mouseUp:event];
-}
-
-- (void)otherMouseUp:(NSEvent*)event {
-    [self mouseUp:event];
-}
-
-- (void)mouseMoved:(NSEvent*)event {
-    NSPoint point = [self gamePointForEvent:event];
-    NSSize delta = [self convertSizeToBacking:NSMakeSize([event deltaX], [event deltaY])];
-    double dx = delta.width;
-    double dy = delta.height;
+- (void)touchesMoved:(NSSet<UITouch*>*)touches withEvent:(UIEvent*)event {
+    (void)event;
+    UITouch* touch = [touches anyObject];
+    CGPoint point = doof_game::gamePointForTouch(self, touch);
+    double dx = point.x - state_->input->mouseX();
+    double dy = point.y - state_->input->mouseY();
     state_->input->setMousePosition(point.x, point.y);
     state_->input->addMouseDelta(dx, dy);
     state_->emit(std::make_shared<doof_game::NativeGameEvent>(
@@ -1081,85 +983,23 @@ CVReturn displayLinkCallback(
     ));
 }
 
-- (void)mouseDragged:(NSEvent*)event {
-    [self mouseMoved:event];
-}
-
-- (void)rightMouseDragged:(NSEvent*)event {
-    [self mouseMoved:event];
-}
-
-- (void)otherMouseDragged:(NSEvent*)event {
-    [self mouseMoved:event];
-}
-
-- (void)scrollWheel:(NSEvent*)event {
-    double dx = [event scrollingDeltaX];
-    double dy = [event scrollingDeltaY];
-    state_->input->addWheelDelta(dx, dy);
-    NSPoint point = [self gamePointForEvent:event];
+- (void)touchesEnded:(NSSet<UITouch*>*)touches withEvent:(UIEvent*)event {
+    (void)event;
+    UITouch* touch = [touches anyObject];
+    CGPoint point = doof_game::gamePointForTouch(self, touch);
+    state_->input->setMouseButtonDownCode(doof_game::kMouseLeft, false);
+    state_->input->setMousePosition(point.x, point.y);
     state_->emit(std::make_shared<doof_game::NativeGameEvent>(
-        doof_game::kKindMouseWheel,
+        doof_game::kKindMouseUp,
         doof_game::kKeyUnknown,
-        doof_game::kMouseOther,
+        doof_game::kMouseLeft,
         point.x,
-        point.y,
-        0.0,
-        0.0,
-        dx,
-        dy
+        point.y
     ));
 }
 
-- (void)keyDown:(NSEvent*)event {
-    if ([event isARepeat]) {
-        return;
-    }
-    state_->setKey(doof_game::mapKeyCode([event keyCode]), true);
-}
-
-- (void)cancelOperation:(id)sender {
-    (void)sender;
-    state_->setKey(doof_game::kKeyEscape, true);
-    state_->setKey(doof_game::kKeyEscape, false);
-}
-
-- (void)keyUp:(NSEvent*)event {
-    state_->setKey(doof_game::mapKeyCode([event keyCode]), false);
-}
-
-- (void)flagsChanged:(NSEvent*)event {
-    NSEventModifierFlags flags = [event modifierFlags];
-    state_->updateModifier(doof_game::kKeyShift, state_->shiftDown, (flags & NSEventModifierFlagShift) != 0);
-    state_->updateModifier(doof_game::kKeyControl, state_->controlDown, (flags & NSEventModifierFlagControl) != 0);
-    state_->updateModifier(doof_game::kKeyOption, state_->optionDown, (flags & NSEventModifierFlagOption) != 0);
-    state_->updateModifier(doof_game::kKeyCommand, state_->commandDown, (flags & NSEventModifierFlagCommand) != 0);
-}
-
-@end
-
-@interface DoofGameWindowDelegate : NSObject <NSWindowDelegate> {
-@public
-    doof_game::GameRuntimeState* state_;
-}
-- (instancetype)initWithState:(doof_game::GameRuntimeState*)state;
-@end
-
-@implementation DoofGameWindowDelegate
-
-- (instancetype)initWithState:(doof_game::GameRuntimeState*)state {
-    self = [super init];
-    if (self) {
-        state_ = state;
-    }
-    return self;
-}
-
-- (BOOL)windowShouldClose:(id)sender {
-    (void)sender;
-    state_->emit(std::make_shared<doof_game::NativeGameEvent>(doof_game::kKindCloseRequested));
-    state_->stop();
-    return YES;
+- (void)touchesCancelled:(NSSet<UITouch*>*)touches withEvent:(UIEvent*)event {
+    [self touchesEnded:touches withEvent:event];
 }
 
 @end
@@ -1227,69 +1067,11 @@ doof::Result<std::shared_ptr<NativeTexture>, std::string> NativeTexture::load(
         return loaded;
     }
 
-    const std::string resolvedPath = resolveReadableAssetPath(path);
-    NSString* nsPath = nsString(resolvedPath);
-    NSImage* image = [[NSImage alloc] initWithContentsOfFile:nsPath];
-    if (image == nil) {
-        return doof::Result<std::shared_ptr<NativeTexture>, std::string>::failure("Failed to load image: " + path);
+    std::shared_ptr<NativeTexture> native;
+    auto loaded = loadTextureWithCGImageSource(path, device, native);
+    if (loaded.isFailure()) {
+        return doof::Result<std::shared_ptr<NativeTexture>, std::string>::failure(loaded.error());
     }
-
-    CGImageRef cgImage = [image CGImageForProposedRect:nullptr context:nil hints:nil];
-    if (cgImage == nullptr) {
-        [image release];
-        return doof::Result<std::shared_ptr<NativeTexture>, std::string>::failure("Failed to decode image: " + path);
-    }
-
-    const size_t width = CGImageGetWidth(cgImage);
-    const size_t height = CGImageGetHeight(cgImage);
-    if (width == 0 || height == 0) {
-        [image release];
-        return doof::Result<std::shared_ptr<NativeTexture>, std::string>::failure("Image is empty: " + path);
-    }
-
-    std::vector<uint8_t> pixels(width * height * 4u);
-    CGColorSpaceRef colorSpace = CGColorSpaceCreateDeviceRGB();
-    CGContextRef context = CGBitmapContextCreate(
-        pixels.data(),
-        width,
-        height,
-        8,
-        width * 4u,
-        colorSpace,
-        kCGImageAlphaPremultipliedLast | kCGBitmapByteOrder32Big
-    );
-    CGColorSpaceRelease(colorSpace);
-    if (context == nullptr) {
-        [image release];
-        return doof::Result<std::shared_ptr<NativeTexture>, std::string>::failure("Failed to create image decode context: " + path);
-    }
-
-    CGContextClearRect(context, CGRectMake(0, 0, static_cast<CGFloat>(width), static_cast<CGFloat>(height)));
-    CGContextDrawImage(context, CGRectMake(0, 0, static_cast<CGFloat>(width), static_cast<CGFloat>(height)), cgImage);
-    CGContextRelease(context);
-    [image release];
-
-    MTLTextureDescriptor* descriptor = [MTLTextureDescriptor texture2DDescriptorWithPixelFormat:MTLPixelFormatRGBA8Unorm
-                                                                                          width:width
-                                                                                         height:height
-                                                                                      mipmapped:NO];
-    descriptor.usage = MTLTextureUsageShaderRead;
-    id<MTLTexture> texture = [device newTextureWithDescriptor:descriptor];
-    if (texture == nil) {
-        return doof::Result<std::shared_ptr<NativeTexture>, std::string>::failure("Failed to create texture: " + path);
-    }
-
-    [texture replaceRegion:MTLRegionMake2D(0, 0, width, height)
-               mipmapLevel:0
-                 withBytes:pixels.data()
-               bytesPerRow:width * 4u];
-
-    auto native = std::make_shared<NativeTexture>(
-        (__bridge void*)texture,
-        static_cast<int32_t>(width),
-        static_cast<int32_t>(height)
-    );
-    [texture release];
     {
         std::lock_guard<std::mutex> lock(textureCacheMutex());
         textureCache()[cacheKey] = native;
@@ -1466,15 +1248,17 @@ double NativeGameEvent::wheelDeltaY() const { return wheelDeltaY_; }
 int32_t NativeGameEvent::pixelWidth() const { return pixelWidth_; }
 int32_t NativeGameEvent::pixelHeight() const { return pixelHeight_; }
 
-NativeInputState::NativeInputState() : impl_(std::make_shared<Impl>()) {}
+NativeInputState::NativeInputState()
+    : impl_(std::make_shared<Impl>()) {}
+
 NativeInputState::~NativeInputState() = default;
 
 bool NativeInputState::isKeyDownCode(int32_t key) const {
-    return impl_->keysDown.count(key) > 0;
+    return impl_->keysDown.find(key) != impl_->keysDown.end();
 }
 
 bool NativeInputState::isMouseButtonDownCode(int32_t button) const {
-    return impl_->mouseButtonsDown.count(button) > 0;
+    return impl_->mouseButtonsDown.find(button) != impl_->mouseButtonsDown.end();
 }
 
 double NativeInputState::mouseX() const { return impl_->mouseX; }
@@ -1571,90 +1355,32 @@ doof::Result<void, std::string> NativeGameApp::run(
             return doof::Result<void, std::string>::failure(impl_->initializationError);
         }
 
-        NSApplication* app = [NSApplication sharedApplication];
-        [app setActivationPolicy:NSApplicationActivationPolicyRegular];
-
-        auto input = impl_->input;
-        auto surface = impl_->surface;
-
         auto state = std::make_shared<GameRuntimeState>();
-        state->input = input;
-        state->surface = surface;
+        state->input = impl_->input;
+        state->surface = impl_->surface;
         state->onEvent = onEvent;
         state->onRender = onRender;
         state->drainEvents = drainEvents;
         state->framesPerSecond = &impl_->framesPerSecond;
         impl_->framesPerSecond.store(0.0);
+
+        const std::string installError = installIOSSurface(state);
+        if (!installError.empty()) {
+            return doof::Result<void, std::string>::failure(installError);
+        }
+
         gActiveState = state.get();
-        CVDisplayLinkRef displayLink = nullptr;
-
-        NSScreen* screen = impl_->screen != nil ? impl_->screen : targetLaunchScreen();
-        NSRect frame = [screen frame];
-        NSRect contentFrame = NSMakeRect(0.0, 0.0, NSWidth(frame), NSHeight(frame));
-        DoofGameWindow* window = [[DoofGameWindow alloc] initWithContentRect:contentFrame
-                                                                   styleMask:NSWindowStyleMaskBorderless
-                                                                     backing:NSBackingStoreBuffered
-                                                                       defer:NO
-                                                                      screen:screen];
-        [window setTitle:[NSString stringWithUTF8String:impl_->title.c_str()]];
-        [window setLevel:NSMainMenuWindowLevel + 1];
-        [window setCollectionBehavior:NSWindowCollectionBehaviorMoveToActiveSpace | NSWindowCollectionBehaviorFullScreenAuxiliary];
-        [window setOpaque:YES];
-        [window setBackgroundColor:[NSColor blackColor]];
-        [window setReleasedWhenClosed:NO];
-
-        DoofGameView* view = [[DoofGameView alloc] initWithState:state.get()
-                                                           frame:NSMakeRect(0.0, 0.0, NSWidth(frame), NSHeight(frame))];
-        [window setContentView:view];
-        [window makeFirstResponder:view];
-
-        DoofGameWindowDelegate* delegate = [[DoofGameWindowDelegate alloc] initWithState:state.get()];
-        [window setDelegate:delegate];
-
-        updateLayerDrawableSize(view, surface);
-        [window makeKeyAndOrderFront:nil];
-        [window orderFrontRegardless];
-        [app activateIgnoringOtherApps:YES];
-
-        CVReturn displayLinkResult = impl_->displayID != kCGNullDirectDisplay
-            ? CVDisplayLinkCreateWithCGDisplay(impl_->displayID, &displayLink)
-            : CVDisplayLinkCreateWithActiveCGDisplays(&displayLink);
-        if (displayLinkResult != kCVReturnSuccess || displayLink == nullptr) {
-            displayLinkResult = CVDisplayLinkCreateWithActiveCGDisplays(&displayLink);
-        }
-        if (displayLinkResult != kCVReturnSuccess || displayLink == nullptr) {
-            [window orderOut:nil];
-            [window setDelegate:nil];
-            [delegate release];
-            [view release];
-            [window close];
-            [window release];
-            gActiveState = nullptr;
-            return doof::Result<void, std::string>::failure("Display link initialization failed");
-        }
-        state->displayLink = displayLink;
-        CVDisplayLinkSetOutputCallback(displayLink, displayLinkCallback, state.get());
-
         drainEvents.call();
+        state->emit(makeResizeEvent(state->surface));
         state->requestRender();
 
-        [app run];
-
-        state->running.store(false);
-        state->stopDisplayLink();
-        CVDisplayLinkRelease(displayLink);
-        state->displayLink = nullptr;
+        std::unique_lock<std::mutex> lock(state->completionMutex);
+        state->completionReady.wait(lock, [&state] {
+            return !state->running.load();
+        });
 
         drainEvents.call();
-
-        [window orderOut:nil];
-        [window setDelegate:nil];
-        [delegate release];
-        [view release];
-        [window close];
-        [window release];
         gActiveState = nullptr;
-
         return doof::Result<void, std::string>::success();
     }
 }

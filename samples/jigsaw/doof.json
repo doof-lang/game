@@ -3,6 +3,28 @@
   "version": "0.1.0",
   "license": "ISC",
   "build": {
+    "target": "macos-app",
+    "targetExecutableName": "DoofJigsaw",
+    "macosApp": {
+      "bundleId": "dev.doof.jigsaw",
+      "displayName": "Doof Jigsaw",
+      "version": "1.0",
+      "category": "public.app-category.games",
+      "icon": "images/generated_jigsaw_atlas.png",
+      "resources": [
+        { "from": "images/*", "to": "images" }
+      ]
+    },
+    "iosApp": {
+      "bundleId": "dev.doof.jigsaw",
+      "displayName": "Doof Jigsaw",
+      "version": "1.0",
+      "icon": "images/generated_jigsaw_atlas.png",
+      "resources": [
+        { "from": "images/*", "to": "images" }
+      ],
+      "minimumDeploymentTarget": "16.0"
+    },
     "native": {
       "extraCopyPaths": [
         "native_jigsaw.hpp"
@@ -13,6 +35,26 @@
         ],
         "frameworks": [
           "AppKit",
+          "CoreGraphics",
+          "Foundation",
+          "ImageIO"
+        ]
+      },
+      "iosSimulator": {
+        "sourceFiles": [
+          "native_jigsaw.mm"
+        ],
+        "frameworks": [
+          "CoreGraphics",
+          "Foundation",
+          "ImageIO"
+        ]
+      },
+      "iosDevice": {
+        "sourceFiles": [
+          "native_jigsaw.mm"
+        ],
+        "frameworks": [
           "CoreGraphics",
           "Foundation",
           "ImageIO"

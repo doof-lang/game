@@ -25,6 +25,40 @@
           "Metal",
           "QuartzCore"
         ]
+      },
+      "iosSimulator": {
+        "sourceFiles": [
+          "native_game_ios.mm",
+          "native_mesh.mm",
+          "native_mesh_internal.mm",
+          "native_skymap.mm",
+          "native_space_dust.mm"
+        ],
+        "frameworks": [
+          "UIKit",
+          "Foundation",
+          "QuartzCore",
+          "Metal",
+          "CoreGraphics",
+          "ImageIO"
+        ]
+      },
+      "iosDevice": {
+        "sourceFiles": [
+          "native_game_ios.mm",
+          "native_mesh.mm",
+          "native_mesh_internal.mm",
+          "native_skymap.mm",
+          "native_space_dust.mm"
+        ],
+        "frameworks": [
+          "UIKit",
+          "Foundation",
+          "QuartzCore",
+          "Metal",
+          "CoreGraphics",
+          "ImageIO"
+        ]
       }
     }
   },

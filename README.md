@@ -5,10 +5,15 @@ surface, neutral key and mouse events, queryable input state, and a small
 native-backed render pass API with static simple meshes and batched texture-quad
 drawing.
 
-This first version is intentionally small: it owns the AppKit window, input
-delivery, frame callbacks, Metal surface lifetime, render pass setup, and a
-basic static mesh and texture-quad batch primitives. Drawing code can also build
-on the Metal handles exposed by `RenderPass` and `GameSurface`.
+This first version is intentionally small: it owns the native app surface, input
+delivery, frame callbacks, Metal surface lifetime, render pass setup, and basic
+static mesh and texture-quad batch primitives. Drawing code can also build on
+the Metal handles exposed by `RenderPass` and `GameSurface`.
+
+The native host supports macOS and Doof's built-in `ios-app` target. iOS apps
+attach the same Metal-backed surface to the generated UIKit app shell; single
+touch input is reported through the existing mouse event and mouse button APIs.
+Hardware keyboard events are not exposed on iOS yet.
 
 ## Usage
 
@@ -122,6 +127,26 @@ on the next display tick. During render callbacks, `app.surface` holds the
 current Metal-backed surface and the callback receives a `Renderer` for issuing
 render passes. `app.fps()` reports the recent completed render callback rate.
 Call `app.stop()` to exit the native app loop.
+
+### iOS Builds
+
+Projects that depend on `std/game` can be built for iOS with Doof's existing app
+target support. For example, to build the jigsaw sample for the simulator:
+
+```bash
+doof build --target ios-app --ios-destination simulator game/samples/jigsaw
+```
+
+To install and launch on a booted simulator, use `doof run` with the same target
+and destination:
+
+```bash
+doof run --target ios-app --ios-destination simulator game/samples/jigsaw
+```
+
+Device builds use the same `ios-app` target with `--ios-destination device` and
+the standard Doof iOS signing options or environment variables for the signing
+identity and provisioning profile.
 
 ### `Renderer`
 

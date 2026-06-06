@@ -1,6 +1,5 @@
 #include "native_jigsaw.hpp"
 
-#import <AppKit/AppKit.h>
 #import <CoreGraphics/CoreGraphics.h>
 #import <Foundation/Foundation.h>
 #import <ImageIO/ImageIO.h>
@@ -47,6 +46,34 @@ bool outputIsFresh(
 
 NSString* nsString(const std::string& value) {
     return [NSString stringWithUTF8String:value.c_str()];
+}
+
+bool fileExists(const std::string& path) {
+    return [[NSFileManager defaultManager] fileExistsAtPath:nsString(path)];
+}
+
+std::string bundleResourcePathForRelativePath(const std::string& path) {
+    if (path.empty() || path[0] == '/') {
+        return path;
+    }
+
+    NSBundle* bundle = [NSBundle mainBundle];
+    NSString* resourcePath = [bundle resourcePath];
+    if (resourcePath == nil) {
+        return path;
+    }
+
+    NSString* resolved = [resourcePath stringByAppendingPathComponent:nsString(path)];
+    return std::string([resolved fileSystemRepresentation]);
+}
+
+std::string resolveReadableAssetPath(const std::string& path) {
+    if (fileExists(path)) {
+        return path;
+    }
+
+    std::string bundled = bundleResourcePathForRelativePath(path);
+    return fileExists(bundled) ? bundled : path;
 }
 
 std::string nsError(NSError* error, const std::string& fallback) {
@@ -195,15 +222,19 @@ doof::Result<void, std::string> buildJigsawAtlas(
         return doof::Result<void, std::string>::failure("Jigsaw atlas dimensions must be positive");
     }
 
-    if (outputIsFresh(photoPath, maskAtlasPath, outputPath)) {
+    const std::string resolvedPhotoPath = resolveReadableAssetPath(photoPath);
+    const std::string resolvedMaskAtlasPath = resolveReadableAssetPath(maskAtlasPath);
+    const std::string resolvedOutputPath = resolveReadableAssetPath(outputPath);
+
+    if (outputIsFresh(resolvedPhotoPath, resolvedMaskAtlasPath, resolvedOutputPath)) {
         return doof::Result<void, std::string>::success();
     }
 
-    auto photoResult = loadRgbaImage(photoPath);
+    auto photoResult = loadRgbaImage(resolvedPhotoPath);
     if (photoResult.isFailure()) {
         return doof::Result<void, std::string>::failure(photoResult.error());
     }
-    auto maskResult = loadRgbaImage(maskAtlasPath);
+    auto maskResult = loadRgbaImage(resolvedMaskAtlasPath);
     if (maskResult.isFailure()) {
         return doof::Result<void, std::string>::failure(maskResult.error());
     }
@@ -241,7 +272,7 @@ doof::Result<void, std::string> buildJigsawAtlas(
         }
     }
 
-    return writePng(outputPath, mask.width, mask.height, output);
+    return writePng(resolvedOutputPath, mask.width, mask.height, output);
 }
 
 }  // namespace doof_game_jigsaw

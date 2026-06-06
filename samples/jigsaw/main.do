@@ -322,16 +322,7 @@ function joinNearbyPieces(pieces: Piece[], layout: PuzzleLayout, group: int): vo
   }
 }
 
-function hasArg(args: string[], expected: string): bool {
-  for index of 0..<args.length {
-    if args[index] == expected {
-      return true
-    }
-  }
-  return false
-}
-
-function main(args: string[]): int {
+function main(): int {
   atlasResult := buildJigsawAtlas(SOURCE_PHOTO_PATH, MASK_ATLAS_PATH, GENERATED_ATLAS_PATH, COLUMNS, ROWS)
   case atlasResult {
     s: Success -> {}
@@ -339,11 +330,6 @@ function main(args: string[]): int {
       println(f.error)
       return 1
     }
-  }
-
-  if hasArg(args, "--preprocess-only") {
-    println(GENERATED_ATLAS_PATH)
-    return 0
   }
 
   app := initGameApp{ title: "Doof Game Jigsaw" }
