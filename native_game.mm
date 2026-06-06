@@ -353,34 +353,6 @@ NSString* nsString(const std::string& value) {
     return [NSString stringWithUTF8String:value.c_str()];
 }
 
-bool fileExists(const std::string& path) {
-    return [[NSFileManager defaultManager] fileExistsAtPath:nsString(path)];
-}
-
-std::string bundleResourcePathForRelativePath(const std::string& path) {
-    if (path.empty() || path[0] == '/') {
-        return path;
-    }
-
-    NSBundle* bundle = [NSBundle mainBundle];
-    NSString* resourcePath = [bundle resourcePath];
-    if (resourcePath == nil) {
-        return path;
-    }
-
-    NSString* resolved = [resourcePath stringByAppendingPathComponent:nsString(path)];
-    return std::string([resolved fileSystemRepresentation]);
-}
-
-std::string resolveReadableAssetPath(const std::string& path) {
-    if (fileExists(path)) {
-        return path;
-    }
-
-    std::string bundled = bundleResourcePathForRelativePath(path);
-    return fileExists(bundled) ? bundled : path;
-}
-
 float rgbeToFloat(uint8_t value, uint8_t exponent) {
     if (exponent == 0) {
         return 0.0f;
@@ -392,8 +364,7 @@ doof::Result<std::shared_ptr<NativeTexture>, std::string> loadRadianceHdrTexture
     const std::string& path,
     id<MTLDevice> device
 ) {
-    const std::string resolvedPath = resolveReadableAssetPath(path);
-    std::ifstream file(resolvedPath, std::ios::binary);
+    std::ifstream file(path, std::ios::binary);
     if (!file) {
         return doof::Result<std::shared_ptr<NativeTexture>, std::string>::failure("Failed to load HDR image: " + path);
     }
@@ -1227,8 +1198,7 @@ doof::Result<std::shared_ptr<NativeTexture>, std::string> NativeTexture::load(
         return loaded;
     }
 
-    const std::string resolvedPath = resolveReadableAssetPath(path);
-    NSString* nsPath = nsString(resolvedPath);
+    NSString* nsPath = nsString(path);
     NSImage* image = [[NSImage alloc] initWithContentsOfFile:nsPath];
     if (image == nil) {
         return doof::Result<std::shared_ptr<NativeTexture>, std::string>::failure("Failed to load image: " + path);

@@ -22,6 +22,7 @@ import {
 } from "std/game"
 import { abs, min } from "std/math"
 import { randomInt } from "std/random"
+import { join, resourcesDirectory } from "std/path"
 
 import function buildJigsawAtlas(
   photoPath: string,
@@ -323,7 +324,12 @@ function joinNearbyPieces(pieces: Piece[], layout: PuzzleLayout, group: int): vo
 }
 
 function main(): int {
-  atlasResult := buildJigsawAtlas(SOURCE_PHOTO_PATH, MASK_ATLAS_PATH, GENERATED_ATLAS_PATH, COLUMNS, ROWS)
+  resources := try! resourcesDirectory()
+  sourcePhoto := join([resources, SOURCE_PHOTO_PATH])
+  maskAtlas := join([resources, MASK_ATLAS_PATH])
+  generatedAtlas := join([resources, GENERATED_ATLAS_PATH])
+
+  atlasResult := buildJigsawAtlas(sourcePhoto, maskAtlas, generatedAtlas, COLUMNS, ROWS)
   case atlasResult {
     s: Success -> {}
     f: Failure -> {
@@ -333,7 +339,7 @@ function main(): int {
   }
 
   app := initGameApp{ title: "Doof Game Jigsaw" }
-  loadedAtlasTexture := app.loadTexture(GENERATED_ATLAS_PATH) else {
+  loadedAtlasTexture := app.loadTexture(generatedAtlas) else {
     case loadedAtlasTexture {
       f: Failure -> println(f.error)
       _: Success -> println("Failed to load generated jigsaw atlas")

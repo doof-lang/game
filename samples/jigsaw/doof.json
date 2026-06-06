@@ -16,7 +16,7 @@
       ]
     },
     "iosApp": {
-      "bundleId": "dev.doof.jigsaw",
+      "bundleId": "extremebasic.jigsaw",
       "displayName": "Doof Jigsaw",
       "version": "1.0",
       "icon": "images/generated_jigsaw_atlas.png",
@@ -63,8 +63,5 @@
     }
   },
   "dependencies": {
-    "std/game": {
-      "path": "../.."
-    }
   }
 }
