@@ -20,7 +20,7 @@ import {
   drawSimpleModelBatch,
   initGameApp,
 } from "std/game"
-import { min } from "std/math"
+import { abs, min } from "std/math"
 import { randomInt } from "std/random"
 
 import function buildJigsawAtlas(
@@ -51,8 +51,15 @@ class Piece {
   id: int
   column: int
   row: int
+  group: int
   x: double
   y: double
+}
+
+class SnapMatch {
+  targetGroup: int
+  dx: double
+  dy: double
 }
 
 function uvOffset(column: int, row: int): Vec2 {
@@ -112,6 +119,7 @@ function createPieces(layout: PuzzleLayout): Piece[] {
         id: id,
         column: column,
         row: row,
+        group: id,
         x: randomInt(int(layout.boardWidth)),
         y: randomInt(int(layout.boardHeight)),
       })
@@ -143,7 +151,7 @@ function createBatch(
   texture: Texture,
   pieces: Piece[],
   drawOrder: int[],
-  excludedPiece: int,
+  excludedGroup: int,
 ): SimpleModelBatch {
   batch := SimpleModelBatch {
     surface: surface,
@@ -154,7 +162,7 @@ function createBatch(
 
   for index of 0..<drawOrder.length {
     pieceId := drawOrder[index]
-    if pieceId != excludedPiece {
+    if excludedGroup < 0 || pieces[pieceId].group != excludedGroup {
       addPieceToBatch(batch, pieces[pieceId])
     }
   }
@@ -167,7 +175,7 @@ function createDragBatch(surface: GameSurface, mesh: SimpleMesh, texture: Textur
     surface: surface,
     mesh: mesh,
     texture: texture,
-    capacity: 1,
+    capacity: COLUMNS * ROWS,
   }
 }
 
@@ -189,20 +197,129 @@ function hitTestTopmost(pieces: Piece[], drawOrder: int[], layout: PuzzleLayout,
   return -1
 }
 
-function removeFromDrawOrder(drawOrder: int[], pieceId: int): int[] {
+function removeGroupFromDrawOrder(pieces: Piece[], drawOrder: int[], group: int): int[] {
   next: int[] := []
   for index of 0..<drawOrder.length {
-    if drawOrder[index] != pieceId {
-      next.push(drawOrder[index])
+    pieceId := drawOrder[index]
+    if pieces[pieceId].group != group {
+      next.push(pieceId)
     }
   }
   return next
 }
 
-function bringToFront(drawOrder: int[], pieceId: int): int[] {
-  next := removeFromDrawOrder(drawOrder, pieceId)
-  next.push(pieceId)
+function bringGroupToFront(pieces: Piece[], drawOrder: int[], group: int): int[] {
+  next := removeGroupFromDrawOrder(pieces, drawOrder, group)
+  for id of 0..<COLUMNS * ROWS {
+    if pieces[id].group == group {
+      next.push(id)
+    }
+  }
   return next
+}
+
+function addGroupToBatch(batch: SimpleModelBatch, pieces: Piece[], group: int): void {
+  for id of 0..<COLUMNS * ROWS {
+    if pieces[id].group == group {
+      addPieceToBatch(batch, pieces[id])
+    }
+  }
+}
+
+function moveGroup(pieces: Piece[], group: int, dx: double, dy: double): void {
+  for id of 0..<COLUMNS * ROWS {
+    if pieces[id].group == group {
+      pieces[id].x = pieces[id].x + dx
+      pieces[id].y = pieces[id].y + dy
+    }
+  }
+}
+
+function setGroupPositionFromPiece(pieces: Piece[], group: int, pieceId: int, x: double, y: double): void {
+  dx := x - pieces[pieceId].x
+  dy := y - pieces[pieceId].y
+  moveGroup(pieces, group, dx, dy)
+}
+
+function mergeGroups(pieces: Piece[], fromGroup: int, intoGroup: int): void {
+  for id of 0..<COLUMNS * ROWS {
+    if pieces[id].group == fromGroup {
+      pieces[id].group = intoGroup
+    }
+  }
+}
+
+function snapMatchIfClose(piece: Piece, neighbor: Piece, layout: PuzzleLayout, dx: double, dy: double): SnapMatch | null {
+  threshold := layout.step * 0.32
+  if abs(dx) <= threshold && abs(dy) <= threshold {
+    return SnapMatch {
+      targetGroup: neighbor.group,
+      dx: dx,
+      dy: dy,
+    }
+  }
+  return null
+}
+
+function findSnapMatch(pieces: Piece[], layout: PuzzleLayout, group: int): SnapMatch | null {
+  for id of 0..<COLUMNS * ROWS {
+    piece := pieces[id]
+    if piece.group == group {
+      if piece.column < COLUMNS - 1 {
+        neighbor := pieces[piece.id + 1]
+        if neighbor.group != group {
+          match := snapMatchIfClose(piece, neighbor, layout, neighbor.x - layout.step - piece.x, neighbor.y - piece.y)
+          if match != null {
+            return match
+          }
+        }
+      }
+
+      if piece.column > 0 {
+        neighbor := pieces[piece.id - 1]
+        if neighbor.group != group {
+          match := snapMatchIfClose(piece, neighbor, layout, neighbor.x + layout.step - piece.x, neighbor.y - piece.y)
+          if match != null {
+            return match
+          }
+        }
+      }
+
+      if piece.row < ROWS - 1 {
+        neighbor := pieces[piece.id + COLUMNS]
+        if neighbor.group != group {
+          match := snapMatchIfClose(piece, neighbor, layout, neighbor.x - piece.x, neighbor.y - layout.step - piece.y)
+          if match != null {
+            return match
+          }
+        }
+      }
+
+      if piece.row > 0 {
+        neighbor := pieces[piece.id - COLUMNS]
+        if neighbor.group != group {
+          match := snapMatchIfClose(piece, neighbor, layout, neighbor.x - piece.x, neighbor.y + layout.step - piece.y)
+          if match != null {
+            return match
+          }
+        }
+      }
+    }
+  }
+  return null
+}
+
+function joinNearbyPieces(pieces: Piece[], layout: PuzzleLayout, group: int): void {
+  let searching = true
+  while searching {
+    match := findSnapMatch(pieces, layout, group)
+    if match != null {
+      moveGroup(pieces, group, match!.dx, match!.dy)
+      mergeGroups(pieces, match!.targetGroup, group)
+    } else {
+      searching = false
+    }
+  }
 }
 
 function hasArg(args: string[], expected: string): bool {
@@ -246,9 +363,9 @@ function main(args: string[]): int {
   let dragBatch = createDragBatch(app.surface, mesh, loadedAtlasTexture)
 
   let draggedPiece = -1
+  let draggedGroup = -1
   let dragOffsetX = 0.0
   let dragOffsetY = 0.0
-  let dragInstance: SimpleModelInstance | null = null
 
   app.onEvent((event): void => {
     if event.kind() == GameEventKind.CloseRequested {
@@ -263,33 +380,32 @@ function main(args: string[]): int {
       hit := hitTestTopmost(pieces, drawOrder, layout, event.x(), event.y())
       if hit >= 0 {
         draggedPiece = hit
+        draggedGroup = pieces[hit].group
         piece := pieces[hit]
         dragOffsetX = event.x() - piece.x
         dragOffsetY = event.y() - piece.y
-        drawOrder = removeFromDrawOrder(drawOrder, hit)
-        mainBatch = createBatch(app.surface, mesh, loadedAtlasTexture, pieces, drawOrder, hit)
+        drawOrder = removeGroupFromDrawOrder(pieces, drawOrder, draggedGroup)
+        mainBatch = createBatch(app.surface, mesh, loadedAtlasTexture, pieces, drawOrder, draggedGroup)
         dragBatch = createDragBatch(app.surface, mesh, loadedAtlasTexture)
-        dragInstance = addPieceToBatch(dragBatch, piece)
+        addGroupToBatch(dragBatch, pieces, draggedGroup)
         app.requestRender()
       }
     }
 
     if event.kind() == GameEventKind.MouseMove && draggedPiece >= 0 {
-      piece := pieces[draggedPiece]
-      piece.x = event.x() - dragOffsetX
-      piece.y = event.y() - dragOffsetY
-      if dragInstance != null {
-        dragInstance!.setPosition(Point3(piece.x, piece.y, 0.0))
-      }
+      setGroupPositionFromPiece(pieces, draggedGroup, draggedPiece, event.x() - dragOffsetX, event.y() - dragOffsetY)
+      dragBatch = createDragBatch(app.surface, mesh, loadedAtlasTexture)
+      addGroupToBatch(dragBatch, pieces, draggedGroup)
       app.requestRender()
     }
 
     if event.kind() == GameEventKind.MouseUp && event.mouseButton() == MouseButton.Left && draggedPiece >= 0 {
-      drawOrder = bringToFront(drawOrder, draggedPiece)
+      joinNearbyPieces(pieces, layout, draggedGroup)
+      drawOrder = bringGroupToFront(pieces, drawOrder, draggedGroup)
       mainBatch = createBatch(app.surface, mesh, loadedAtlasTexture, pieces, drawOrder, -1)
       dragBatch = createDragBatch(app.surface, mesh, loadedAtlasTexture)
-      dragInstance = null
       draggedPiece = -1
+      draggedGroup = -1
       app.requestRender()
     }
   })
