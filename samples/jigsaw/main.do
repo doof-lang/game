@@ -22,9 +22,11 @@ import {
   drawSimpleModelBatch,
   initGameApp,
 } from "std/game"
+import { exists, readText, writeText, IoError } from "std/fs"
+import { formatJsonValue, parseJsonValue } from "std/json"
 import { abs, min } from "std/math"
 import { randomInt } from "std/random"
-import { join, resourcesDirectory } from "std/path"
+import { dataDirectory, join, resourcesDirectory } from "std/path"
 
 import function buildJigsawAtlas(
   photoPath: string,
@@ -37,9 +39,11 @@ import function buildJigsawAtlas(
 const COLUMNS = 32
 const ROWS = 32
 const PIECE_SIZE = 128.0
+const PUZZLE_STATE_VERSION = 1
 readonly SOURCE_PHOTO_PATH = "images/IMG_0459.jpeg"
 readonly MASK_ATLAS_PATH = "images/jigjig.png"
 readonly GENERATED_ATLAS_PATH = "images/generated_jigsaw_atlas.png"
+readonly PUZZLE_STATE_FILE = "puzzle-state.json"
 
 class PuzzleLayout {
   pieceSize: double
@@ -71,6 +75,15 @@ class SnapMatch {
   targetGroup: int
   dx: double
   dy: double
+}
+
+class PuzzleState {
+  version: int
+  columns: int
+  rows: int
+  pieces: Piece[]
+  drawOrder: int[]
+  camera: PuzzleCamera
 }
 
 function uvOffset(column: int, row: int): Vec2 {
@@ -188,6 +201,114 @@ function createDrawOrder(): int[] {
     order.push(id)
   }
   return order
+}
+
+function ioErrorMessage(operation: string, path: string, error: IoError): string {
+  return "${operation} failed for ${path}: ${error}"
+}
+
+function puzzleStatePath(): string {
+  directory := dataDirectory() else error {
+    panic("Failed to resolve puzzle state data directory: ${error}")
+  }
+  return join([directory, PUZZLE_STATE_FILE])
+}
+
+function createPuzzleState(pieces: Piece[], drawOrder: int[], camera: PuzzleCamera): PuzzleState {
+  return PuzzleState {
+    version: PUZZLE_STATE_VERSION,
+    columns: COLUMNS,
+    rows: ROWS,
+    pieces,
+    drawOrder,
+    camera,
+  }
+}
+
+function validatePuzzleState(state: PuzzleState): Result<void, string> {
+  pieceCount := COLUMNS * ROWS
+  if state.version != PUZZLE_STATE_VERSION {
+    return Failure("Unsupported puzzle state version ${state.version}")
+  }
+  if state.columns != COLUMNS || state.rows != ROWS {
+    return Failure("Puzzle state dimensions do not match this puzzle")
+  }
+  if state.pieces.length != pieceCount {
+    return Failure("Puzzle state has ${state.pieces.length} pieces, expected ${pieceCount}")
+  }
+  if state.drawOrder.length != pieceCount {
+    return Failure("Puzzle state draw order has ${state.drawOrder.length} entries, expected ${pieceCount}")
+  }
+
+  pieceIds: int[] := []
+  drawIds: int[] := []
+  for id of 0..<pieceCount {
+    pieceIds.push(0)
+    drawIds.push(0)
+  }
+
+  for index of 0..<state.pieces.length {
+    piece := state.pieces[index]
+    if piece.id < 0 || piece.id >= pieceCount {
+      return Failure("Puzzle state contains invalid piece id ${piece.id}")
+    }
+    if piece.column != piece.id % COLUMNS || piece.row != piece.id \ COLUMNS {
+      return Failure("Puzzle state contains invalid coordinates for piece ${piece.id}")
+    }
+    if piece.group < 0 || piece.group >= pieceCount {
+      return Failure("Puzzle state contains invalid group ${piece.group}")
+    }
+    if pieceIds[piece.id] != 0 {
+      return Failure("Puzzle state contains duplicate piece id ${piece.id}")
+    }
+    pieceIds[piece.id] = 1
+  }
+
+  for index of 0..<state.drawOrder.length {
+    pieceId := state.drawOrder[index]
+    if pieceId < 0 || pieceId >= pieceCount {
+      return Failure("Puzzle state contains invalid draw order id ${pieceId}")
+    }
+    if drawIds[pieceId] != 0 {
+      return Failure("Puzzle state contains duplicate draw order id ${pieceId}")
+    }
+    drawIds[pieceId] = 1
+  }
+
+  return Success()
+}
+
+function loadPuzzleState(path: string): Result<PuzzleState, string> {
+  text := readText(path) else error {
+    return Failure(ioErrorMessage("read", path, error))
+  }
+
+  try json := parseJsonValue(text)
+  try state := PuzzleState.fromJsonValue(json)
+  try validatePuzzleState(state)
+  return Success(state)
+}
+
+function savePuzzleState(path: string, pieces: Piece[], drawOrder: int[], camera: PuzzleCamera): Result<void, string> {
+  state := createPuzzleState(pieces, drawOrder, camera)
+  try validatePuzzleState(state)
+
+  writeText(path, formatJsonValue(state.toJsonObject())) else error {
+    return Failure(ioErrorMessage("write", path, error))
+  }
+
+  return Success()
+}
+
+function savePuzzleStateSafely(
+  statePath: string,
+  pieces: Piece[],
+  drawOrder: int[],
+  camera: PuzzleCamera,
+): void {
+  savePuzzleState(statePath, pieces, drawOrder, camera) else error {
+    println("Failed to save puzzle state: ${error}")
+  }
 }
 
 function addPieceToBatch(batch: SimpleModelBatch, piece: Piece): SimpleModelInstance {
@@ -382,29 +503,35 @@ function main(): int {
   maskAtlas := join([resources, MASK_ATLAS_PATH])
   generatedAtlas := join([resources, GENERATED_ATLAS_PATH])
 
-  atlasResult := buildJigsawAtlas(sourcePhoto, maskAtlas, generatedAtlas, COLUMNS, ROWS)
-  case atlasResult {
-    s: Success -> {}
-    f: Failure -> {
-      println(f.error)
-      return 1
-    }
+  buildJigsawAtlas(sourcePhoto, maskAtlas, generatedAtlas, COLUMNS, ROWS) else error {
+    println(error)
+    return 1
   }
 
   app := initGameApp{ title: "Doof Game Jigsaw" }
-  loadedAtlasTexture := app.loadTexture(generatedAtlas) else {
-    case loadedAtlasTexture {
-      f: Failure -> println(f.error)
-      _: Success -> println("Failed to load generated jigsaw atlas")
-    }
+  loadedAtlasTexture := app.loadTexture(generatedAtlas) else error {
+    println(error)
     return 1
   }
 
   layout := createLayout(app.surface)
-  camera := createCamera(app.surface, layout)
+  let camera = createCamera(app.surface, layout)
   mesh := createPieceMesh(app.surface, layout)
-  pieces := createPieces(layout)
+  let pieces = createPieces(layout)
   let drawOrder = createDrawOrder()
+  statePath := puzzleStatePath()
+
+  if exists(statePath) {
+    case loadPuzzleState(statePath) {
+      loaded: Success -> {
+        pieces = loaded.value.pieces
+        drawOrder = loaded.value.drawOrder
+        camera = loaded.value.camera
+      }
+      failed: Failure -> println("Ignoring saved puzzle state: ${failed.error}")
+    }
+  }
+
   let mainBatch = createBatch(app.surface, mesh, loadedAtlasTexture, pieces, drawOrder, -1)
   let dragBatch = createDragBatch(app.surface, mesh, loadedAtlasTexture)
 
@@ -415,10 +542,26 @@ function main(): int {
 
   app.onEvent((event): void => {
     if event.kind() == GameEventKind.CloseRequested {
+      if draggedPiece >= 0 {
+        drawOrder = bringGroupToFront(pieces, drawOrder, draggedGroup)
+        mainBatch = createBatch(app.surface, mesh, loadedAtlasTexture, pieces, drawOrder, -1)
+        dragBatch = createDragBatch(app.surface, mesh, loadedAtlasTexture)
+        draggedPiece = -1
+        draggedGroup = -1
+      }
+      savePuzzleStateSafely(statePath, pieces, drawOrder, camera)
       app.stop()
     }
 
     if event.kind() == GameEventKind.KeyDown && event.key() == Key.Escape {
+      if draggedPiece >= 0 {
+        drawOrder = bringGroupToFront(pieces, drawOrder, draggedGroup)
+        mainBatch = createBatch(app.surface, mesh, loadedAtlasTexture, pieces, drawOrder, -1)
+        dragBatch = createDragBatch(app.surface, mesh, loadedAtlasTexture)
+        draggedPiece = -1
+        draggedGroup = -1
+      }
+      savePuzzleStateSafely(statePath, pieces, drawOrder, camera)
       app.stop()
     }
 
@@ -456,6 +599,7 @@ function main(): int {
       dragBatch = createDragBatch(app.surface, mesh, loadedAtlasTexture)
       draggedPiece = -1
       draggedGroup = -1
+      savePuzzleStateSafely(statePath, pieces, drawOrder, camera)
       app.requestRender()
     }
 
@@ -465,6 +609,7 @@ function main(): int {
       dragBatch = createDragBatch(app.surface, mesh, loadedAtlasTexture)
       draggedPiece = -1
       draggedGroup = -1
+      savePuzzleStateSafely(statePath, pieces, drawOrder, camera)
       app.requestRender()
     }
 
@@ -479,6 +624,7 @@ function main(): int {
       camera.x = camera.x - event.deltaX() / camera.zoom
       camera.y = camera.y - event.deltaY() / camera.zoom
       applyZoomAt(camera, event.x(), event.y(), 1.0 + event.wheelDeltaY() * 0.003)
+      savePuzzleStateSafely(statePath, pieces, drawOrder, camera)
       app.requestRender()
     }
   })
@@ -498,12 +644,9 @@ function main(): int {
     )
   })
 
-  result := app.run()
-  case result {
-    s: Success -> return 0
-    f: Failure -> {
-      println(f.error)
-      return 1
-    }
+  app.run() else error {
+    println(error)
+    return 1
   }
+  return 0
 }
