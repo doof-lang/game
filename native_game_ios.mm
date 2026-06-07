@@ -575,6 +575,9 @@ struct NativeGameApp::Impl {
 - (void)tick:(CADisplayLink*)displayLink;
 @end
 
+@interface DoofGameIOSViewController : UIViewController
+@end
+
 @interface DoofGameIOSView : UIView {
 @public
     doof_game::GameRuntimeState* state_;
@@ -803,7 +806,7 @@ std::string installIOSSurface(const std::shared_ptr<GameRuntimeState>& state) {
 
         UIViewController* rootViewController = window.rootViewController;
         if (rootViewController == nil) {
-            rootViewController = [[[UIViewController alloc] init] autorelease];
+            rootViewController = [[[DoofGameIOSViewController alloc] init] autorelease];
             window.rootViewController = rootViewController;
         }
 
@@ -823,6 +826,10 @@ std::string installIOSSurface(const std::shared_ptr<GameRuntimeState>& state) {
         CAMetalLayer* layer = (__bridge CAMetalLayer*)reinterpret_cast<void*>(state->surface->metalLayerHandle());
         [view.layer addSublayer:layer];
         updateLayerDrawableSize(view, state->surface);
+
+        [rootViewController setNeedsUpdateOfScreenEdgesDeferringSystemGestures];
+        [rootViewController setNeedsUpdateOfHomeIndicatorAutoHidden];
+        [rootViewController setNeedsStatusBarAppearanceUpdate];
 
         DoofGameDisplayLinkTarget* target = [[DoofGameDisplayLinkTarget alloc] initWithState:state.get()];
         CADisplayLink* displayLink = [CADisplayLink displayLinkWithTarget:target selector:@selector(tick:)];
@@ -925,6 +932,23 @@ doof::Result<void, std::string> loadTextureWithCGImageSource(
         state_->scheduleDrainEvents();
         state_->scheduleRender();
     }
+}
+
+@end
+
+@implementation DoofGameIOSViewController
+
+- (UIRectEdge)preferredScreenEdgesDeferringSystemGestures {
+    return UIRectEdgeAll;
+}
+
+- (BOOL)prefersHomeIndicatorAutoHidden {
+    // Keeping the indicator visible preserves bottom-edge gesture deferral.
+    return NO;
+}
+
+- (BOOL)prefersStatusBarHidden {
+    return YES;
 }
 
 @end
