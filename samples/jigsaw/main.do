@@ -40,6 +40,8 @@ const COLUMNS = 32
 const ROWS = 32
 const PIECE_SIZE = 128.0
 const PUZZLE_STATE_VERSION = 1
+const PIECE_HIT_SIZE_SCALE = 0.62
+const ZOOM_DELTA_SCALE = 0.002
 readonly SOURCE_PHOTO_PATH = "images/IMG_0459.jpeg"
 readonly MASK_ATLAS_PATH = "images/jigjig.png"
 readonly GENERATED_ATLAS_PATH = "images/generated_jigsaw_atlas.png"
@@ -140,12 +142,24 @@ function screenToWorldY(camera: PuzzleCamera, y: double): double {
   return camera.y + y / camera.zoom
 }
 
-function applyZoomAt(camera: PuzzleCamera, screenX: double, screenY: double, factor: double): void {
+function setZoomAt(camera: PuzzleCamera, screenX: double, screenY: double, zoom: double): void {
   worldX := screenToWorldX(camera, screenX)
   worldY := screenToWorldY(camera, screenY)
-  camera.zoom = clampDouble(camera.zoom * clampDouble(factor, 0.5, 1.5), camera.minZoom, camera.maxZoom)
+  camera.zoom = clampDouble(zoom, camera.minZoom, camera.maxZoom)
   camera.x = worldX - screenX / camera.zoom
   camera.y = worldY - screenY / camera.zoom
+}
+
+function applyZoomAt(camera: PuzzleCamera, screenX: double, screenY: double, factor: double): void {
+  setZoomAt(camera, screenX, screenY, camera.zoom * clampDouble(factor, 0.75, 1.25))
+}
+
+function zoomFactorForWheelDelta(delta: double): double {
+  return 1.0 + delta * ZOOM_DELTA_SCALE
+}
+
+function isPieceDragButton(button: MouseButton): bool {
+  return button == MouseButton.Left || button == MouseButton.Other
 }
 
 function cameraTransform(camera: PuzzleCamera): Transform {
@@ -355,7 +369,7 @@ function createDragBatch(surface: GameSurface, mesh: SimpleMesh, texture: Textur
 }
 
 function hitTestPiece(piece: Piece, layout: PuzzleLayout, x: double, y: double): bool {
-  hitSize := layout.pieceSize * 0.5
+  hitSize := layout.pieceSize * PIECE_HIT_SIZE_SCALE
   inset := (layout.pieceSize - hitSize) * 0.5
   return x >= piece.x + inset && x <= piece.x + inset + hitSize && y >= piece.y + inset && y <= piece.y + inset + hitSize
 }
@@ -565,7 +579,8 @@ function main(): int {
       app.stop()
     }
 
-    if event.kind() == GameEventKind.MouseDown && event.mouseButton() == MouseButton.Left {
+    pieceDragButton := isPieceDragButton(event.mouseButton())
+    if event.kind() == GameEventKind.MouseDown && pieceDragButton {
       worldX := screenToWorldX(camera, event.x())
       worldY := screenToWorldY(camera, event.y())
       hit := hitTestTopmost(pieces, drawOrder, layout, worldX, worldY)
@@ -592,7 +607,15 @@ function main(): int {
       app.requestRender()
     }
 
-    if event.kind() == GameEventKind.MouseUp && event.mouseButton() == MouseButton.Left && draggedPiece >= 0 {
+    touchPanActive := app.input.isMouseButtonDown(MouseButton.Other)
+    if event.kind() == GameEventKind.MouseMove && draggedPiece < 0 && touchPanActive {
+      camera.x = camera.x - event.deltaX() / camera.zoom
+      camera.y = camera.y - event.deltaY() / camera.zoom
+      savePuzzleStateSafely(statePath, pieces, drawOrder, camera)
+      app.requestRender()
+    }
+
+    if event.kind() == GameEventKind.MouseUp && pieceDragButton && draggedPiece >= 0 {
       joinNearbyPieces(pieces, layout, draggedGroup)
       drawOrder = bringGroupToFront(pieces, drawOrder, draggedGroup)
       mainBatch = createBatch(app.surface, mesh, loadedAtlasTexture, pieces, drawOrder, -1)
@@ -603,7 +626,7 @@ function main(): int {
       app.requestRender()
     }
 
-    if event.kind() == GameEventKind.MouseUp && event.mouseButton() != MouseButton.Left && draggedPiece >= 0 {
+    if event.kind() == GameEventKind.MouseUp && !pieceDragButton && draggedPiece >= 0 {
       drawOrder = bringGroupToFront(pieces, drawOrder, draggedGroup)
       mainBatch = createBatch(app.surface, mesh, loadedAtlasTexture, pieces, drawOrder, -1)
       dragBatch = createDragBatch(app.surface, mesh, loadedAtlasTexture)
@@ -623,7 +646,21 @@ function main(): int {
       }
       camera.x = camera.x - event.deltaX() / camera.zoom
       camera.y = camera.y - event.deltaY() / camera.zoom
-      applyZoomAt(camera, event.x(), event.y(), 1.0 + event.wheelDeltaY() * 0.003)
+      applyZoomAt(camera, event.x(), event.y(), zoomFactorForWheelDelta(event.wheelDeltaY()))
+      savePuzzleStateSafely(statePath, pieces, drawOrder, camera)
+      app.requestRender()
+    }
+
+    if event.kind() == GameEventKind.DoubleTap {
+      if draggedPiece >= 0 {
+        drawOrder = bringGroupToFront(pieces, drawOrder, draggedGroup)
+        mainBatch = createBatch(app.surface, mesh, loadedAtlasTexture, pieces, drawOrder, -1)
+        dragBatch = createDragBatch(app.surface, mesh, loadedAtlasTexture)
+        draggedPiece = -1
+        draggedGroup = -1
+      }
+      targetZoom := if abs(camera.zoom - camera.maxZoom) < 0.001 then camera.minZoom else camera.maxZoom
+      setZoomAt(camera, event.x(), event.y(), targetZoom)
       savePuzzleStateSafely(statePath, pieces, drawOrder, camera)
       app.requestRender()
     }

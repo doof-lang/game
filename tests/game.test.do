@@ -282,6 +282,7 @@ export function testGameEventKindMapping(): void {
   Assert.equal(gameEventKindFromCode(5), GameEventKind.MouseUp)
   Assert.equal(gameEventKindFromCode(6), GameEventKind.MouseMove)
   Assert.equal(gameEventKindFromCode(7), GameEventKind.MouseWheel)
+  Assert.equal(gameEventKindFromCode(8), GameEventKind.DoubleTap)
 }
 
 export function testRenderPassDescriptorDefaults(): void {

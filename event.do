@@ -11,6 +11,7 @@ const KIND_MOUSE_DOWN = 4
 const KIND_MOUSE_UP = 5
 const KIND_MOUSE_MOVE = 6
 const KIND_MOUSE_WHEEL = 7
+const KIND_DOUBLE_TAP = 8
 
 export class GameEvent {
   private readonly native: NativeGameEvent
@@ -38,6 +39,7 @@ export function gameEventKindFromCode(code: int): GameEventKind {
     KIND_MOUSE_UP -> GameEventKind.MouseUp,
     KIND_MOUSE_MOVE -> GameEventKind.MouseMove,
     KIND_MOUSE_WHEEL -> GameEventKind.MouseWheel,
+    KIND_DOUBLE_TAP -> GameEventKind.DoubleTap,
     _ -> GameEventKind.CloseRequested,
   }
 }

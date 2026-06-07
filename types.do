@@ -7,6 +7,7 @@ export enum GameEventKind {
   MouseUp,
   MouseMove,
   MouseWheel,
+  DoubleTap,
 }
 
 export enum Key {

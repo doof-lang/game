@@ -39,6 +39,7 @@ constexpr int32_t kKindMouseDown = 4;
 constexpr int32_t kKindMouseUp = 5;
 constexpr int32_t kKindMouseMove = 6;
 constexpr int32_t kKindMouseWheel = 7;
+constexpr int32_t kKindDoubleTap = 8;
 
 constexpr int32_t kKeyUnknown = 0;
 constexpr int32_t kMouseLeft = 0;
@@ -1019,12 +1020,12 @@ doof::Result<void, std::string> loadTextureWithCGImageSource(
 }
 
 - (void)emitMouseUpAtPoint:(CGPoint)point {
-    state_->input->setMouseButtonDownCode(doof_game::kMouseLeft, false);
+    state_->input->setMouseButtonDownCode(doof_game::kMouseOther, false);
     state_->input->setMousePosition(point.x, point.y);
     state_->emit(std::make_shared<doof_game::NativeGameEvent>(
         doof_game::kKindMouseUp,
         doof_game::kKeyUnknown,
-        doof_game::kMouseLeft,
+        doof_game::kMouseOther,
         point.x,
         point.y
     ));
@@ -1034,7 +1035,7 @@ doof::Result<void, std::string> loadTextureWithCGImageSource(
 - (void)beginPinchWithTouches:(NSArray<UITouch*>*)activeTouches {
     if (mouseDownEmitted_) {
         CGPoint point = doof_game::gamePointForTouch(self, primaryTouch_);
-        state_->input->setMouseButtonDownCode(doof_game::kMouseLeft, false);
+        state_->input->setMouseButtonDownCode(doof_game::kMouseOther, false);
         state_->input->setMousePosition(point.x, point.y);
         state_->emit(std::make_shared<doof_game::NativeGameEvent>(
             doof_game::kKindMouseUp,
@@ -1123,12 +1124,26 @@ doof::Result<void, std::string> loadTextureWithCGImageSource(
     }
     primaryTouch_ = touch;
     CGPoint point = doof_game::gamePointForTouch(self, touch);
-    state_->input->setMouseButtonDownCode(doof_game::kMouseLeft, true);
+    state_->input->setMousePosition(point.x, point.y);
+    if (touch.tapCount >= 2) {
+        state_->emit(std::make_shared<doof_game::NativeGameEvent>(
+            doof_game::kKindDoubleTap,
+            doof_game::kKeyUnknown,
+            doof_game::kMouseOther,
+            point.x,
+            point.y
+        ));
+        mouseDownEmitted_ = NO;
+        primaryTouch_ = nil;
+        return;
+    }
+
+    state_->input->setMouseButtonDownCode(doof_game::kMouseOther, true);
     state_->input->setMousePosition(point.x, point.y);
     state_->emit(std::make_shared<doof_game::NativeGameEvent>(
         doof_game::kKindMouseDown,
         doof_game::kKeyUnknown,
-        doof_game::kMouseLeft,
+        doof_game::kMouseOther,
         point.x,
         point.y
     ));
