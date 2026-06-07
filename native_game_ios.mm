@@ -578,6 +578,13 @@ struct NativeGameApp::Impl {
 @interface DoofGameIOSView : UIView {
 @public
     doof_game::GameRuntimeState* state_;
+    UITouch* primaryTouch_;
+    UITouch* secondaryTouch_;
+    double lastPinchDistance_;
+    double lastPinchMidpointX_;
+    double lastPinchMidpointY_;
+    BOOL mouseDownEmitted_;
+    BOOL pinching_;
 }
 - (instancetype)initWithState:(doof_game::GameRuntimeState*)state frame:(CGRect)frame;
 @end
@@ -928,8 +935,15 @@ doof::Result<void, std::string> loadTextureWithCGImageSource(
     self = [super initWithFrame:frame];
     if (self) {
         state_ = state;
+        primaryTouch_ = nil;
+        secondaryTouch_ = nil;
+        lastPinchDistance_ = 0.0;
+        lastPinchMidpointX_ = 0.0;
+        lastPinchMidpointY_ = 0.0;
+        mouseDownEmitted_ = NO;
+        pinching_ = NO;
         self.backgroundColor = UIColor.blackColor;
-        self.multipleTouchEnabled = NO;
+        self.multipleTouchEnabled = YES;
         self.opaque = YES;
     }
     return self;
@@ -949,9 +963,141 @@ doof::Result<void, std::string> loadTextureWithCGImageSource(
     state_->requestRender();
 }
 
+- (NSArray<UITouch*>*)activeTouchesForEvent:(UIEvent*)event {
+    NSMutableArray<UITouch*>* active = [NSMutableArray arrayWithCapacity:2];
+    for (UITouch* touch in [event allTouches]) {
+        if (touch.view != self) {
+            continue;
+        }
+        if (touch.phase == UITouchPhaseEnded || touch.phase == UITouchPhaseCancelled) {
+            continue;
+        }
+        [active addObject:touch];
+        if (active.count >= 2) {
+            break;
+        }
+    }
+    return active;
+}
+
+- (double)distanceBetweenFirstTouch:(UITouch*)first secondTouch:(UITouch*)second {
+    CGPoint a = doof_game::gamePointForTouch(self, first);
+    CGPoint b = doof_game::gamePointForTouch(self, second);
+    const double dx = static_cast<double>(b.x - a.x);
+    const double dy = static_cast<double>(b.y - a.y);
+    return std::sqrt(dx * dx + dy * dy);
+}
+
+- (CGPoint)midpointBetweenFirstTouch:(UITouch*)first secondTouch:(UITouch*)second {
+    CGPoint a = doof_game::gamePointForTouch(self, first);
+    CGPoint b = doof_game::gamePointForTouch(self, second);
+    return CGPointMake((a.x + b.x) * 0.5, (a.y + b.y) * 0.5);
+}
+
+- (void)emitMouseUpAtPoint:(CGPoint)point {
+    state_->input->setMouseButtonDownCode(doof_game::kMouseLeft, false);
+    state_->input->setMousePosition(point.x, point.y);
+    state_->emit(std::make_shared<doof_game::NativeGameEvent>(
+        doof_game::kKindMouseUp,
+        doof_game::kKeyUnknown,
+        doof_game::kMouseLeft,
+        point.x,
+        point.y
+    ));
+    mouseDownEmitted_ = NO;
+}
+
+- (void)beginPinchWithTouches:(NSArray<UITouch*>*)activeTouches {
+    if (mouseDownEmitted_) {
+        CGPoint point = doof_game::gamePointForTouch(self, primaryTouch_);
+        state_->input->setMouseButtonDownCode(doof_game::kMouseLeft, false);
+        state_->input->setMousePosition(point.x, point.y);
+        state_->emit(std::make_shared<doof_game::NativeGameEvent>(
+            doof_game::kKindMouseUp,
+            doof_game::kKeyUnknown,
+            doof_game::kMouseOther,
+            point.x,
+            point.y
+        ));
+        mouseDownEmitted_ = NO;
+    }
+
+    primaryTouch_ = activeTouches[0];
+    secondaryTouch_ = activeTouches[1];
+    lastPinchDistance_ = [self distanceBetweenFirstTouch:primaryTouch_ secondTouch:secondaryTouch_];
+    CGPoint midpoint = [self midpointBetweenFirstTouch:primaryTouch_ secondTouch:secondaryTouch_];
+    lastPinchMidpointX_ = midpoint.x;
+    lastPinchMidpointY_ = midpoint.y;
+    pinching_ = YES;
+}
+
+- (BOOL)updatePinchWithEvent:(UIEvent*)event {
+    NSArray<UITouch*>* activeTouches = [self activeTouchesForEvent:event];
+    if (activeTouches.count < 2) {
+        pinching_ = NO;
+        primaryTouch_ = nil;
+        secondaryTouch_ = nil;
+        lastPinchDistance_ = 0.0;
+        lastPinchMidpointX_ = 0.0;
+        lastPinchMidpointY_ = 0.0;
+        return NO;
+    }
+
+    if (!pinching_) {
+        [self beginPinchWithTouches:activeTouches];
+        return YES;
+    }
+
+    primaryTouch_ = activeTouches[0];
+    secondaryTouch_ = activeTouches[1];
+    const double distance = [self distanceBetweenFirstTouch:primaryTouch_ secondTouch:secondaryTouch_];
+    CGPoint midpoint = [self midpointBetweenFirstTouch:primaryTouch_ secondTouch:secondaryTouch_];
+    if (lastPinchDistance_ <= 0.0) {
+        lastPinchDistance_ = distance;
+        lastPinchMidpointX_ = midpoint.x;
+        lastPinchMidpointY_ = midpoint.y;
+        return YES;
+    }
+
+    const double zoomDelta = distance - lastPinchDistance_;
+    const double panDeltaX = static_cast<double>(midpoint.x) - lastPinchMidpointX_;
+    const double panDeltaY = static_cast<double>(midpoint.y) - lastPinchMidpointY_;
+    lastPinchDistance_ = distance;
+    lastPinchMidpointX_ = midpoint.x;
+    lastPinchMidpointY_ = midpoint.y;
+    if (std::abs(zoomDelta) <= 0.01 && std::abs(panDeltaX) <= 0.01 && std::abs(panDeltaY) <= 0.01) {
+        return YES;
+    }
+
+    state_->input->setMousePosition(midpoint.x, midpoint.y);
+    state_->input->addMouseDelta(panDeltaX, panDeltaY);
+    state_->input->addWheelDelta(0.0, zoomDelta);
+    state_->emit(std::make_shared<doof_game::NativeGameEvent>(
+        doof_game::kKindMouseWheel,
+        doof_game::kKeyUnknown,
+        doof_game::kMouseOther,
+        midpoint.x,
+        midpoint.y,
+        panDeltaX,
+        panDeltaY,
+        0.0,
+        zoomDelta
+    ));
+    return YES;
+}
+
 - (void)touchesBegan:(NSSet<UITouch*>*)touches withEvent:(UIEvent*)event {
-    (void)event;
+    NSArray<UITouch*>* activeTouches = [self activeTouchesForEvent:event];
+    if (activeTouches.count >= 2) {
+        [self beginPinchWithTouches:activeTouches];
+        return;
+    }
+
     UITouch* touch = [touches anyObject];
+    if (touch == nil || pinching_) {
+        return;
+    }
+    primaryTouch_ = touch;
     CGPoint point = doof_game::gamePointForTouch(self, touch);
     state_->input->setMouseButtonDownCode(doof_game::kMouseLeft, true);
     state_->input->setMousePosition(point.x, point.y);
@@ -962,11 +1108,18 @@ doof::Result<void, std::string> loadTextureWithCGImageSource(
         point.x,
         point.y
     ));
+    mouseDownEmitted_ = YES;
 }
 
 - (void)touchesMoved:(NSSet<UITouch*>*)touches withEvent:(UIEvent*)event {
-    (void)event;
-    UITouch* touch = [touches anyObject];
+    if ([self updatePinchWithEvent:event]) {
+        return;
+    }
+
+    UITouch* touch = primaryTouch_ != nil ? primaryTouch_ : [touches anyObject];
+    if (touch == nil || !mouseDownEmitted_) {
+        return;
+    }
     CGPoint point = doof_game::gamePointForTouch(self, touch);
     double dx = point.x - state_->input->mouseX();
     double dy = point.y - state_->input->mouseY();
@@ -984,18 +1137,19 @@ doof::Result<void, std::string> loadTextureWithCGImageSource(
 }
 
 - (void)touchesEnded:(NSSet<UITouch*>*)touches withEvent:(UIEvent*)event {
-    (void)event;
-    UITouch* touch = [touches anyObject];
+    if (pinching_) {
+        [self updatePinchWithEvent:event];
+        return;
+    }
+
+    UITouch* touch = primaryTouch_ != nil ? primaryTouch_ : [touches anyObject];
+    if (touch == nil || !mouseDownEmitted_) {
+        primaryTouch_ = nil;
+        return;
+    }
     CGPoint point = doof_game::gamePointForTouch(self, touch);
-    state_->input->setMouseButtonDownCode(doof_game::kMouseLeft, false);
-    state_->input->setMousePosition(point.x, point.y);
-    state_->emit(std::make_shared<doof_game::NativeGameEvent>(
-        doof_game::kKindMouseUp,
-        doof_game::kKeyUnknown,
-        doof_game::kMouseLeft,
-        point.x,
-        point.y
-    ));
+    [self emitMouseUpAtPoint:point];
+    primaryTouch_ = nil;
 }
 
 - (void)touchesCancelled:(NSSet<UITouch*>*)touches withEvent:(UIEvent*)event {

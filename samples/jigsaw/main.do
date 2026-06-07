@@ -1,5 +1,6 @@
 import {
   Blend,
+  Camera,
   Clear,
   Color,
   Depth,
@@ -17,6 +18,7 @@ import {
   Texture,
   Transform,
   Vec2,
+  Vec3,
   drawSimpleModelBatch,
   initGameApp,
 } from "std/game"
@@ -48,6 +50,14 @@ class PuzzleLayout {
   boardHeight: double
 }
 
+class PuzzleCamera {
+  x: double
+  y: double
+  zoom: double
+  minZoom: double
+  maxZoom: double
+}
+
 class Piece {
   id: int
   column: int
@@ -67,27 +77,70 @@ function uvOffset(column: int, row: int): Vec2 {
   return Vec2.xy(double(column) / double(COLUMNS), double(row) / double(ROWS))
 }
 
+function clampDouble(value: double, low: double, high: double): double {
+  if value < low {
+    return low
+  }
+  if value > high {
+    return high
+  }
+  return value
+}
+
 function createLayout(surface: GameSurface): PuzzleLayout {
   surfaceWidth := double(surface.pixelWidth())
-  surfaceHeight := double(surface.pixelHeight())
-  margin := min(surfaceWidth, surfaceHeight) * 0.045
-  availableWidth := surfaceWidth - margin * 2.0
-  availableHeight := surfaceHeight - margin * 2.0
-  pieceSize := min(
-    availableWidth * 2.0 / double(COLUMNS + 1),
-    availableHeight * 2.0 / double(ROWS + 1),
-  )
+  pieceSize := PIECE_SIZE
   step := pieceSize * 0.5
   boardWidth := step * double(COLUMNS - 1) + pieceSize
   boardHeight := step * double(ROWS - 1) + pieceSize
   return PuzzleLayout {
     pieceSize,
     step,
-    originX: (surfaceWidth - boardWidth) * 0.5,
-    originY: (surfaceHeight - boardHeight) * 0.5,
+    originX: 0.0,
+    originY: 0.0,
     boardWidth,
     boardHeight,
   }
+}
+
+function createCamera(surface: GameSurface, layout: PuzzleLayout): PuzzleCamera {
+  surfaceWidth := double(surface.pixelWidth())
+  surfaceHeight := double(surface.pixelHeight())
+  fitZoom := min(surfaceWidth * 0.92 / layout.boardWidth, surfaceHeight * 0.92 / layout.boardHeight)
+  targetPiecePixels := if min(surfaceWidth, surfaceHeight) < 1400.0 then 96.0 else 64.0
+  readableZoom := targetPiecePixels / layout.pieceSize
+  zoom := clampDouble(if readableZoom > fitZoom then readableZoom else fitZoom, fitZoom * 0.85, 3.0)
+  return PuzzleCamera {
+    x: layout.originX + layout.boardWidth * 0.5 - surfaceWidth * 0.5 / zoom,
+    y: layout.originY + layout.boardHeight * 0.5 - surfaceHeight * 0.5 / zoom,
+    zoom,
+    minZoom: fitZoom * 0.85,
+    maxZoom: 3.0,
+  }
+}
+
+function screenToWorldX(camera: PuzzleCamera, x: double): double {
+  return camera.x + x / camera.zoom
+}
+
+function screenToWorldY(camera: PuzzleCamera, y: double): double {
+  return camera.y + y / camera.zoom
+}
+
+function applyZoomAt(camera: PuzzleCamera, screenX: double, screenY: double, factor: double): void {
+  worldX := screenToWorldX(camera, screenX)
+  worldY := screenToWorldY(camera, screenY)
+  camera.zoom = clampDouble(camera.zoom * clampDouble(factor, 0.5, 1.5), camera.minZoom, camera.maxZoom)
+  camera.x = worldX - screenX / camera.zoom
+  camera.y = worldY - screenY / camera.zoom
+}
+
+function cameraTransform(camera: PuzzleCamera): Transform {
+  inverseZoom := 1.0 / camera.zoom
+  return Transform
+    .identity()
+    .withPosition(Point3(camera.x, camera.y, 0.0))
+    .withScale(Vec3.xyz(inverseZoom, inverseZoom, 1.0))
 }
 
 function createPieceMesh(surface: GameSurface, layout: PuzzleLayout): SimpleMesh {
@@ -348,6 +401,7 @@ function main(): int {
   }
 
   layout := createLayout(app.surface)
+  camera := createCamera(app.surface, layout)
   mesh := createPieceMesh(app.surface, layout)
   pieces := createPieces(layout)
   let drawOrder = createDrawOrder()
@@ -369,13 +423,15 @@ function main(): int {
     }
 
     if event.kind() == GameEventKind.MouseDown && event.mouseButton() == MouseButton.Left {
-      hit := hitTestTopmost(pieces, drawOrder, layout, event.x(), event.y())
+      worldX := screenToWorldX(camera, event.x())
+      worldY := screenToWorldY(camera, event.y())
+      hit := hitTestTopmost(pieces, drawOrder, layout, worldX, worldY)
       if hit >= 0 {
         draggedPiece = hit
         draggedGroup = pieces[hit].group
         piece := pieces[hit]
-        dragOffsetX = event.x() - piece.x
-        dragOffsetY = event.y() - piece.y
+        dragOffsetX = worldX - piece.x
+        dragOffsetY = worldY - piece.y
         drawOrder = removeGroupFromDrawOrder(pieces, drawOrder, draggedGroup)
         mainBatch = createBatch(app.surface, mesh, loadedAtlasTexture, pieces, drawOrder, draggedGroup)
         dragBatch = createDragBatch(app.surface, mesh, loadedAtlasTexture)
@@ -385,7 +441,9 @@ function main(): int {
     }
 
     if event.kind() == GameEventKind.MouseMove && draggedPiece >= 0 {
-      setGroupPositionFromPiece(pieces, draggedGroup, draggedPiece, event.x() - dragOffsetX, event.y() - dragOffsetY)
+      worldX := screenToWorldX(camera, event.x())
+      worldY := screenToWorldY(camera, event.y())
+      setGroupPositionFromPiece(pieces, draggedGroup, draggedPiece, worldX - dragOffsetX, worldY - dragOffsetY)
       dragBatch = createDragBatch(app.surface, mesh, loadedAtlasTexture)
       addGroupToBatch(dragBatch, pieces, draggedGroup)
       app.requestRender()
@@ -400,6 +458,29 @@ function main(): int {
       draggedGroup = -1
       app.requestRender()
     }
+
+    if event.kind() == GameEventKind.MouseUp && event.mouseButton() != MouseButton.Left && draggedPiece >= 0 {
+      drawOrder = bringGroupToFront(pieces, drawOrder, draggedGroup)
+      mainBatch = createBatch(app.surface, mesh, loadedAtlasTexture, pieces, drawOrder, -1)
+      dragBatch = createDragBatch(app.surface, mesh, loadedAtlasTexture)
+      draggedPiece = -1
+      draggedGroup = -1
+      app.requestRender()
+    }
+
+    if event.kind() == GameEventKind.MouseWheel {
+      if draggedPiece >= 0 {
+        drawOrder = bringGroupToFront(pieces, drawOrder, draggedGroup)
+        mainBatch = createBatch(app.surface, mesh, loadedAtlasTexture, pieces, drawOrder, -1)
+        dragBatch = createDragBatch(app.surface, mesh, loadedAtlasTexture)
+        draggedPiece = -1
+        draggedGroup = -1
+      }
+      camera.x = camera.x - event.deltaX() / camera.zoom
+      camera.y = camera.y - event.deltaY() / camera.zoom
+      applyZoomAt(camera, event.x(), event.y(), 1.0 + event.wheelDeltaY() * 0.003)
+      app.requestRender()
+    }
   })
 
   app.onRender((renderer): void => {
@@ -408,6 +489,7 @@ function main(): int {
         clear: Clear.colorDepth(Color(0.04, 0.04, 0.045), 1.0),
         depth: Depth.disabled(),
         blend: Blend.alpha(),
+        camera: Camera.screen().withTransform(cameraTransform(camera)),
       },
       (pass): void => {
         drawSimpleModelBatch(pass, mainBatch)
