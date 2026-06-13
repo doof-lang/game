@@ -23,6 +23,12 @@
       "resources": [
         { "from": "images/*", "to": "images" }
       ],
+      "infoPlist": {
+        "NSLocalNetworkUsageDescription": "Doof Jigsaw connects to a local puzzle server on your network.",
+        "NSAppTransportSecurity": {
+          "NSAllowsLocalNetworking": true
+        }
+      },
       "minimumDeploymentTarget": "16.0"
     },
     "native": {

@@ -130,16 +130,16 @@ export class SimpleMeshBuilder {
     uvC: Point = Point { x: 0.0, y: 0.0 },
     uvD: Point = Point { x: 0.0, y: 0.0 },
   ): SimpleMeshBuilder {
-    ai := this.vertex{ position: a, color: color, uv: uvA, normal: normal }
-    bi := this.vertex{ position: b, color: color, uv: uvB, normal: normal }
-    ci := this.vertex{ position: c, color: color, uv: uvC, normal: normal }
-    di := this.vertex{ position: d, color: color, uv: uvD, normal: normal }
+    ai := vertex{ position: a, color: color, uv: uvA, normal: normal }
+    bi := vertex{ position: b, color: color, uv: uvB, normal: normal }
+    ci := vertex{ position: c, color: color, uv: uvC, normal: normal }
+    di := vertex{ position: d, color: color, uv: uvD, normal: normal }
     triangle(ai, bi, ci)
     return triangle(ai, ci, di)
   }
 
   buildSpec(): SimpleMeshSpec {
-    return SimpleMeshSpec {
+    return {
       positions: positions.slice(0, positions.length),
       indices: indices.slice(0, indices.length),
       colors: colors.slice(0, colors.length),

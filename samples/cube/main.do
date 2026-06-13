@@ -74,7 +74,7 @@ function main(): int {
   let angle = 0.0
   let lastFrameAt = Instant.now()
 
-  app.onEvent((event): void => {
+  app.onEvent() {
     if event.kind() == GameEventKind.CloseRequested {
       app.stop()
     }
@@ -82,7 +82,7 @@ function main(): int {
     if event.kind() == GameEventKind.KeyDown && event.key() == Key.Escape {
       app.stop()
     }
-  })
+  }
 
   cube := SimpleModel(createCubeMesh(app.surface))
 
@@ -97,33 +97,28 @@ function main(): int {
     blend: Blend.opaque(),
   }
 
-  app.onRender((renderer): void => {
+  app.onRender() {
     now := Instant.now()
     elapsed := lastFrameAt.durationUntil(now)
     lastFrameAt = now
     angle += double(elapsed.toNanos()) / 1000000000.0
     radiansToDegrees := 57.2957795131
 
-    renderer.pass(
-      renderPassDescriptor,
-      (pass): void => {
-        cube.setTransform(
-          Transform.identity()
-            .rotatedLocalBy(Rotation.y(angle * radiansToDegrees))
-            .rotatedLocalBy(Rotation.x(angle * 0.62 * radiansToDegrees)),
-        )
-        drawSimpleModel(pass, cube)
-        app.requestRender()
-      },
-    )
-  })
-
-  result := app.run()
-  case result {
-    s: Success -> return 0
-    f: Failure -> {
-      println(f.error)
-      return 1
+    renderer.pass(renderPassDescriptor) {
+      cube.setTransform(
+        Transform.identity()
+          .rotatedLocalBy(Rotation.y(angle * radiansToDegrees))
+          .rotatedLocalBy(Rotation.x(angle * 0.62 * radiansToDegrees)),
+      )
+      drawSimpleModel(pass, cube)
+      app.requestRender()
     }
   }
+
+  app.run() else error {
+    println(error)
+    return 1
+  }
+ 
+  return 0
 }
