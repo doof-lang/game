@@ -8,7 +8,7 @@ import {
   JigsawServerEvent,
   JigsawServerEventKind,
   encodeJigsawCommandFrame,
-} from "std-game-jigsaw-sample"
+} from "../../jigsaw"
 
 import {
   JigsawHttpServerOptions,

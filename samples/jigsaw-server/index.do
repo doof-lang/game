@@ -32,7 +32,7 @@ import {
   decodeJigsawCommandFrame,
   encodeJigsawErrorFrame,
   encodeJigsawEventFrame,
-} from "std-game-jigsaw-sample"
+} from "../jigsaw"
 
 export class JigsawHttpServerOptions {
   host: string = "127.0.0.1"
