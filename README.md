@@ -236,6 +236,41 @@ for the whole mesh with simple built-in directional lighting, while
 `drawTexturedSimpleMesh(...)` samples a `Texture` using the mesh UVs before
 applying the same lighting.
 
+### Bitmap Font Text
+
+```doof
+fontTexture := try! app.loadTexture("fonts/hud.png")
+font := try! loadBitmapFont("fonts/hud.fnt")
+label := createTextModel(
+  app.surface,
+  font,
+  fontTexture,
+  "Score 1200",
+  TextLayoutOptions {
+    position: Point(24.0, 32.0),
+    maxWidth: 320.0,
+    align: TextAlign.Left,
+  },
+)
+
+renderer.pass(
+  RenderPassDescriptor {
+    camera: Camera.screen(),
+    blend: Blend.alpha(),
+  },
+  (pass): void => {
+    drawSimpleModel(pass, label)
+  },
+)
+```
+
+`loadBitmapFont(path)` reads AngelCode BMFont text `.fnt` metrics for a
+single-page bitmap atlas. `createTextMeshSpec(...)`, `createTextMesh(...)`, and
+`createTextModel(...)` lay out text in pixel coordinates for `Camera.screen()`,
+including newlines, kerning, optional word wrapping, letter spacing, line
+spacing, and left/center/right alignment. Spaces advance the cursor but do not
+emit glyph quads, and the generated UVs target the supplied font texture.
+
 ### Sphere Meshes
 
 ```doof
@@ -397,5 +432,6 @@ the key/button is held.
 - `samples/minimal` draws a screen-space simple mesh.
 - `samples/cards` draws textured atlas cards with one simple-model batch draw.
 - `samples/cube` draws a timer-driven spinning cube with one static simple mesh.
+- `samples/text` draws bitmap font text with wrapping, line spacing, and alignment.
 - `samples/skymap` draws an equirectangular panorama, a textured sphere planet,
   and a loaded OBJ mesh while mouse movement steers the camera.

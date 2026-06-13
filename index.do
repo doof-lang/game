@@ -11,6 +11,20 @@ export { mouseButtonCode, mouseButtonFromCode } from "./mouse"
 export { createSphereMeshSpec } from "./sphere"
 export { SkyMap, drawEquirectangularSkyMap } from "./sky"
 export {
+  BitmapFont,
+  BitmapGlyph,
+  BitmapKerning,
+  TextAlign,
+  TextBounds,
+  TextLayoutOptions,
+  createTextMesh,
+  createTextMeshSpec,
+  createTextModel,
+  loadBitmapFont,
+  measureText,
+  parseBitmapFont,
+} from "./text"
+export {
   Blend,
   BlendMode,
   Atlas,
