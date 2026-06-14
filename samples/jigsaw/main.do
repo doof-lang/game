@@ -81,11 +81,11 @@ function uvOffset(column: int, row: int): Vec2 {
 }
 
 function createLayout(surface: GameSurface): PuzzleLayout {
-  return createLayoutForSize(double(surface.pixelWidth()), double(surface.pixelHeight()))
+  return createLayoutForSize(surface.width(), surface.height())
 }
 
 function createCamera(surface: GameSurface, layout: PuzzleLayout): PuzzleCamera {
-  return createCameraForSize(double(surface.pixelWidth()), double(surface.pixelHeight()), layout)
+  return createCameraForSize(surface.width(), surface.height(), layout)
 }
 
 function screenToWorldX(camera: PuzzleCamera, x: double): double {
@@ -299,7 +299,9 @@ function main(args: string[]): int {
   //   return 1
   // }
 
-  serverAddress := "ws://192.168.1.120:8765/jigsaw"
+//  serverAddress := "ws://192.168.1.120:8765/jigsaw"
+
+  serverAddress : string | null := null
 
   resources := try! resourcesDirectory()
   sourcePhoto := join([resources, SOURCE_PHOTO_PATH])

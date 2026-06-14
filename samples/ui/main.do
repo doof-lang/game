@@ -26,8 +26,8 @@ const PANEL_WIDTH = 640.0
 const PANEL_HEIGHT = 540.0
 
 function transformedPanelScale(surface: GameSurface): double {
-  screenWidth := double(surface.pixelWidth())
-  screenHeight := double(surface.pixelHeight())
+  screenWidth := surface.width()
+  screenHeight := surface.height()
   let scale = (screenHeight * 0.5) / PANEL_HEIGHT
   widthScale := (screenWidth - 48.0) / PANEL_WIDTH
   if scale > widthScale {
@@ -45,8 +45,8 @@ function positionSampleUi(
   body: UiLabel,
   clicks: int,
 ): void {
-  screenWidth := double(surface.pixelWidth())
-  screenHeight := double(surface.pixelHeight())
+  screenWidth := surface.width()
+  screenHeight := surface.height()
   scale := transformedPanelScale(surface)
   panelX := (screenWidth - PANEL_WIDTH * scale) * 0.5
   panelY := (screenHeight - PANEL_HEIGHT * scale) * 0.5
@@ -64,7 +64,7 @@ function updateSampleBody(surface: GameSurface, scale: double, body: UiLabel, cl
   body.setText(
     "The retained UI layer can read the render surface dimensions, then resize " +
     "and center this fixed local panel with one transform.\n\n" +
-    "Surface: ${surface.pixelWidth()} x ${surface.pixelHeight()} px\n" +
+    "Surface: ${int(surface.width())} x ${int(surface.height())} logical\n" +
     "Local panel: ${int(PANEL_WIDTH)} x ${int(PANEL_HEIGHT)}\n" +
     "Transform scale: ${scale}\n" +
     "Clicks: ${clicks}",

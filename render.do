@@ -438,8 +438,8 @@ export class Camera {
   matrix(surface: GameSurface): Mat4 {
     cameraView := transform.toInverseMat4()
     if kind == CameraKind.Screen {
-      width := double(surface.pixelWidth())
-      height := double(surface.pixelHeight())
+      width := surface.width()
+      height := surface.height()
       projection := Mat4 {
         m00: 2.0 / width, m01: 0.0, m02: 0.0, m03: -1.0,
         m10: 0.0, m11: -2.0 / height, m12: 0.0, m13: 1.0,

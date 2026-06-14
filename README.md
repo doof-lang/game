@@ -182,15 +182,16 @@ version.
 ### Cameras And Matrices
 
 ```doof
-pixelCamera := Camera.screen()
+screenCamera := Camera.screen()
 worldCamera := Camera.orthographic(-400.0, 400.0, -225.0, 225.0, -10.0, 10.0)
 projection := Camera.perspective(1.0471975512, 16.0 / 9.0, 0.1, 100.0)
 camera := projection.withPosition(Point3(0.0, 0.0, 6.0))
 ```
 
-`Camera.screen()` keeps the built-in helpers in pixel coordinates with `(0, 0)`
-at the top-left of the surface. `Camera.identity()` treats positions as clip
-space. `Camera.orthographic(...)` accepts explicit world bounds, and
+`Camera.screen()` keeps the built-in helpers in logical screen coordinates with
+`(0, 0)` at the top-left of the surface and `(surface.width(), surface.height())`
+at the bottom-right. `Camera.identity()` treats positions as clip space.
+`Camera.orthographic(...)` accepts explicit world bounds, and
 `Camera.perspective(...)` builds a right-handed perspective projection suitable
 for objects in front of the camera on negative Z. Cameras carry a world-space
 `Transform`; use `withPosition(...)`, `movedLocalBy(...)`, `rotatedLocalY(...)`,
@@ -266,8 +267,8 @@ renderer.pass(
 
 `loadBitmapFont(path)` reads AngelCode BMFont text `.fnt` metrics for a
 single-page bitmap atlas. `createTextMeshSpec(...)`, `createTextMesh(...)`, and
-`createTextModel(...)` lay out text in pixel coordinates for `Camera.screen()`,
-including newlines, kerning, optional word wrapping, letter spacing, line
+`createTextModel(...)` lay out text in logical screen coordinates for
+`Camera.screen()`, including newlines, kerning, optional word wrapping, letter
 spacing, and left/center/right alignment. Spaces advance the cursor but do not
 emit glyph quads, and the generated UVs target the supplied font texture.
 
@@ -456,6 +457,8 @@ as float Metal textures, so HDRI panoramas can be used directly.
 ### `GameSurface`
 
 ```doof
+width(): double
+height(): double
 pixelWidth(): int
 pixelHeight(): int
 scale(): double
@@ -463,6 +466,11 @@ metalDeviceHandle(): long
 metalCommandQueueHandle(): long
 metalLayerHandle(): long
 ```
+
+`width()` and `height()` report logical screen dimensions, adjusted by the
+surface scale, and are the natural units for `Camera.screen()`, text, UI, mouse,
+and touch coordinates. `pixelWidth()` and `pixelHeight()` report the physical
+drawable dimensions for native interop and pixel-sized render resources.
 
 The `long` Metal handles are pointer values for native renderer code. They are
 macOS/Metal-specific in this version.

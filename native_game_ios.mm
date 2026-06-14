@@ -665,10 +665,7 @@ CGPoint gamePointForTouch(UIView* view, UITouch* touch) {
         return CGPointZero;
     }
 
-    CGPoint point = [touch locationInView:view];
-    UIScreen* screen = view.window != nil ? view.window.screen : UIScreen.mainScreen;
-    CGFloat scale = screen != nil ? screen.scale : 1.0;
-    return CGPointMake(point.x * scale, point.y * scale);
+    return [touch locationInView:view];
 }
 
 struct GameRuntimeState : std::enable_shared_from_this<GameRuntimeState> {
