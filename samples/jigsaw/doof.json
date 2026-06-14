@@ -4,25 +4,16 @@
   "license": "ISC",
   "build": {
     "target": "macos-app",
-    "targetExecutableName": "DoofJigsaw",
+    "executable": "DoofJigsaw",
+    "title": "Doof Jigsaw",
+    "icon": "images/generated_jigsaw_atlas.png",
+    "resources": ["images"],
     "macosApp": {
       "bundleId": "dev.doof.jigsaw",
-      "displayName": "Doof Jigsaw",
-      "version": "1.0",
-      "category": "public.app-category.games",
-      "icon": "images/generated_jigsaw_atlas.png",
-      "resources": [
-        { "from": "images/*", "to": "images" }
-      ]
+      "category": "public.app-category.games"
     },
     "iosApp": {
       "bundleId": "extremebasic.jigsaw",
-      "displayName": "Doof Jigsaw",
-      "version": "1.0",
-      "icon": "images/generated_jigsaw_atlas.png",
-      "resources": [
-        { "from": "images/*", "to": "images" }
-      ],
       "infoPlist": {
         "NSLocalNetworkUsageDescription": "Doof Jigsaw connects to a local puzzle server on your network.",
         "NSAppTransportSecurity": {
@@ -35,35 +26,17 @@
       "extraCopyPaths": [
         "native_jigsaw.hpp"
       ],
+      "sourceFiles": [
+        "native_jigsaw.mm"
+      ],
+      "frameworks": [
+        "CoreGraphics",
+        "Foundation",
+        "ImageIO"
+      ],
       "macos": {
-        "sourceFiles": [
-          "native_jigsaw.mm"
-        ],
         "frameworks": [
-          "AppKit",
-          "CoreGraphics",
-          "Foundation",
-          "ImageIO"
-        ]
-      },
-      "iosSimulator": {
-        "sourceFiles": [
-          "native_jigsaw.mm"
-        ],
-        "frameworks": [
-          "CoreGraphics",
-          "Foundation",
-          "ImageIO"
-        ]
-      },
-      "iosDevice": {
-        "sourceFiles": [
-          "native_jigsaw.mm"
-        ],
-        "frameworks": [
-          "CoreGraphics",
-          "Foundation",
-          "ImageIO"
+          "AppKit"
         ]
       }
     }
