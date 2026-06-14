@@ -45,6 +45,10 @@ constexpr int32_t kKeyUnknown = 0;
 constexpr int32_t kMouseLeft = 0;
 constexpr int32_t kMouseOther = 3;
 
+constexpr double kDoubleTapMaxIntervalSeconds = 0.32;
+constexpr double kDoubleTapMaxDistancePoints = 28.0;
+constexpr double kTapMoveTolerancePoints = 10.0;
+
 constexpr int32_t kClearColor = 1;
 constexpr int32_t kClearDepth = 2;
 constexpr int32_t kClearColorDepth = 3;
@@ -587,8 +591,14 @@ struct NativeGameApp::Impl {
     double lastPinchDistance_;
     double lastPinchMidpointX_;
     double lastPinchMidpointY_;
+    double touchStartX_;
+    double touchStartY_;
+    NSTimeInterval lastTapTime_;
+    double lastTapX_;
+    double lastTapY_;
     BOOL mouseDownEmitted_;
     BOOL pinching_;
+    BOOL touchMovedTooFar_;
 }
 - (instancetype)initWithState:(doof_game::GameRuntimeState*)state frame:(CGRect)frame;
 @end
@@ -962,8 +972,14 @@ doof::Result<void, std::string> loadTextureWithCGImageSource(
         lastPinchDistance_ = 0.0;
         lastPinchMidpointX_ = 0.0;
         lastPinchMidpointY_ = 0.0;
+        touchStartX_ = 0.0;
+        touchStartY_ = 0.0;
+        lastTapTime_ = 0.0;
+        lastTapX_ = 0.0;
+        lastTapY_ = 0.0;
         mouseDownEmitted_ = NO;
         pinching_ = NO;
+        touchMovedTooFar_ = NO;
         self.backgroundColor = UIColor.blackColor;
         self.multipleTouchEnabled = YES;
         self.opaque = YES;
@@ -1043,6 +1059,7 @@ doof::Result<void, std::string> loadTextureWithCGImageSource(
         ));
         mouseDownEmitted_ = NO;
     }
+    touchMovedTooFar_ = YES;
 
     primaryTouch_ = activeTouches[0];
     secondaryTouch_ = activeTouches[1];
@@ -1121,19 +1138,10 @@ doof::Result<void, std::string> loadTextureWithCGImageSource(
     }
     primaryTouch_ = touch;
     CGPoint point = doof_game::gamePointForTouch(self, touch);
+    touchStartX_ = point.x;
+    touchStartY_ = point.y;
+    touchMovedTooFar_ = NO;
     state_->input->setMousePosition(point.x, point.y);
-    if (touch.tapCount >= 2) {
-        state_->emit(std::make_shared<doof_game::NativeGameEvent>(
-            doof_game::kKindDoubleTap,
-            doof_game::kKeyUnknown,
-            doof_game::kMouseOther,
-            point.x,
-            point.y
-        ));
-        mouseDownEmitted_ = NO;
-        primaryTouch_ = nil;
-        return;
-    }
 
     state_->input->setMouseButtonDownCode(doof_game::kMouseOther, true);
     state_->input->setMousePosition(point.x, point.y);
@@ -1159,6 +1167,11 @@ doof::Result<void, std::string> loadTextureWithCGImageSource(
     CGPoint point = doof_game::gamePointForTouch(self, touch);
     double dx = point.x - state_->input->mouseX();
     double dy = point.y - state_->input->mouseY();
+    double totalDx = point.x - touchStartX_;
+    double totalDy = point.y - touchStartY_;
+    if (std::sqrt(totalDx * totalDx + totalDy * totalDy) > doof_game::kTapMoveTolerancePoints) {
+        touchMovedTooFar_ = YES;
+    }
     state_->input->setMousePosition(point.x, point.y);
     state_->input->addMouseDelta(dx, dy);
     state_->emit(std::make_shared<doof_game::NativeGameEvent>(
@@ -1185,10 +1198,38 @@ doof::Result<void, std::string> loadTextureWithCGImageSource(
     }
     CGPoint point = doof_game::gamePointForTouch(self, touch);
     [self emitMouseUpAtPoint:point];
+
+    if (!touchMovedTooFar_) {
+        NSTimeInterval tapTime = touch.timestamp;
+        double tapDx = point.x - lastTapX_;
+        double tapDy = point.y - lastTapY_;
+        double tapDistance = std::sqrt(tapDx * tapDx + tapDy * tapDy);
+        if (lastTapTime_ > 0.0 &&
+            tapTime - lastTapTime_ <= doof_game::kDoubleTapMaxIntervalSeconds &&
+            tapDistance <= doof_game::kDoubleTapMaxDistancePoints) {
+            state_->emit(std::make_shared<doof_game::NativeGameEvent>(
+                doof_game::kKindDoubleTap,
+                doof_game::kKeyUnknown,
+                doof_game::kMouseOther,
+                point.x,
+                point.y
+            ));
+            lastTapTime_ = 0.0;
+        } else {
+            lastTapTime_ = tapTime;
+            lastTapX_ = point.x;
+            lastTapY_ = point.y;
+        }
+    } else {
+        lastTapTime_ = 0.0;
+    }
+
     primaryTouch_ = nil;
 }
 
 - (void)touchesCancelled:(NSSet<UITouch*>*)touches withEvent:(UIEvent*)event {
+    touchMovedTooFar_ = YES;
+    lastTapTime_ = 0.0;
     [self touchesEnded:touches withEvent:event];
 }
 
