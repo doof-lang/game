@@ -167,7 +167,9 @@ function main(args: string[]): int {
         if serverEvent.state != null {
           pieces = serverEvent.state!.pieces
           drawOrder = serverEvent.state!.drawOrder
-          camera = serverEvent.state!.camera
+          if !runtime.isServerMode() {
+            camera = serverEvent.state!.camera
+          }
         }
       }
       if serverEvent.kind == JigsawServerEventKind.GroupMoved {
