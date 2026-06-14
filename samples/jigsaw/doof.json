@@ -7,7 +7,7 @@
     "executable": "DoofJigsaw",
     "title": "Doof Jigsaw",
     "icon": "images/generated_jigsaw_atlas.png",
-    "resources": ["images"],
+    "resources": ["images", "fonts"],
     "macosApp": {
       "bundleId": "dev.doof.jigsaw",
       "category": "public.app-category.games"
