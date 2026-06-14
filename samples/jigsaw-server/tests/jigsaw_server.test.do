@@ -1,5 +1,7 @@
 import { Assert } from "std/assert"
 import { drainMainEventLoop, runMainEventLoop, setTimeout } from "std/event"
+import { exists, remove } from "std/fs"
+import { join, tempDirectory } from "std/path"
 import { Duration } from "std/time"
 
 import {
@@ -8,12 +10,14 @@ import {
   JigsawServerEvent,
   JigsawServerEventKind,
   encodeJigsawCommandFrame,
+  groupPosition,
 } from "../../jigsaw"
 
 import {
   JigsawHttpServerOptions,
   createDefaultJigsawServerState,
   forwardJigsawCommandForClient,
+  loadJigsawServerState,
   startJigsawHttpServer,
 } from "../index"
 
@@ -41,6 +45,14 @@ function moveCommandFrame(clientId: int, groupId: int, x: double, y: double): st
     x,
     y,
   })
+}
+
+function tempStatePath(name: string): string {
+  path := join([tempDirectory(), name])
+  if exists(path) {
+    ignored := remove(path)
+  }
+  return path
 }
 
 export function testRemoteWebSocketReceivesBoardSnapshot(): void {
@@ -96,6 +108,50 @@ export function testServerOverwritesSpoofedClientIdBeforeBroadcast(): void {
   Assert.equal(state.movedClientId, remote.clientId)
   Assert.equal(state.movedX, 50.0)
   Assert.equal(state.movedY, 60.0)
+}
+
+export function testServerPersistsStateAfterCommand(): void {
+  statePath := tempStatePath("doof-jigsaw-server-persist-command.json")
+  server := try! startJigsawHttpServer(
+    createDefaultJigsawServerState(),
+    JigsawHttpServerOptions { port: 0, statePath },
+  )
+  remote := server.session.connectClient()
+
+  try! forwardJigsawCommandForClient(remote, moveCommandFrame(999, 0, 70.0, 80.0))
+  ignored := drainMainEventLoop()
+  remote.events.close()
+  server.close()
+
+  Assert.isTrue(exists(statePath))
+  saved := try! loadJigsawServerState(statePath)
+  position := groupPosition(saved.pieces, 0)
+  Assert.equal(position.x, 70.0)
+  Assert.equal(position.y, 80.0)
+}
+
+export function testServerLoadsPersistedStateOnStartup(): void {
+  statePath := tempStatePath("doof-jigsaw-server-persist-startup.json")
+  first := try! startJigsawHttpServer(
+    createDefaultJigsawServerState(),
+    JigsawHttpServerOptions { port: 0, statePath },
+  )
+  remote := first.session.connectClient()
+  try! forwardJigsawCommandForClient(remote, moveCommandFrame(999, 0, 90.0, 100.0))
+  ignored := drainMainEventLoop()
+  remote.events.close()
+  first.close()
+
+  second := try! startJigsawHttpServer(
+    createDefaultJigsawServerState(),
+    JigsawHttpServerOptions { port: 0, statePath },
+  )
+  loaded := second.session.currentState()
+  second.close()
+
+  position := groupPosition(loaded.pieces, 0)
+  Assert.equal(position.x, 90.0)
+  Assert.equal(position.y, 100.0)
 }
 
 export function testBadPathRejectsHandshake(): void {

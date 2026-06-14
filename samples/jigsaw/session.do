@@ -88,6 +88,7 @@ export class JigsawSession {
   private nextClientId: int = 1
   private nextGroupId: int
   private eventCapacity: int
+  private onStateChanged: (state: PuzzleState): void
 
   connectClient(): JigsawClientConnection {
     clientId := this.nextClientId
@@ -132,6 +133,7 @@ export class JigsawSession {
         drawOrder: cloneIntArray(this.state.drawOrder),
       }
       this.broadcastExcept(command.clientId, event, moveEventKey(resolution.canonicalGroupId))
+      this.notifyStateChanged()
     } else {
       this.sendToClient(command.clientId, JigsawServerEvent {
         kind: JigsawServerEventKind.MoveCancelled,
@@ -173,6 +175,7 @@ export class JigsawSession {
       position,
       drawOrder: cloneIntArray(this.state.drawOrder),
     }, null)
+    this.notifyStateChanged()
   }
 
   private resolveMove(requestedGroups: int[]): MoveResolution {
@@ -286,9 +289,21 @@ export class JigsawSession {
     }
     this.clients = liveClients
   }
+
+  private notifyStateChanged(): void {
+    this.onStateChanged.call(clonePuzzleState(this.state))
+  }
 }
 
 export function createJigsawSession(initialState: PuzzleState, config: JigsawSessionConfig = JigsawSessionConfig {}): JigsawSession {
+  return createJigsawSessionWithStateChanged(initialState, (state: PuzzleState): void => {}, config)
+}
+
+export function createJigsawSessionWithStateChanged(
+  initialState: PuzzleState,
+  onStateChanged: (state: PuzzleState): void,
+  config: JigsawSessionConfig = JigsawSessionConfig {},
+): JigsawSession {
   if config.commandCapacity <= 0 {
     panic("Jigsaw command capacity must be positive")
   }
@@ -307,6 +322,7 @@ export function createJigsawSession(initialState: PuzzleState, config: JigsawSes
     groupDefinitions: initialGroupDefinitions(state),
     nextGroupId: maxInitialGroupId(state) + 1,
     eventCapacity: config.eventCapacity,
+    onStateChanged,
   }
   commandEvents.onMessage((command: JigsawClientCommand): void => session.handleCommand(command))
   return session

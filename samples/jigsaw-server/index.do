@@ -17,27 +17,34 @@ import {
   WebSocketWritable,
   createWebSocketConnection,
 } from "std/http-server/websocket"
+import { exists, readText, writeText, IoError } from "std/fs"
+import { formatJsonValue, parseJsonValue } from "std/json"
+import { dataDirectory, join } from "std/path"
 
 import {
   JigsawClientConnection,
   JigsawServerEvent,
   JigsawSession,
+  JigsawSessionConfig,
   PuzzleState,
   createCameraForSize,
   createDrawOrder,
   createJigsawSession,
+  createJigsawSessionWithStateChanged,
   createLayoutForSize,
   createPieces,
   createPuzzleState,
   decodeJigsawCommandFrame,
   encodeJigsawErrorFrame,
   encodeJigsawEventFrame,
+  validatePuzzleState,
 } from "../jigsaw"
 
 export class JigsawHttpServerOptions {
   host: string = "127.0.0.1"
   port: int = 8765
   socketPath: string = "/jigsaw"
+  statePath: string | null = null
   requestCapacity: int = 256
   eventCapacity: int = 1024
   commandCapacity: int = 1024
@@ -65,6 +72,32 @@ export function createDefaultJigsawServerState(): PuzzleState {
   return createPuzzleState(pieces, drawOrder, camera)
 }
 
+export function defaultJigsawServerStatePath(): Result<string, string> {
+  directory := dataDirectory("dev.doof.jigsaw-server") else error {
+    return Failure("Could not resolve jigsaw server data directory: ${error}")
+  }
+  return Success(join([directory, "puzzle-state.json"]))
+}
+
+export function loadJigsawServerState(path: string): Result<PuzzleState, string> {
+  text := readText(path) else error {
+    return Failure(ioErrorMessage("read", path, error))
+  }
+
+  try json := parseJsonValue(text)
+  try state := PuzzleState.fromJsonValue(json)
+  try validatePuzzleState(state)
+  return Success(state)
+}
+
+export function saveJigsawServerState(path: string, state: PuzzleState): Result<void, string> {
+  try validatePuzzleState(state)
+  writeText(path, formatJsonValue(state.toJsonObject())) else error {
+    return Failure(ioErrorMessage("write", path, error))
+  }
+  return Success()
+}
+
 export function startJigsawHttpServer(
   initialState: PuzzleState,
   options: JigsawHttpServerOptions = JigsawHttpServerOptions {},
@@ -73,7 +106,14 @@ export function startJigsawHttpServer(
     panic("Jigsaw HTTP server request capacity must be positive")
   }
 
-  session := createJigsawSession(initialState)
+  state := loadInitialJigsawServerState(initialState, options.statePath) else error {
+    return Failure(error)
+  }
+  sessionConfig := JigsawSessionConfig {
+    commandCapacity: options.commandCapacity,
+    eventCapacity: options.eventCapacity,
+  }
+  session := createJigsawHttpSession(state, options.statePath, sessionConfig)
   (requests, requestReceiver) := createChannel<Request>{
     capacity: options.requestCapacity,
     keepsAlive: true,
@@ -100,6 +140,32 @@ export function startJigsawHttpServer(
     server,
     requests,
   })
+}
+
+function ioErrorMessage(operation: string, path: string, error: IoError): string {
+  return "${operation} failed for ${path}: ${error}"
+}
+
+function loadInitialJigsawServerState(fallback: PuzzleState, statePath: string | null): Result<PuzzleState, string> {
+  if statePath != null && exists(statePath!) {
+    return loadJigsawServerState(statePath!)
+  }
+  return Success(fallback)
+}
+
+function createJigsawHttpSession(
+  state: PuzzleState,
+  statePath: string | null,
+  config: JigsawSessionConfig,
+): JigsawSession {
+  if statePath != null {
+    return createJigsawSessionWithStateChanged(state, (state: PuzzleState): void => {
+      saveJigsawServerState(statePath!, state) else error {
+        println("Failed to save jigsaw server state: ${error}")
+      }
+    }, config)
+  }
+  return createJigsawSession(state, config)
 }
 
 export function forwardJigsawCommandForClient(client: JigsawClientConnection, text: string): Result<void, string> {
