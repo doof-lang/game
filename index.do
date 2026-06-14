@@ -25,6 +25,19 @@ export {
   parseBitmapFont,
 } from "./text"
 export {
+  UiButton,
+  UiButtonStyle,
+  UiCallback,
+  UiElementKind,
+  UiHit,
+  UiLabel,
+  UiLayer,
+  UiPanel,
+  UiPanelStyle,
+  UiStyle,
+  rectContains,
+} from "./ui"
+export {
   Blend,
   BlendMode,
   Atlas,

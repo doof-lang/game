@@ -107,7 +107,7 @@ export class Color {
   readonly b: double
   readonly a: double = 1.0
 
-  static readonly black= Color(0.0, 0.0, 0.0)
+  static readonly black = Color(0.0, 0.0, 0.0)
   static readonly white = Color(1.0, 1.0, 1.0)
   static readonly red = Color(1.0, 0.0, 0.0)
   static readonly blue = Color(0.0, 0.0, 1.0)
@@ -118,20 +118,12 @@ export class Color {
 export class Point {
   readonly x: double
   readonly y: double
-
-  withZ(z: double): Point3 {
-    return Point3(x, y, z)
-  }
 }
 
 export class Point3 {
   readonly x: double
   readonly y: double
   readonly z: double
-
-  xy(): Point {
-    return Point(x, y)
-  }
 }
 
 export class ClipPoint {
@@ -303,10 +295,6 @@ export class Rect {
   readonly y: double
   readonly width: double
   readonly height: double
-
-  static xywh(x: double, y: double, width: double, height: double): Rect {
-    return Rect { x: x, y: y, width: width, height: height }
-  }
 }
 
 export class Texture {
@@ -325,7 +313,7 @@ export class Atlas {
   cellRect(column: int, row: int): Rect {
     cellWidth := double(texture.pixelWidth()) / double(columns)
     cellHeight := double(texture.pixelHeight()) / double(rows)
-    return Rect.xywh(cellWidth * double(column), cellHeight * double(row), cellWidth, cellHeight)
+    return Rect(cellWidth * double(column), cellHeight * double(row), cellWidth, cellHeight)
   }
 }
 

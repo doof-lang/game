@@ -7,6 +7,7 @@ import {
   Blend,
   BlendMode,
   Atlas,
+  BitmapFont,
   Camera,
   CameraKind,
   Clear,
@@ -32,6 +33,7 @@ import {
   SimpleMeshBuilder,
   Texture,
   Transform,
+  UiLayer,
   Vec2,
   Vec3,
   WindingMode,
@@ -129,6 +131,14 @@ function compileTexturedSimpleMeshSmoke(texture: Texture, surface: GameSurface, 
   mesh := builder.build(surface)
   drawTexturedSimpleMesh(pass, mesh, texture, Mat4.identity)
   drawSimpleModel(pass, SimpleModel(mesh, texture))
+}
+
+function compileUiLayerSmoke(font: BitmapFont, texture: Texture, surface: GameSurface, pass: RenderPass): void {
+  ui := UiLayer(surface, font)
+  ui.addPanel(Rect(16.0, 16.0, 240.0, 124.0), {})
+  ui.addLabel("Score 1200", Rect(24.0, 24.0, 220.0, 40.0), { fontTexture: texture })
+  ui.addButton("Start", Rect(24.0, 76.0, 160.0, 44.0), { fontTexture: texture }, (): void => {})
+  ui.draw(pass)
 }
 
 function compileSkyMapSmoke(texture: Texture, pass: RenderPass): void {
@@ -474,7 +484,7 @@ export function testDepthAndBlendHelpers(): void {
 
 export function testPointRectAndColorHelpers(): void {
   point := Point(3.0, 4.0)
-  rect := Rect.xywh(10.0, 20.0, 30.0, 40.0)
+  rect := Rect(10.0, 20.0, 30.0, 40.0)
   white := Color.white
   red := Color.red
 

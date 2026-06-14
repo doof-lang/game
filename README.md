@@ -271,6 +271,73 @@ including newlines, kerning, optional word wrapping, letter spacing, line
 spacing, and left/center/right alignment. Spaces advance the cursor but do not
 emit glyph quads, and the generated UVs target the supplied font texture.
 
+### Retained UI
+
+```doof
+font := try! loadBitmapFont("fonts/hud.fnt")
+fontTexture := try! app.loadTexture("fonts/hud.png")
+ui := UiLayer(app.surface, font)
+
+ui.addPanel(
+  Rect(16.0, 16.0, 300.0, 128.0),
+  UiPanelStyle {
+    background: Color(0.05, 0.06, 0.08, 0.92),
+    border: Color(0.45, 0.55, 0.65, 1.0),
+  },
+)
+
+status := ui.addLabel(
+  "Ready",
+  Rect(24.0, 24.0, 260.0, 40.0),
+  UiStyle {
+    fontTexture,
+    textColor: Color(0.95, 0.88, 0.35, 1.0),
+  },
+)
+
+ui.addButton(
+  "Start",
+  Rect(24.0, 80.0, 160.0, 44.0),
+  UiButtonStyle { fontTexture },
+  (): void => {
+    status.setText("Started")
+    app.requestRender()
+  },
+)
+
+app.onEvent((event): void => {
+  if event.kind() == GameEventKind.KeyDown && event.key() == Key.Escape {
+    app.stop()
+    return
+  }
+
+  ui.handleEvent(event)
+  app.requestRender()
+})
+
+app.onRender((renderer): void => {
+  renderer.pass(
+    RenderPassDescriptor {
+      camera: Camera.screen(),
+      depth: Depth.disabled(),
+      blend: Blend.alpha(),
+    },
+    (pass): void => {
+      ui.draw(pass)
+    },
+  )
+})
+```
+
+`UiLayer` is a small retained UI container for panels, labels, and buttons.
+Bounds are in UI-local top-left coordinates, and `setTransform(...)` maps that
+UI space into the screen-space render pass. Pointer positions from mouse and
+single-touch events are mapped back through the inverse transform for hit
+testing, so hover, press, and click behavior stays aligned with rendering. Hit
+testing walks last-added elements first, making later elements topmost. Labels
+and buttons take their font texture from their style, so one layer can mix text
+atlases when needed.
+
 ### Sphere Meshes
 
 ```doof

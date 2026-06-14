@@ -1572,6 +1572,8 @@ doof::Result<void, std::string> NativeGameApp::run(
         [window setOpaque:YES];
         [window setBackgroundColor:[NSColor blackColor]];
         [window setReleasedWhenClosed:NO];
+        // AppKit only sends hover movement to mouseMoved: when the window opts in.
+        [window setAcceptsMouseMovedEvents:YES];
 
         DoofGameView* view = [[DoofGameView alloc] initWithState:state.get()
                                                            frame:NSMakeRect(0.0, 0.0, NSWidth(frame), NSHeight(frame))];
