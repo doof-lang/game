@@ -12,6 +12,9 @@ export class InputState {
   mouseY(): double => this.native.mouseY()
   mouseDeltaX(): double => this.native.mouseDeltaX()
   mouseDeltaY(): double => this.native.mouseDeltaY()
-  wheelDeltaX(): double => this.native.wheelDeltaX()
-  wheelDeltaY(): double => this.native.wheelDeltaY()
+  panDeltaX(): double => this.native.panDeltaX()
+  panDeltaY(): double => this.native.panDeltaY()
+  scrollDeltaX(): double => this.native.scrollDeltaX()
+  scrollDeltaY(): double => this.native.scrollDeltaY()
+  magnificationDelta(): double => this.native.magnificationDelta()
 }

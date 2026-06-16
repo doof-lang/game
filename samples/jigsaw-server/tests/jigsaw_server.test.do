@@ -154,6 +154,35 @@ export function testServerLoadsPersistedStateOnStartup(): void {
   Assert.equal(position.y, 100.0)
 }
 
+export function testResetStateIgnoresAndOverwritesPersistedState(): void {
+  statePath := tempStatePath("doof-jigsaw-server-reset-startup.json")
+  first := try! startJigsawHttpServer(
+    createDefaultJigsawServerState(),
+    JigsawHttpServerOptions { port: 0, statePath },
+  )
+  remote := first.session.connectClient()
+  try! forwardJigsawCommandForClient(remote, moveCommandFrame(999, 0, 110.0, 120.0))
+  ignored := drainMainEventLoop()
+  remote.events.close()
+  first.close()
+
+  reset := try! startJigsawHttpServer(
+    createDefaultJigsawServerState(),
+    JigsawHttpServerOptions { port: 0, statePath, resetState: true },
+  )
+  resetState := reset.session.currentState()
+  reset.close()
+
+  position := groupPosition(resetState.pieces, 0)
+  Assert.notEqual(position.x, 110.0)
+  Assert.notEqual(position.y, 120.0)
+
+  saved := try! loadJigsawServerState(statePath)
+  savedPosition := groupPosition(saved.pieces, 0)
+  Assert.equal(savedPosition.x, position.x)
+  Assert.equal(savedPosition.y, position.y)
+}
+
 export function testBadPathRejectsHandshake(): void {
   server := try! startJigsawHttpServer(
     createDefaultJigsawServerState(),

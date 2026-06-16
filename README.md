@@ -477,8 +477,15 @@ macOS/Metal-specific in this version.
 
 ### `GameEvent`
 
-Events expose `kind()`, `key()`, `mouseButton()`, position, movement, wheel, and
-resize data.
+Events expose `kind()`, `key()`, `mouseButton()`, position, movement, pan,
+scroll, magnify, and resize data.
+
+On macOS, two-finger trackpad movement is reported as `Pan` with `panDeltaX()`
+and `panDeltaY()`. Mouse-wheel movement is reported separately as `Scroll` with
+`scrollDeltaX()` and `scrollDeltaY()`, so apps can give it different semantics.
+Trackpad pinch and iOS pinch are reported as `Magnify` events with relative zoom
+in `magnificationDelta()`. Magnify events may also carry pan deltas when the
+gesture midpoint moves.
 
 ### `InputState`
 
@@ -489,12 +496,32 @@ mouseX(): double
 mouseY(): double
 mouseDeltaX(): double
 mouseDeltaY(): double
-wheelDeltaX(): double
-wheelDeltaY(): double
+panDeltaX(): double
+panDeltaY(): double
+scrollDeltaX(): double
+scrollDeltaY(): double
+magnificationDelta(): double
 ```
 
-Mouse and wheel deltas are frame-relative. Key and button state persists while
-the key/button is held.
+Mouse, pan, scroll, and magnification deltas are frame-relative. Key and button
+state persists while the key/button is held.
+
+### App-Declared Pan Gestures
+
+Applications can opt a pointer drag into pan semantics when hit-testing shows
+the drag belongs to the background, map, board, or other pannable surface:
+
+```doof
+app.beginPanGesture(x, y)
+app.updatePanGesture(x, y)
+app.endPanGesture()
+app.cancelPanGesture()
+```
+
+`updatePanGesture` emits ordinary `Pan` events with `panDeltaX()` and
+`panDeltaY()`. `endPanGesture` starts damped inertial pan events when the release
+velocity is high enough. Use `cancelPanGesture` when the interaction changes to
+something non-panning, such as dragging an object or starting a pinch.
 
 ## Notes
 

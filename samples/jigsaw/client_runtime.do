@@ -20,7 +20,7 @@ import {
 } from "./session"
 
 const EVENT_DRAIN_PUMP_LIMIT = 16
-const ZOOM_DELTA_SCALE = 0.002
+const COARSE_ZOOM_DELTA_SCALE = 0.01
 
 export enum ServerConnectionState {
   Local,
@@ -126,8 +126,12 @@ export function applyZoomAt(camera: PuzzleCamera, screenX: double, screenY: doub
   setZoomAt(camera, screenX, screenY, camera.zoom * clampDouble(factor, 0.75, 1.25))
 }
 
-export function zoomFactorForWheelDelta(delta: double): double {
-  return 1.0 + delta * ZOOM_DELTA_SCALE
+export function zoomFactorForScrollDelta(delta: double): double {
+  return 1.0 - delta * COARSE_ZOOM_DELTA_SCALE
+}
+
+export function zoomFactorForMagnificationDelta(delta: double): double {
+  return 1.0 + delta
 }
 
 export function pumpMainEventLoop(): void {

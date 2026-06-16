@@ -1,5 +1,6 @@
 import { Assert } from "std/assert"
 import { drainMainEventLoop } from "std/event"
+import { approxEqual } from "std/math"
 
 import {
   COLUMNS,
@@ -14,6 +15,13 @@ import {
   setGroupCanonicalPosition,
   setGroupPositionFromPiece,
 } from "./jigsaw_model"
+import {
+  screenToWorldX,
+  screenToWorldY,
+  setZoomAt,
+  zoomFactorForMagnificationDelta,
+  zoomFactorForScrollDelta,
+} from "./client_runtime"
 import {
   JigsawClientCommand,
   JigsawClientCommandKind,
@@ -63,6 +71,29 @@ function testState(): PuzzleState {
 
 function collectEvents(connectionEvents: JigsawServerEvent[]): (event: JigsawServerEvent): void {
   return (event: JigsawServerEvent): void => connectionEvents.push(event)
+}
+
+function assertApprox(actual: double, expected: double): void {
+  Assert.isTrue(approxEqual(actual, expected), "expected ${actual} to approximately equal ${expected}")
+}
+
+export function testZoomFactorsSeparateScrollAndMagnifyInput(): void {
+  assertApprox(zoomFactorForScrollDelta(10.0), 0.9)
+  assertApprox(zoomFactorForMagnificationDelta(0.1), 1.1)
+}
+
+export function testSetZoomAtPreservesWorldPointUnderCursor(): void {
+  camera := PuzzleCamera { x: 10.0, y: 20.0, zoom: 1.0, minZoom: 0.5, maxZoom: 4.0 }
+  screenX := 120.0
+  screenY := 80.0
+  worldX := screenToWorldX(camera, screenX)
+  worldY := screenToWorldY(camera, screenY)
+
+  setZoomAt(camera, screenX, screenY, 2.0)
+
+  assertApprox(camera.zoom, 2.0)
+  assertApprox(screenToWorldX(camera, screenX), worldX)
+  assertApprox(screenToWorldY(camera, screenY), worldY)
 }
 
 export function testConnectEmitsFullBoardSnapshot(): void {

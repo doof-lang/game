@@ -98,10 +98,13 @@ public:
         double y = 0.0,
         double deltaX = 0.0,
         double deltaY = 0.0,
-        double wheelDeltaX = 0.0,
-        double wheelDeltaY = 0.0,
+        double panDeltaX = 0.0,
+        double panDeltaY = 0.0,
+        double scrollDeltaX = 0.0,
+        double scrollDeltaY = 0.0,
         int32_t pixelWidth = 0,
-        int32_t pixelHeight = 0
+        int32_t pixelHeight = 0,
+        double magnificationDelta = 0.0
     );
 
     int32_t kindCode() const;
@@ -111,10 +114,13 @@ public:
     double y() const;
     double deltaX() const;
     double deltaY() const;
-    double wheelDeltaX() const;
-    double wheelDeltaY() const;
+    double panDeltaX() const;
+    double panDeltaY() const;
+    double scrollDeltaX() const;
+    double scrollDeltaY() const;
     int32_t pixelWidth() const;
     int32_t pixelHeight() const;
+    double magnificationDelta() const;
 
 private:
     int32_t kindCode_;
@@ -124,10 +130,13 @@ private:
     double y_;
     double deltaX_;
     double deltaY_;
-    double wheelDeltaX_;
-    double wheelDeltaY_;
+    double panDeltaX_;
+    double panDeltaY_;
+    double scrollDeltaX_;
+    double scrollDeltaY_;
     int32_t pixelWidth_;
     int32_t pixelHeight_;
+    double magnificationDelta_;
 };
 
 class NativeInputState {
@@ -141,14 +150,19 @@ public:
     double mouseY() const;
     double mouseDeltaX() const;
     double mouseDeltaY() const;
-    double wheelDeltaX() const;
-    double wheelDeltaY() const;
+    double panDeltaX() const;
+    double panDeltaY() const;
+    double scrollDeltaX() const;
+    double scrollDeltaY() const;
+    double magnificationDelta() const;
     void resetFrameDeltas();
     void setKeyDownCode(int32_t key, bool isDown);
     void setMouseButtonDownCode(int32_t button, bool isDown);
     void setMousePosition(double x, double y);
     void addMouseDelta(double x, double y);
-    void addWheelDelta(double x, double y);
+    void addPanDelta(double x, double y);
+    void addScrollDelta(double x, double y);
+    void addMagnificationDelta(double delta);
 
 private:
     friend doof::Result<void, std::string> runNativeGameApp(
@@ -193,5 +207,9 @@ doof::Result<void, std::string> runNativeGameApp(
 void requestGameAppWake();
 void requestGameAppRender();
 void requestGameAppStop();
+void beginGameAppPanGesture(double x, double y);
+void updateGameAppPanGesture(double x, double y);
+void endGameAppPanGesture();
+void cancelGameAppPanGesture();
 
 }  // namespace doof_game

@@ -13,6 +13,10 @@ import {
   requestGameAppRender,
   requestGameAppStop,
   requestGameAppWake,
+  beginGameAppPanGesture,
+  updateGameAppPanGesture,
+  endGameAppPanGesture,
+  cancelGameAppPanGesture,
 } from "./native"
 
 import { GameEvent } from "./event"
@@ -68,6 +72,22 @@ export class GameApp {
 
   stop(): void {
     requestGameAppStop()
+  }
+
+  beginPanGesture(x: double, y: double): void {
+    beginGameAppPanGesture(x, y)
+  }
+
+  updatePanGesture(x: double, y: double): void {
+    updateGameAppPanGesture(x, y)
+  }
+
+  endPanGesture(): void {
+    endGameAppPanGesture()
+  }
+
+  cancelPanGesture(): void {
+    cancelGameAppPanGesture()
   }
 
   run(): Result<void, string> {

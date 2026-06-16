@@ -16,6 +16,7 @@ import {
   CullMode,
   Depth,
   DepthMode,
+  GameApp,
   GameEventKind,
   GameSurface,
   Key,
@@ -66,6 +67,13 @@ function assertPoint3Approx(actual: Point3, expected: Point3): void {
   assertApprox(actual.x, expected.x)
   assertApprox(actual.y, expected.y)
   assertApprox(actual.z, expected.z)
+}
+
+function verifyGameAppPanGestureApi(app: GameApp): void {
+  app.beginPanGesture(10.0, 20.0)
+  app.updatePanGesture(12.0, 24.0)
+  app.endPanGesture()
+  app.cancelPanGesture()
 }
 
 function subtractPoint3(a: Point3, b: Point3): Point3 {
@@ -301,8 +309,10 @@ export function testGameEventKindMapping(): void {
   Assert.equal(gameEventKindFromCode(4), GameEventKind.MouseDown)
   Assert.equal(gameEventKindFromCode(5), GameEventKind.MouseUp)
   Assert.equal(gameEventKindFromCode(6), GameEventKind.MouseMove)
-  Assert.equal(gameEventKindFromCode(7), GameEventKind.MouseWheel)
+  Assert.equal(gameEventKindFromCode(7), GameEventKind.Scroll)
   Assert.equal(gameEventKindFromCode(8), GameEventKind.DoubleTap)
+  Assert.equal(gameEventKindFromCode(9), GameEventKind.Magnify)
+  Assert.equal(gameEventKindFromCode(10), GameEventKind.Pan)
 }
 
 export function testRenderPassDescriptorDefaults(): void {

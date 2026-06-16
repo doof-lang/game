@@ -8,7 +8,7 @@ import {
 } from "./index"
 
 function usage(): void {
-  println("Usage: doof run game/samples/jigsaw-server -- [--listen host:port] [--state path] [--no-persist]")
+  println("Usage: doof run game/samples/jigsaw-server -- [--listen host:port] [--state path] [--no-persist] [--reset]")
 }
 
 function applyListenAddress(options: JigsawHttpServerOptions, text: string): Result<void, string> {
@@ -47,6 +47,9 @@ function parseOptions(args: string[]): Result<JigsawHttpServerOptions, string> {
       index = index + 2
     } else if args[index] == "--no-persist" {
       options.statePath = null
+      index = index + 1
+    } else if args[index] == "--reset" {
+      options.resetState = true
       index = index + 1
     } else {
       return Failure("Unknown option ${args[index]}")

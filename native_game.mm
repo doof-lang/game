@@ -36,7 +36,9 @@ constexpr int32_t kKindKeyUp = 3;
 constexpr int32_t kKindMouseDown = 4;
 constexpr int32_t kKindMouseUp = 5;
 constexpr int32_t kKindMouseMove = 6;
-constexpr int32_t kKindMouseWheel = 7;
+constexpr int32_t kKindScroll = 7;
+constexpr int32_t kKindMagnify = 9;
+constexpr int32_t kKindPan = 10;
 
 constexpr int32_t kKeyUnknown = 0;
 constexpr int32_t kKeyA = 1;
@@ -106,6 +108,13 @@ constexpr int32_t kMouseRight = 1;
 constexpr int32_t kMouseMiddle = 2;
 constexpr int32_t kMouseOther = 3;
 
+constexpr double kPanVelocitySmoothing = 0.35;
+constexpr double kPanInertiaHalfLifeSeconds = 0.30;
+constexpr double kPanInertiaMinStartVelocity = 20.0;
+constexpr double kPanInertiaStopVelocity = 8.0;
+constexpr double kPanInertiaMaxStepSeconds = 0.05;
+constexpr double kPanVelocityMaxSampleSeconds = 0.10;
+
 constexpr int32_t kClearNone = 0;
 constexpr int32_t kClearColor = 1;
 constexpr int32_t kClearDepth = 2;
@@ -129,6 +138,30 @@ struct DepthTextureCacheEntry {
 };
 
 struct GameRuntimeState;
+
+struct PanInertiaState {
+    bool gestureActive = false;
+    bool inertialActive = false;
+    double lastX = 0.0;
+    double lastY = 0.0;
+    double lastVelocityTime = 0.0;
+    double velocityX = 0.0;
+    double velocityY = 0.0;
+    double lastInertialTime = 0.0;
+    double inertialVelocityX = 0.0;
+    double inertialVelocityY = 0.0;
+
+    void begin(GameRuntimeState* state, double x, double y, double timestamp);
+    void update(GameRuntimeState* state, double x, double y, double timestamp);
+    void finish(GameRuntimeState* state, double timestamp);
+    void cancel();
+    bool step(GameRuntimeState* state, double timestamp);
+
+private:
+    void emitPan(GameRuntimeState* state, double x, double y, double deltaX, double deltaY);
+    void updateVelocity(double deltaX, double deltaY, double timestamp);
+    void resetVelocity();
+};
 
 GameRuntimeState* gActiveState = nullptr;
 std::mutex gDepthTextureCacheMutex;
@@ -681,8 +714,11 @@ struct NativeInputState::Impl {
     double mouseY = 0.0;
     double mouseDeltaX = 0.0;
     double mouseDeltaY = 0.0;
-    double wheelDeltaX = 0.0;
-    double wheelDeltaY = 0.0;
+    double panDeltaX = 0.0;
+    double panDeltaY = 0.0;
+    double scrollDeltaX = 0.0;
+    double scrollDeltaY = 0.0;
+    double magnificationDelta = 0.0;
 };
 
 struct NativeGameApp::Impl {
@@ -754,12 +790,14 @@ struct GameRuntimeState : std::enable_shared_from_this<GameRuntimeState> {
     std::atomic_bool renderCallbackPending = false;
     std::atomic_bool displayLinkRunning = false;
     std::atomic_bool drainPending = false;
+    std::atomic_bool panInertiaStepPending = false;
     std::chrono::steady_clock::time_point fpsWindowStart = std::chrono::steady_clock::now();
     int32_t fpsFrameCount = 0;
     bool shiftDown = false;
     bool controlDown = false;
     bool optionDown = false;
     bool commandDown = false;
+    PanInertiaState panInertia;
 
     void emit(std::shared_ptr<NativeGameEvent> event) {
         onEvent.call(event, input);
@@ -825,6 +863,10 @@ struct GameRuntimeState : std::enable_shared_from_this<GameRuntimeState> {
         recordRenderedFrame();
         resetFrameDeltas();
 
+        if (panInertia.inertialActive) {
+            requestRender();
+        }
+
         if (!renderRequested.load()) {
             stopDisplayLink();
         }
@@ -844,8 +886,23 @@ struct GameRuntimeState : std::enable_shared_from_this<GameRuntimeState> {
         });
     }
 
+    void schedulePanInertiaStep() {
+        if (panInertiaStepPending.exchange(true)) {
+            return;
+        }
+
+        auto self = shared_from_this();
+        dispatch_async(dispatch_get_main_queue(), ^{
+            self->panInertiaStepPending.store(false);
+            if (self->running.load() && self->panInertia.step(self.get(), CACurrentMediaTime())) {
+                self->requestRender();
+            }
+        });
+    }
+
     void stop() {
         running.store(false);
+        panInertia.cancel();
         stopDisplayLink();
         dispatch_async(dispatch_get_main_queue(), ^{
             [NSApp stop:nil];
@@ -885,6 +942,153 @@ struct GameRuntimeState : std::enable_shared_from_this<GameRuntimeState> {
     }
 };
 
+void PanInertiaState::resetVelocity() {
+    lastVelocityTime = 0.0;
+    velocityX = 0.0;
+    velocityY = 0.0;
+}
+
+void PanInertiaState::cancel() {
+    gestureActive = false;
+    inertialActive = false;
+    lastInertialTime = 0.0;
+    inertialVelocityX = 0.0;
+    inertialVelocityY = 0.0;
+    resetVelocity();
+}
+
+void PanInertiaState::begin(GameRuntimeState* state, double x, double y, double timestamp) {
+    if (state == nullptr) {
+        return;
+    }
+    cancel();
+    gestureActive = true;
+    lastX = x;
+    lastY = y;
+    lastVelocityTime = timestamp;
+    state->input->setMousePosition(x, y);
+}
+
+void PanInertiaState::updateVelocity(double deltaX, double deltaY, double timestamp) {
+    if (lastVelocityTime > 0.0) {
+        const double dt = timestamp - lastVelocityTime;
+        if (dt > 0.0 && dt <= kPanVelocityMaxSampleSeconds) {
+            const double sampleVelocityX = deltaX / dt;
+            const double sampleVelocityY = deltaY / dt;
+            if (std::abs(velocityX) <= 0.000001 && std::abs(velocityY) <= 0.000001) {
+                velocityX = sampleVelocityX;
+                velocityY = sampleVelocityY;
+            } else {
+                velocityX = velocityX * (1.0 - kPanVelocitySmoothing) +
+                    sampleVelocityX * kPanVelocitySmoothing;
+                velocityY = velocityY * (1.0 - kPanVelocitySmoothing) +
+                    sampleVelocityY * kPanVelocitySmoothing;
+            }
+        }
+    }
+    lastVelocityTime = timestamp;
+}
+
+void PanInertiaState::emitPan(GameRuntimeState* state, double x, double y, double deltaX, double deltaY) {
+    if (state == nullptr) {
+        return;
+    }
+    state->input->setMousePosition(x, y);
+    state->input->addPanDelta(deltaX, deltaY);
+    state->emit(std::make_shared<NativeGameEvent>(
+        kKindPan,
+        kKeyUnknown,
+        kMouseOther,
+        x,
+        y,
+        0.0,
+        0.0,
+        deltaX,
+        deltaY,
+        0.0,
+        0.0,
+        0,
+        0
+    ));
+}
+
+void PanInertiaState::update(GameRuntimeState* state, double x, double y, double timestamp) {
+    if (state == nullptr || !gestureActive) {
+        return;
+    }
+    const double deltaX = x - lastX;
+    const double deltaY = y - lastY;
+    updateVelocity(deltaX, deltaY, timestamp);
+    lastX = x;
+    lastY = y;
+    if (std::abs(deltaX) <= 0.01 && std::abs(deltaY) <= 0.01) {
+        state->input->setMousePosition(x, y);
+        return;
+    }
+    emitPan(state, x, y, deltaX, deltaY);
+}
+
+void PanInertiaState::finish(GameRuntimeState* state, double timestamp) {
+    if (state == nullptr || !gestureActive) {
+        return;
+    }
+    gestureActive = false;
+    const double speed = std::sqrt(velocityX * velocityX + velocityY * velocityY);
+    if (speed >= kPanInertiaMinStartVelocity) {
+        inertialActive = true;
+        inertialVelocityX = velocityX;
+        inertialVelocityY = velocityY;
+        lastInertialTime = timestamp;
+        state->requestRender();
+    } else {
+        inertialActive = false;
+        lastInertialTime = 0.0;
+        inertialVelocityX = 0.0;
+        inertialVelocityY = 0.0;
+    }
+    resetVelocity();
+}
+
+bool PanInertiaState::step(GameRuntimeState* state, double timestamp) {
+    if (state == nullptr || !inertialActive) {
+        return false;
+    }
+    if (lastInertialTime <= 0.0) {
+        lastInertialTime = timestamp;
+        return true;
+    }
+
+    double dt = timestamp - lastInertialTime;
+    lastInertialTime = timestamp;
+    if (dt <= 0.0) {
+        return true;
+    }
+    dt = std::min(dt, kPanInertiaMaxStepSeconds);
+
+    const double speed = std::sqrt(
+        inertialVelocityX * inertialVelocityX +
+        inertialVelocityY * inertialVelocityY
+    );
+    if (speed < kPanInertiaStopVelocity) {
+        inertialActive = false;
+        lastInertialTime = 0.0;
+        inertialVelocityX = 0.0;
+        inertialVelocityY = 0.0;
+        return false;
+    }
+
+    const double deltaX = inertialVelocityX * dt;
+    const double deltaY = inertialVelocityY * dt;
+    lastX += deltaX;
+    lastY += deltaY;
+    emitPan(state, lastX, lastY, deltaX, deltaY);
+
+    const double decay = std::pow(0.5, dt / kPanInertiaHalfLifeSeconds);
+    inertialVelocityX *= decay;
+    inertialVelocityY *= decay;
+    return true;
+}
+
 void updateLayerDrawableSize(NSView* view, const std::shared_ptr<NativeGameSurface>& surface) {
     if (!view || !surface) {
         return;
@@ -902,6 +1106,8 @@ std::shared_ptr<NativeGameEvent> makeResizeEvent(const std::shared_ptr<NativeGam
         kKindResized,
         kKeyUnknown,
         kMouseOther,
+        0.0,
+        0.0,
         0.0,
         0.0,
         0.0,
@@ -932,6 +1138,7 @@ CVReturn displayLinkCallback(
         return kCVReturnSuccess;
     }
 
+    state->schedulePanInertiaStep();
     state->scheduleRender();
 
     return kCVReturnSuccess;
@@ -1065,18 +1272,54 @@ CVReturn displayLinkCallback(
 - (void)scrollWheel:(NSEvent*)event {
     double dx = [event scrollingDeltaX];
     double dy = [event scrollingDeltaY];
-    state_->input->addWheelDelta(dx, dy);
+    bool precise = [event hasPreciseScrollingDeltas];
     NSPoint point = [self gamePointForEvent:event];
+    if (precise) {
+        state_->input->setMousePosition(point.x, point.y);
+        state_->input->addPanDelta(dx, dy);
+    } else {
+        state_->input->addScrollDelta(dx, dy);
+    }
     state_->emit(std::make_shared<doof_game::NativeGameEvent>(
-        doof_game::kKindMouseWheel,
+        precise ? doof_game::kKindPan : doof_game::kKindScroll,
         doof_game::kKeyUnknown,
         doof_game::kMouseOther,
         point.x,
         point.y,
         0.0,
         0.0,
-        dx,
-        dy
+        precise ? dx : 0.0,
+        precise ? dy : 0.0,
+        precise ? 0.0 : dx,
+        precise ? 0.0 : dy,
+        0,
+        0
+    ));
+}
+
+- (void)magnifyWithEvent:(NSEvent*)event {
+    double delta = [event magnification];
+    if (std::abs(delta) <= 0.000001) {
+        return;
+    }
+    NSPoint point = [self gamePointForEvent:event];
+    state_->input->setMousePosition(point.x, point.y);
+    state_->input->addMagnificationDelta(delta);
+    state_->emit(std::make_shared<doof_game::NativeGameEvent>(
+        doof_game::kKindMagnify,
+        doof_game::kKeyUnknown,
+        doof_game::kMouseOther,
+        point.x,
+        point.y,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0,
+        0,
+        delta
     ));
 }
 
@@ -1406,10 +1649,13 @@ NativeGameEvent::NativeGameEvent(
     double y,
     double deltaX,
     double deltaY,
-    double wheelDeltaX,
-    double wheelDeltaY,
+    double panDeltaX,
+    double panDeltaY,
+    double scrollDeltaX,
+    double scrollDeltaY,
     int32_t pixelWidth,
-    int32_t pixelHeight
+    int32_t pixelHeight,
+    double magnificationDelta
 ) : kindCode_(kindCode),
     keyCode_(keyCode),
     mouseButtonCode_(mouseButtonCode),
@@ -1417,10 +1663,13 @@ NativeGameEvent::NativeGameEvent(
     y_(y),
     deltaX_(deltaX),
     deltaY_(deltaY),
-    wheelDeltaX_(wheelDeltaX),
-    wheelDeltaY_(wheelDeltaY),
+    panDeltaX_(panDeltaX),
+    panDeltaY_(panDeltaY),
+    scrollDeltaX_(scrollDeltaX),
+    scrollDeltaY_(scrollDeltaY),
     pixelWidth_(pixelWidth),
-    pixelHeight_(pixelHeight) {}
+    pixelHeight_(pixelHeight),
+    magnificationDelta_(magnificationDelta) {}
 
 int32_t NativeGameEvent::kindCode() const { return kindCode_; }
 int32_t NativeGameEvent::keyCode() const { return keyCode_; }
@@ -1429,10 +1678,13 @@ double NativeGameEvent::x() const { return x_; }
 double NativeGameEvent::y() const { return y_; }
 double NativeGameEvent::deltaX() const { return deltaX_; }
 double NativeGameEvent::deltaY() const { return deltaY_; }
-double NativeGameEvent::wheelDeltaX() const { return wheelDeltaX_; }
-double NativeGameEvent::wheelDeltaY() const { return wheelDeltaY_; }
+double NativeGameEvent::panDeltaX() const { return panDeltaX_; }
+double NativeGameEvent::panDeltaY() const { return panDeltaY_; }
+double NativeGameEvent::scrollDeltaX() const { return scrollDeltaX_; }
+double NativeGameEvent::scrollDeltaY() const { return scrollDeltaY_; }
 int32_t NativeGameEvent::pixelWidth() const { return pixelWidth_; }
 int32_t NativeGameEvent::pixelHeight() const { return pixelHeight_; }
+double NativeGameEvent::magnificationDelta() const { return magnificationDelta_; }
 
 NativeInputState::NativeInputState() : impl_(std::make_shared<Impl>()) {}
 NativeInputState::~NativeInputState() = default;
@@ -1449,14 +1701,20 @@ double NativeInputState::mouseX() const { return impl_->mouseX; }
 double NativeInputState::mouseY() const { return impl_->mouseY; }
 double NativeInputState::mouseDeltaX() const { return impl_->mouseDeltaX; }
 double NativeInputState::mouseDeltaY() const { return impl_->mouseDeltaY; }
-double NativeInputState::wheelDeltaX() const { return impl_->wheelDeltaX; }
-double NativeInputState::wheelDeltaY() const { return impl_->wheelDeltaY; }
+double NativeInputState::panDeltaX() const { return impl_->panDeltaX; }
+double NativeInputState::panDeltaY() const { return impl_->panDeltaY; }
+double NativeInputState::scrollDeltaX() const { return impl_->scrollDeltaX; }
+double NativeInputState::scrollDeltaY() const { return impl_->scrollDeltaY; }
+double NativeInputState::magnificationDelta() const { return impl_->magnificationDelta; }
 
 void NativeInputState::resetFrameDeltas() {
     impl_->mouseDeltaX = 0.0;
     impl_->mouseDeltaY = 0.0;
-    impl_->wheelDeltaX = 0.0;
-    impl_->wheelDeltaY = 0.0;
+    impl_->panDeltaX = 0.0;
+    impl_->panDeltaY = 0.0;
+    impl_->scrollDeltaX = 0.0;
+    impl_->scrollDeltaY = 0.0;
+    impl_->magnificationDelta = 0.0;
 }
 
 void NativeInputState::setKeyDownCode(int32_t key, bool isDown) {
@@ -1485,9 +1743,18 @@ void NativeInputState::addMouseDelta(double x, double y) {
     impl_->mouseDeltaY += y;
 }
 
-void NativeInputState::addWheelDelta(double x, double y) {
-    impl_->wheelDeltaX += x;
-    impl_->wheelDeltaY += y;
+void NativeInputState::addPanDelta(double x, double y) {
+    impl_->panDeltaX += x;
+    impl_->panDeltaY += y;
+}
+
+void NativeInputState::addScrollDelta(double x, double y) {
+    impl_->scrollDeltaX += x;
+    impl_->scrollDeltaY += y;
+}
+
+void NativeInputState::addMagnificationDelta(double delta) {
+    impl_->magnificationDelta += delta;
 }
 
 std::shared_ptr<NativeGameApp> NativeGameApp::create(const std::string& title) {
@@ -1526,6 +1793,30 @@ void requestGameAppRender() {
 void requestGameAppStop() {
     if (gActiveState != nullptr) {
         gActiveState->stop();
+    }
+}
+
+void beginGameAppPanGesture(double x, double y) {
+    if (gActiveState != nullptr) {
+        gActiveState->panInertia.begin(gActiveState, x, y, CACurrentMediaTime());
+    }
+}
+
+void updateGameAppPanGesture(double x, double y) {
+    if (gActiveState != nullptr) {
+        gActiveState->panInertia.update(gActiveState, x, y, CACurrentMediaTime());
+    }
+}
+
+void endGameAppPanGesture() {
+    if (gActiveState != nullptr) {
+        gActiveState->panInertia.finish(gActiveState, CACurrentMediaTime());
+    }
+}
+
+void cancelGameAppPanGesture() {
+    if (gActiveState != nullptr) {
+        gActiveState->panInertia.cancel();
     }
 }
 

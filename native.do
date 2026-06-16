@@ -15,10 +15,13 @@ export import class NativeGameEvent from "native_game.hpp" as doof_game::NativeG
   y(): double
   deltaX(): double
   deltaY(): double
-  wheelDeltaX(): double
-  wheelDeltaY(): double
+  panDeltaX(): double
+  panDeltaY(): double
+  scrollDeltaX(): double
+  scrollDeltaY(): double
   pixelWidth(): int
   pixelHeight(): int
+  magnificationDelta(): double
 }
 
 export import class NativeInputState from "native_game.hpp" as doof_game::NativeInputState {
@@ -28,8 +31,11 @@ export import class NativeInputState from "native_game.hpp" as doof_game::Native
   mouseY(): double
   mouseDeltaX(): double
   mouseDeltaY(): double
-  wheelDeltaX(): double
-  wheelDeltaY(): double
+  panDeltaX(): double
+  panDeltaY(): double
+  scrollDeltaX(): double
+  scrollDeltaY(): double
+  magnificationDelta(): double
 }
 
 export import class NativeGameApp from "native_game.hpp" as doof_game::NativeGameApp {
@@ -287,3 +293,7 @@ export import function runNativeGameApp(
 export import function requestGameAppWake(): void from "native_game.hpp" as doof_game::requestGameAppWake
 export import function requestGameAppRender(): void from "native_game.hpp" as doof_game::requestGameAppRender
 export import function requestGameAppStop(): void from "native_game.hpp" as doof_game::requestGameAppStop
+export import function beginGameAppPanGesture(x: double, y: double): void from "native_game.hpp" as doof_game::beginGameAppPanGesture
+export import function updateGameAppPanGesture(x: double, y: double): void from "native_game.hpp" as doof_game::updateGameAppPanGesture
+export import function endGameAppPanGesture(): void from "native_game.hpp" as doof_game::endGameAppPanGesture
+export import function cancelGameAppPanGesture(): void from "native_game.hpp" as doof_game::cancelGameAppPanGesture

@@ -52,7 +52,8 @@ import {
   screenToWorldX,
   screenToWorldY,
   setZoomAt,
-  zoomFactorForWheelDelta,
+  zoomFactorForMagnificationDelta,
+  zoomFactorForScrollDelta,
 } from "./client_runtime"
 import { createJigsawConnectionOverlay } from "./connection_overlay"
 import { connectJigsawServer } from "./protocol"
@@ -81,6 +82,9 @@ const RECONNECT_INTERVAL_MILLIS = 1000L
 readonly SOURCE_PHOTO_PATH = "images/IMG_0459.jpeg"
 readonly MASK_ATLAS_PATH = "images/jigjig.png"
 readonly GENERATED_ATLAS_PATH = "images/generated_jigsaw_atlas.png"
+const DRAG_EDGE_AUTO_PAN_INTERVAL_MILLIS = 16L
+const DRAG_EDGE_AUTO_PAN_MARGIN = 72.0
+const DRAG_EDGE_AUTO_PAN_MAX_STEP = 18.0
 
 function isPieceDragButton(button: MouseButton): bool {
   return button == MouseButton.Left || button == MouseButton.Other
@@ -88,6 +92,24 @@ function isPieceDragButton(button: MouseButton): bool {
 
 function isBoardPanButton(button: MouseButton): bool {
   return button == MouseButton.Left || button == MouseButton.Other
+}
+
+function dragEdgeAutoPanAxis(pointer: double, size: double): double {
+  margin := if size * 0.35 < DRAG_EDGE_AUTO_PAN_MARGIN then size * 0.35 else DRAG_EDGE_AUTO_PAN_MARGIN
+  if margin <= 0.0 {
+    return 0.0
+  }
+  if pointer < margin {
+    distance := margin - pointer
+    t := if distance > margin then 1.0 else distance / margin
+    return -DRAG_EDGE_AUTO_PAN_MAX_STEP * t * t
+  }
+  if pointer > size - margin {
+    distance := pointer - (size - margin)
+    t := if distance > margin then 1.0 else distance / margin
+    return DRAG_EDGE_AUTO_PAN_MAX_STEP * t * t
+  }
+  return 0.0
 }
 
 function main(args: string[]): int {
@@ -153,8 +175,48 @@ function main(args: string[]): int {
   let draggedGroup = -1
   let dragOffsetX = 0.0
   let dragOffsetY = 0.0
+  let lastDragScreenX = 0.0
+  let lastDragScreenY = 0.0
   let boardPanActive = false
   let reconnectTimer: Timer | null = null
+
+  moveDraggedGroupToPointer := (): void => {
+    if draggedPiece < 0 {
+      return
+    }
+    worldX := screenToWorldX(camera, lastDragScreenX)
+    worldY := screenToWorldY(camera, lastDragScreenY)
+    setGroupPositionFromPiece(pieces, draggedGroup, draggedPiece, worldX - dragOffsetX, worldY - dragOffsetY)
+    position := groupPosition(pieces, draggedGroup)
+    activeConnection := runtime.connection
+    if activeConnection != null {
+      sendMoveGroup(activeConnection!, draggedGroup, position.x, position.y) else error {
+        println("Failed to queue jigsaw move: ${error}")
+      }
+    }
+    pumpMainEventLoop()
+    dragBatch = createDragBatch(app.surface, mesh, loadedAtlasTexture)
+    addGroupToBatch(dragBatch, pieces, draggedGroup)
+  }
+
+  dragAutoPanTimer := setInterval{
+    interval: Duration.ofMillis(DRAG_EDGE_AUTO_PAN_INTERVAL_MILLIS),
+    keepsAlive: false,
+    handler: (): void => {
+      if draggedPiece < 0 || !runtime.isInteractive() {
+        return
+      }
+      panX := dragEdgeAutoPanAxis(lastDragScreenX, app.surface.width())
+      panY := dragEdgeAutoPanAxis(lastDragScreenY, app.surface.height())
+      if panX == 0.0 && panY == 0.0 {
+        return
+      }
+      camera.x = camera.x + panX / camera.zoom
+      camera.y = camera.y + panY / camera.zoom
+      moveDraggedGroupToPointer()
+      app.requestRender()
+    },
+  }
 
   bindConnection := (boundConnection: JigsawClientConnection, generation: int): void => {
     boundConnection.events.onMessage((serverEvent: JigsawServerEvent): void => {
@@ -212,6 +274,7 @@ function main(args: string[]): int {
           draggedPiece = -1
           draggedGroup = -1
           boardPanActive = false
+          app.cancelPanGesture()
         }
       }
 
@@ -301,6 +364,7 @@ function main(args: string[]): int {
   app.onEvent((event): void => {
     if event.kind() == GameEventKind.CloseRequested {
       boardPanActive = false
+      app.cancelPanGesture()
       if draggedPiece >= 0 {
         drawOrder = bringGroupToFront(pieces, drawOrder, draggedGroup)
         mainBatch = createBatch(app.surface, mesh, loadedAtlasTexture, pieces, drawOrder, -1)
@@ -315,6 +379,7 @@ function main(args: string[]): int {
 
     if event.kind() == GameEventKind.KeyDown && event.key() == Key.Escape {
       boardPanActive = false
+      app.cancelPanGesture()
       if draggedPiece >= 0 {
         drawOrder = bringGroupToFront(pieces, drawOrder, draggedGroup)
         mainBatch = createBatch(app.surface, mesh, loadedAtlasTexture, pieces, drawOrder, -1)
@@ -333,6 +398,8 @@ function main(args: string[]): int {
     }
 
     if !runtime.isInteractive() {
+      boardPanActive = false
+      app.cancelPanGesture()
       app.requestRender()
       return
     }
@@ -345,8 +412,11 @@ function main(args: string[]): int {
       hit := hitTestTopmost(pieces, drawOrder, layout, worldX, worldY)
       if hit >= 0 {
         boardPanActive = false
+        app.cancelPanGesture()
         draggedPiece = hit
         draggedGroup = pieces[hit].group
+        lastDragScreenX = event.x()
+        lastDragScreenY = event.y()
         piece := pieces[hit]
         dragOffsetX = worldX - piece.x
         dragOffsetY = worldY - piece.y
@@ -357,34 +427,23 @@ function main(args: string[]): int {
         app.requestRender()
       } else if boardPanButton {
         boardPanActive = true
+        app.beginPanGesture(event.x(), event.y())
       }
     }
 
     if event.kind() == GameEventKind.MouseMove && draggedPiece >= 0 {
-      worldX := screenToWorldX(camera, event.x())
-      worldY := screenToWorldY(camera, event.y())
-      setGroupPositionFromPiece(pieces, draggedGroup, draggedPiece, worldX - dragOffsetX, worldY - dragOffsetY)
-      position := groupPosition(pieces, draggedGroup)
-      activeConnection := runtime.connection
-      if activeConnection != null {
-        sendMoveGroup(activeConnection!, draggedGroup, position.x, position.y) else error {
-          println("Failed to queue jigsaw move: ${error}")
-        }
-      }
-      pumpMainEventLoop()
-      dragBatch = createDragBatch(app.surface, mesh, loadedAtlasTexture)
-      addGroupToBatch(dragBatch, pieces, draggedGroup)
+      lastDragScreenX = event.x()
+      lastDragScreenY = event.y()
+      moveDraggedGroupToPointer()
       app.requestRender()
     }
 
     if event.kind() == GameEventKind.MouseMove && draggedPiece < 0 && boardPanActive {
-      camera.x = camera.x - event.deltaX() / camera.zoom
-      camera.y = camera.y - event.deltaY() / camera.zoom
-      savePuzzleStateForRuntime(runtime, statePath, pieces, drawOrder, camera)
-      app.requestRender()
+      app.updatePanGesture(event.x(), event.y())
     }
 
     if event.kind() == GameEventKind.MouseUp && boardPanButton && boardPanActive {
+      app.endPanGesture()
       boardPanActive = false
     }
 
@@ -410,6 +469,7 @@ function main(args: string[]): int {
       draggedPiece = -1
       draggedGroup = -1
       boardPanActive = false
+      app.cancelPanGesture()
       pumpMainEventLoop()
       savePuzzleStateForRuntime(runtime, statePath, pieces, drawOrder, camera)
       app.requestRender()
@@ -422,11 +482,12 @@ function main(args: string[]): int {
       draggedPiece = -1
       draggedGroup = -1
       boardPanActive = false
+      app.cancelPanGesture()
       savePuzzleStateForRuntime(runtime, statePath, pieces, drawOrder, camera)
       app.requestRender()
     }
 
-    if event.kind() == GameEventKind.MouseWheel {
+    if event.kind() == GameEventKind.Pan || event.kind() == GameEventKind.Scroll || event.kind() == GameEventKind.Magnify {
       if draggedPiece >= 0 {
         drawOrder = bringGroupToFront(pieces, drawOrder, draggedGroup)
         mainBatch = createBatch(app.surface, mesh, loadedAtlasTexture, pieces, drawOrder, -1)
@@ -434,10 +495,20 @@ function main(args: string[]): int {
         draggedPiece = -1
         draggedGroup = -1
       }
-      boardPanActive = false
-      camera.x = camera.x - event.deltaX() / camera.zoom
-      camera.y = camera.y - event.deltaY() / camera.zoom
-      applyZoomAt(camera, event.x(), event.y(), zoomFactorForWheelDelta(event.wheelDeltaY()))
+      if event.kind() != GameEventKind.Pan {
+        boardPanActive = false
+        app.cancelPanGesture()
+      }
+      if event.kind() == GameEventKind.Magnify {
+        camera.x = camera.x - event.panDeltaX() / camera.zoom
+        camera.y = camera.y - event.panDeltaY() / camera.zoom
+        applyZoomAt(camera, event.x(), event.y(), zoomFactorForMagnificationDelta(event.magnificationDelta()))
+      } else if event.kind() == GameEventKind.Pan {
+        camera.x = camera.x - event.panDeltaX() / camera.zoom
+        camera.y = camera.y - event.panDeltaY() / camera.zoom
+      } else {
+        applyZoomAt(camera, event.x(), event.y(), zoomFactorForScrollDelta(event.scrollDeltaY()))
+      }
       savePuzzleStateForRuntime(runtime, statePath, pieces, drawOrder, camera)
       app.requestRender()
     }
@@ -451,6 +522,7 @@ function main(args: string[]): int {
         draggedGroup = -1
       }
       boardPanActive = false
+      app.cancelPanGesture()
       targetZoom := if abs(camera.zoom - camera.maxZoom) < 0.001 then camera.minZoom else camera.maxZoom
       setZoomAt(camera, event.x(), event.y(), targetZoom)
       savePuzzleStateForRuntime(runtime, statePath, pieces, drawOrder, camera)

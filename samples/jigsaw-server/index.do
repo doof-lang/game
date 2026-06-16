@@ -45,6 +45,7 @@ export class JigsawHttpServerOptions {
   port: int = 8765
   socketPath: string = "/jigsaw"
   statePath: string | null = null
+  resetState: bool = false
   requestCapacity: int = 256
   eventCapacity: int = 1024
   commandCapacity: int = 1024
@@ -106,7 +107,7 @@ export function startJigsawHttpServer(
     panic("Jigsaw HTTP server request capacity must be positive")
   }
 
-  state := loadInitialJigsawServerState(initialState, options.statePath) else error {
+  state := loadInitialJigsawServerState(initialState, options.statePath, options.resetState) else error {
     return Failure(error)
   }
   sessionConfig := JigsawSessionConfig {
@@ -146,7 +147,18 @@ function ioErrorMessage(operation: string, path: string, error: IoError): string
   return "${operation} failed for ${path}: ${error}"
 }
 
-function loadInitialJigsawServerState(fallback: PuzzleState, statePath: string | null): Result<PuzzleState, string> {
+function loadInitialJigsawServerState(
+  fallback: PuzzleState,
+  statePath: string | null,
+  resetState: bool,
+): Result<PuzzleState, string> {
+  if resetState {
+    if statePath != null {
+      try saveJigsawServerState(statePath!, fallback)
+    }
+    return Success(fallback)
+  }
+
   if statePath != null && exists(statePath!) {
     return loadJigsawServerState(statePath!)
   }
