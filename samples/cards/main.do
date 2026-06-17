@@ -96,12 +96,10 @@ function main(): int {
   }
   joker.moveWorldBy(Vec3.xyz(0.0, 12.0, 0.0)).setTint(Color(0.9, 1.0, 0.9))
 
+  app.key(Key.Escape).onPressed((): void => app.stop())
+
   app.onEvent((event): void => {
     if event.kind() == GameEventKind.CloseRequested {
-      app.stop()
-    }
-
-    if event.kind() == GameEventKind.KeyDown && event.key() == Key.Escape {
       app.stop()
     }
   })

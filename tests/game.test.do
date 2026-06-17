@@ -210,8 +210,10 @@ function compileGameAppSmoke(): Result<void, string> {
     handler: (): void => {},
   }
 
+  app.key(Key.Escape).onPressed((): void => app.stop())
+
   app.onEvent((event): void => {
-    if event.kind() == GameEventKind.KeyDown && event.key() == Key.Escape {
+    if event.kind() == GameEventKind.CloseRequested {
       app.stop()
     }
   })

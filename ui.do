@@ -1,5 +1,7 @@
+import { GameApp } from "./app"
 import { GameEvent } from "./event"
 import { InputState } from "./input"
+import { ScreenPointer } from "./screen_pointer"
 import { BitmapFont } from "./text"
 import { GameEventKind, MouseButton } from "./types"
 import { Point, Point3, Rect, RenderPass } from "./render"
@@ -47,9 +49,59 @@ export class UiLayer {
   private buttons: UiButtonEntry[] = []
   private nextId: int = 1
   private pressedButtonId: int = 0
+  private pointerRenderVersion: int = 0
+
+  static constructor(target: GameApp | GameSurface | null, font: BitmapFont): UiLayer {
+    app := target as GameApp else {
+      surface := target as GameSurface else {
+        return UiLayer {
+          surface: null,
+          font,
+        }
+      }
+      return UiLayer {
+        surface,
+        font,
+      }
+    }
+
+    layer := UiLayer {
+      surface: app.surface,
+      font,
+    }
+    layer.registerApp(app)
+    return layer
+  }
 
   setTransform(transform: Transform): UiLayer {
     this.transform = transform
+    return this
+  }
+
+  registerPointer(pointer: ScreenPointer): UiLayer {
+    pointer.onMoved((point): void => handlePointerMove(point))
+    pointer.onPressed((point): void => handlePointerDown(point))
+    pointer.onReleased((point): void => handlePointerUp(point))
+    return this
+  }
+
+  registerApp(app: GameApp): UiLayer {
+    pointer := app.screenPointer()
+    pointer.onMoved((point): void => {
+      before := pointerRenderVersion
+      handlePointerMove(point)
+      requestAppRenderIfPointerChanged(app, before)
+    })
+    pointer.onPressed((point): void => {
+      before := pointerRenderVersion
+      handlePointerDown(point)
+      requestAppRenderIfPointerChanged(app, before)
+    })
+    pointer.onReleased((point): void => {
+      before := pointerRenderVersion
+      handlePointerUp(point)
+      requestAppRenderIfPointerChanged(app, before)
+    })
     return this
   }
 
@@ -140,9 +192,9 @@ export class UiLayer {
     for entry of buttons {
       button := entry.button
       inside := entry.element.visible && button.enabled && rectContains(entry.element.bounds, local)
-      button.hovered = inside
+      setButtonHovered(button, inside)
       if button.pressed {
-        button.pressedInside = inside
+        setButtonPressedInside(button, inside)
       }
     }
   }
@@ -159,9 +211,9 @@ export class UiLayer {
     }
 
     target := button!
-    target.hovered = true
-    target.pressed = true
-    target.pressedInside = true
+    setButtonHovered(target, true)
+    setButtonPressed(target, true)
+    setButtonPressedInside(target, true)
     pressedButtonId = target.id()
   }
 
@@ -245,14 +297,44 @@ export class UiLayer {
   private updateHoverFromLocal(local: Point): void {
     for entry of buttons {
       button := entry.button
-      button.hovered = entry.element.visible && button.enabled && rectContains(entry.element.bounds, local)
+      setButtonHovered(button, entry.element.visible && button.enabled && rectContains(entry.element.bounds, local))
     }
   }
 
   private clearPressed(): void {
     for entry of buttons {
-      entry.button.pressed = false
-      entry.button.pressedInside = false
+      setButtonPressed(entry.button, false)
+      setButtonPressedInside(entry.button, false)
+    }
+  }
+
+  private setButtonHovered(button: UiButton, hovered: bool): void {
+    if button.hovered == hovered {
+      return
+    }
+    button.hovered = hovered
+    pointerRenderVersion += 1
+  }
+
+  private setButtonPressed(button: UiButton, pressed: bool): void {
+    if button.pressed == pressed {
+      return
+    }
+    button.pressed = pressed
+    pointerRenderVersion += 1
+  }
+
+  private setButtonPressedInside(button: UiButton, pressedInside: bool): void {
+    if button.pressedInside == pressedInside {
+      return
+    }
+    button.pressedInside = pressedInside
+    pointerRenderVersion += 1
+  }
+
+  private requestAppRenderIfPointerChanged(app: GameApp, before: int): void {
+    if pointerRenderVersion != before {
+      app.requestRender()
     }
   }
 
@@ -302,10 +384,7 @@ export class UiLayer {
 }
 
 export function createTestUiLayer(font: BitmapFont): UiLayer {
-  return UiLayer {
-    surface: null,
-    font,
-  }
+  return UiLayer(null, font)
 }
 
 function isPrimaryButton(button: MouseButton): bool {

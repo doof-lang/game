@@ -43,12 +43,12 @@ function createMinimalMesh(surface: GameSurface): SimpleMesh {
 function main(): int {
   app := initGameApp{ title: "Doof Game Minimal" }
 
+  app.key(.Escape).onPressed() {
+    app.stop()
+  }
+
   app.onEvent((event): void => {
     if event.kind() == GameEventKind.CloseRequested {
-      app.stop()
-    }
-
-    if event.kind() == .KeyDown && event.key() == .Escape {
       app.stop()
     }
   })

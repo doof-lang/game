@@ -75,12 +75,12 @@ function main(): int {
   let camera = Camera.identity()
   let lastFrameAt = Instant.now()
 
+  app.key(.Escape).onPressed() {
+    app.stop()
+  }
+
   app.onEvent((event): void => {
     if event.kind() == GameEventKind.CloseRequested {
-      app.stop()
-    }
-
-    if event.kind() == GameEventKind.KeyDown && event.key() == Key.Escape {
       app.stop()
     }
 

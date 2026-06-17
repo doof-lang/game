@@ -74,14 +74,8 @@ function main(): int {
   let angle = 0.0
   let lastFrameAt = Instant.now()
 
-  app.onEvent() {
-    if event.kind() == GameEventKind.CloseRequested {
-      app.stop()
-    }
-
-    if event.kind() == GameEventKind.KeyDown && event.key() == Key.Escape {
-      app.stop()
-    }
+  app.key(.Escape).onPressed() {
+    app.stop()
   }
 
   cube := SimpleModel(createCubeMesh(app.surface))

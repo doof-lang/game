@@ -6,6 +6,7 @@ import {
   Point,
   Point3,
   Rect,
+  ScreenPointer,
   Transform,
   UiElementKind,
   UiLayer,
@@ -141,6 +142,45 @@ export function testDisabledButtonDoesNotHoverPressOrClick(): void {
   layer.handlePointerDown(Point(20.0, 30.0))
   layer.handlePointerUp(Point(20.0, 30.0))
   layer.handlePointerTap(Point(20.0, 30.0))
+
+  Assert.equal(clicks, 0)
+  Assert.isFalse(button.isHovered())
+  Assert.isFalse(button.isPressed())
+}
+
+export function testRegisteredPointerDrivesButtonHoverPressAndClick(): void {
+  layer := testLayer()
+  pointer := ScreenPointer {}
+  layer.registerPointer(pointer)
+  let clicks = 0
+  button := layer.addButton("Play", Rect(10.0, 20.0, 100.0, 40.0), {}, (): void => {
+    clicks += 1
+  })
+
+  pointer.moveTo(Point(20.0, 30.0))
+  Assert.isTrue(button.isHovered())
+
+  pointer.pressAt(Point(20.0, 30.0))
+  Assert.isTrue(button.isPressed())
+
+  pointer.releaseAt(Point(20.0, 30.0))
+  Assert.equal(clicks, 1)
+  Assert.isTrue(button.isHovered())
+  Assert.isFalse(button.isPressed())
+}
+
+export function testRegisteredPointerDoesNotClickWhenReleasedOutside(): void {
+  layer := testLayer()
+  pointer := ScreenPointer {}
+  layer.registerPointer(pointer)
+  let clicks = 0
+  button := layer.addButton("Play", Rect(10.0, 20.0, 100.0, 40.0), {}, (): void => {
+    clicks += 1
+  })
+
+  pointer.pressAt(Point(20.0, 30.0))
+  pointer.moveTo(Point(200.0, 200.0))
+  pointer.releaseAt(Point(200.0, 200.0))
 
   Assert.equal(clicks, 0)
   Assert.isFalse(button.isHovered())

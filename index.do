@@ -1,7 +1,10 @@
 export { GameApp, initGameApp } from "./app"
 export { SpaceDust, SpaceDustConfig, drawSpaceDust } from "./dust"
 export { GameEvent, gameEventKindFromCode } from "./event"
+export { InputButton } from "./input_button"
 export { InputState } from "./input"
+export { ScreenGesture, ScreenGestures } from "./screen_gestures"
+export { ScreenPointer } from "./screen_pointer"
 export { keyCode, keyFromCode } from "./keys"
 export { Sound, SoundPlayOptions, SoundSamples, loadSound } from "./sound"
 export {

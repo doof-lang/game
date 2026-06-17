@@ -73,8 +73,12 @@ function main(): int {
     },
   }
 
+  app.key(Key.Escape).onPressed() {
+    app.stop()
+  }
+
   app.onEvent((event): void => {
-    if event.kind() == GameEventKind.KeyDown && event.key() == Key.Escape {
+    if event.kind() == GameEventKind.CloseRequested {
       app.stop()
     }
   })
@@ -306,7 +310,7 @@ emit glyph quads, and the generated UVs target the supplied font texture.
 ```doof
 font := try! loadBitmapFont("fonts/hud.fnt")
 fontTexture := try! app.loadTexture("fonts/hud.png")
-ui := UiLayer(app.surface, font)
+ui := UiLayer(app, font)
 
 ui.addPanel(
   Rect(16.0, 16.0, 300.0, 128.0),
@@ -331,18 +335,15 @@ ui.addButton(
   UiButtonStyle { fontTexture },
   (): void => {
     status.setText("Started")
-    app.requestRender()
   },
 )
 
-app.onEvent((event): void => {
-  if event.kind() == GameEventKind.KeyDown && event.key() == Key.Escape {
-    app.stop()
-    return
-  }
+app.key(Key.Escape).onPressed((): void => app.stop())
 
-  ui.handleEvent(event)
-  app.requestRender()
+app.onEvent((event): void => {
+  if event.kind() == GameEventKind.CloseRequested {
+    app.stop()
+  }
 })
 
 app.onRender((renderer): void => {
@@ -361,9 +362,11 @@ app.onRender((renderer): void => {
 
 `UiLayer` is a small retained UI container for panels, labels, and buttons.
 Bounds are in UI-local top-left coordinates, and `setTransform(...)` maps that
-UI space into the screen-space render pass. Pointer positions from mouse and
-single-touch events are mapped back through the inverse transform for hit
-testing, so hover, press, and click behavior stays aligned with rendering. Hit
+UI space into the screen-space render pass. Constructing `UiLayer(app, font)`
+lets the layer create the primary screen pointer and request renders when
+pointer interaction changes visual state. Pointer positions are mapped back
+through the inverse transform for hit testing, so hover, press, and click
+behavior stays aligned with rendering. Hit
 testing walks last-added elements first, making later elements topmost. Labels
 and buttons take their font texture from their style, so one layer can mix text
 atlases when needed.
@@ -534,6 +537,73 @@ magnificationDelta(): double
 
 Mouse, pan, scroll, and magnification deltas are frame-relative. Key and button
 state persists while the key/button is held.
+
+### `InputButton`
+
+```doof
+jump := app.key(Key.Space)
+jump.onPressed((): void => playJumpSound())
+
+shoot := app.mouseButton(MouseButton.Left)
+shoot.onPressed((): void => fireLaser())
+
+if jump.pressed() {
+  println("jump held")
+}
+```
+
+`InputButton` represents a binary input source. `pressed()` reports whether the
+button is currently held, and `released()` reports whether it is currently up.
+`onPressed(...)` and `onReleased(...)` fire only on edge transitions. Use
+`InputButton.any(...)` to combine multiple source buttons into one logical
+action; the composite is pressed while any source is pressed and releases only
+after all sources are up. Use `app.mouseButton(...)` for specific mouse-button
+behavior such as firing, alternate mouse modes, or device-specific
+interactions. Use `app.screenPointer()` for primary screen pointer
+interactions that should work across mouse and touch.
+
+### `ScreenPointer`
+
+```doof
+pointer := app.screenPointer()
+pointer.onPressed((point): void => beginDrag(point.x, point.y))
+pointer.onMoved((point): void => updateHover(point.x, point.y))
+pointer.onReleased((point): void => endDrag(point.x, point.y))
+
+if pointer.pressed() {
+  println("pointer at ${pointer.x()}, ${pointer.y()}")
+}
+```
+
+`ScreenPointer` represents the primary screen pointer. On macOS it is backed by
+the primary mouse button, and on iOS it is backed by the current single-touch
+translation used by the native game host. It exposes screen-space coordinates,
+held/released state, and edge/move callbacks. `UiLayer.registerPointer(...)`
+wires a retained UI layer directly to a pointer for custom setups. The usual UI
+path is `UiLayer(app, font)`, which creates the pointer and requests renders for
+pointer-driven visual changes.
+
+`GameApp.onEvent(...)` does not deliver key down/up or mouse button down/up
+events. Use `app.key(...)` and `app.mouseButton(...)` for binary input events,
+use `app.screenPointer()` for primary screen pointer movement and edges, use
+`app.gestures()` for pan, scroll, magnify, and double tap, and keep
+`onEvent(...)` for close, resize, compatibility, and other app events.
+
+### `ScreenGestures`
+
+```doof
+gestures := app.gestures()
+gestures.onPan((gesture): void => panCamera(gesture.deltaX, gesture.deltaY))
+gestures.onScroll((gesture): void => zoomAt(gesture.point, gesture.deltaY))
+gestures.onMagnify((gesture): void => pinchZoom(gesture.point, gesture.magnificationDelta))
+gestures.onDoubleTap((gesture): void => toggleZoomAt(gesture.point))
+```
+
+`ScreenGestures` represents non-binary viewport interactions. Pan and scroll
+gestures expose screen-space `point`, `deltaX`, and `deltaY`. Magnify gestures
+also expose `magnificationDelta`, and may carry pan deltas when the pinch
+midpoint moves. Double tap is routed here as an app-level gesture rather than a
+primary pointer click.
 
 ### App-Declared Pan Gestures
 

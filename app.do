@@ -20,10 +20,14 @@ import {
 } from "./native"
 
 import { GameEvent } from "./event"
+import { InputButton } from "./input_button"
 import { InputState } from "./input"
-import { Renderer, Texture, createRenderer, loadTextureForSurface } from "./render"
+import { Point, Renderer, Texture, createRenderer, loadTextureForSurface } from "./render"
+import { ScreenGesture, ScreenGestures } from "./screen_gestures"
+import { ScreenPointer } from "./screen_pointer"
 import { Sound, loadSound as loadSoundFile } from "./sound"
 import { GameSurface } from "./surface"
+import { GameEventKind, Key, MouseButton } from "./types"
 
 function defaultGameEventHandler(event: GameEvent): void {}
 
@@ -34,6 +38,9 @@ export class GameApp {
   private readonly native: NativeGameApp
   input: InputState
   surface: GameSurface
+  private inputButtons: InputButton[] = []
+  private screenGestures: ScreenGestures[] = []
+  private screenPointers: ScreenPointer[] = []
   private onEventHandler: (event: GameEvent): void
   private onRenderHandler: (renderer: Renderer): void
 
@@ -44,6 +51,9 @@ export class GameApp {
       native: native,
       input: InputState(native.input()),
       surface: GameSurface(native.surface()),
+      inputButtons: [],
+      screenGestures: [],
+      screenPointers: [],
       onEventHandler: defaultGameEventHandler,
       onRenderHandler: defaultGameRenderHandler,
     }
@@ -57,6 +67,30 @@ export class GameApp {
   onRender(handler: (renderer: Renderer): void): GameApp {
     this.onRenderHandler = handler
     return this
+  }
+
+  key(key: Key): InputButton {
+    button := InputButton.source((): bool => this.input.isKeyDown(key))
+    inputButtons.push(button)
+    return button
+  }
+
+  mouseButton(button: MouseButton): InputButton {
+    inputButton := InputButton.source((): bool => this.input.isMouseButtonDown(button))
+    inputButtons.push(inputButton)
+    return inputButton
+  }
+
+  screenPointer(): ScreenPointer {
+    pointer := ScreenPointer.fromInput(this.input)
+    screenPointers.push(pointer)
+    return pointer
+  }
+
+  gestures(): ScreenGestures {
+    screenGesture := ScreenGestures {}
+    screenGestures.push(screenGesture)
+    return screenGesture
   }
 
   requestRender(): void {
@@ -101,7 +135,13 @@ export class GameApp {
     result := native.run(
       (event: NativeGameEvent, input: NativeInputState): void => {
         this.input = InputState(input)
-        this.onEventHandler(GameEvent(event))
+        gameEvent := GameEvent(event)
+        updateInputButtons()
+        updateScreenPointers(gameEvent)
+        updateScreenGestures(gameEvent)
+        if !isBinaryInputEvent(gameEvent) {
+          this.onEventHandler(gameEvent)
+        }
       },
       (surface: NativeGameSurface, input: NativeInputState): void => {
         this.input = InputState(input)
@@ -117,8 +157,68 @@ export class GameApp {
     clearMainEventWakeHandler()
     return result
   }
+
+  private updateInputButtons(): void {
+    for button of inputButtons {
+      button.update()
+    }
+  }
+
+  private updateScreenPointers(event: GameEvent): void {
+    kind := event.kind()
+    if kind != GameEventKind.MouseDown && kind != GameEventKind.MouseUp && kind != GameEventKind.MouseMove {
+      return
+    }
+
+    point := Point(event.x(), event.y())
+    for pointer of screenPointers {
+      if kind == GameEventKind.MouseDown && isPrimaryPointerButton(event.mouseButton()) {
+        pointer.pressAt(point)
+      } else if kind == GameEventKind.MouseUp && isPrimaryPointerButton(event.mouseButton()) {
+        pointer.releaseAt(point)
+      } else if kind == GameEventKind.MouseMove {
+        pointer.moveTo(point)
+      }
+    }
+  }
+
+  private updateScreenGestures(event: GameEvent): void {
+    kind := event.kind()
+    if kind != GameEventKind.Pan
+      && kind != GameEventKind.Scroll
+      && kind != GameEventKind.Magnify
+      && kind != GameEventKind.DoubleTap {
+      return
+    }
+
+    for gestures of screenGestures {
+      if kind == GameEventKind.Pan {
+        gestures.emitPan(ScreenGesture.pan(Point(event.x(), event.y()), event.panDeltaX(), event.panDeltaY()))
+      } else if kind == GameEventKind.Scroll {
+        gestures.emitScroll(ScreenGesture.scroll(Point(event.x(), event.y()), event.scrollDeltaX(), event.scrollDeltaY()))
+      } else if kind == GameEventKind.Magnify {
+        gestures.emitMagnify(
+          ScreenGesture.magnify(Point(event.x(), event.y()), event.panDeltaX(), event.panDeltaY(), event.magnificationDelta()),
+        )
+      } else if kind == GameEventKind.DoubleTap {
+        gestures.emitDoubleTap(ScreenGesture.doubleTap(Point(event.x(), event.y())))
+      }
+    }
+  }
 }
 
 export function initGameApp(title: string): GameApp {
   return GameApp(title)
+}
+
+function isBinaryInputEvent(event: GameEvent): bool {
+  kind := event.kind()
+  return kind == GameEventKind.KeyDown
+    || kind == GameEventKind.KeyUp
+    || kind == GameEventKind.MouseDown
+    || kind == GameEventKind.MouseUp
+}
+
+function isPrimaryPointerButton(button: MouseButton): bool {
+  return button == MouseButton.Left || button == MouseButton.Other
 }

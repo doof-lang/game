@@ -86,7 +86,7 @@ function main(): int {
     return 1
   }
 
-  ui := UiLayer(app.surface, font)
+  ui := UiLayer(app, font)
 
   let clicks = 0
   ui.addPanel(Rect(0.0, 0.0, PANEL_WIDTH, PANEL_HEIGHT), {
@@ -118,21 +118,18 @@ function main(): int {
   ui.addButton("Click me", (26.0, 466.0, 190.0, 42.0), buttonStyle) {
     clicks += 1
     updateSampleBody(app.surface, transformedPanelScale(app.surface), body, clicks)
-    app.requestRender()
   }
 
   positionSampleUi(app.surface, ui, body, clicks)
+  app.key(Key.Escape).onPressed() {
+    app.stop()
+  }
 
   app.onEvent() {
     if event.kind() == GameEventKind.CloseRequested {
       app.stop()
-    } else if event.kind() == GameEventKind.KeyDown && event.key() == Key.Escape {
-      app.stop()
     } else if event.kind() == GameEventKind.Resized {
       positionSampleUi(app.surface, ui, body, clicks)
-      app.requestRender()
-    } else {
-      ui.handleEvent(event)
       app.requestRender()
     }
   }

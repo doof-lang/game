@@ -81,12 +81,10 @@ function main(): int {
     },
   )
 
+  app.key(Key.Escape).onPressed((): void => app.stop())
+
   app.onEvent((event): void => {
     if event.kind() == GameEventKind.CloseRequested {
-      app.stop()
-    }
-
-    if event.kind() == GameEventKind.KeyDown && event.key() == Key.Escape {
       app.stop()
     }
   })

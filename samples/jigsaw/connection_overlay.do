@@ -1,5 +1,6 @@
 import {
   Color,
+  GameApp,
   GameSurface,
   Point3,
   Rect,
@@ -59,11 +60,11 @@ export class JigsawConnectionOverlay {
 }
 
 export function createJigsawConnectionOverlay(
-  surface: GameSurface,
+  app: GameApp,
   font: BitmapFont,
   fontTexture: Texture,
 ): JigsawConnectionOverlay {
-  ui := UiLayer(surface, font)
+  ui := UiLayer(app, font)
   ui.addPanel(Rect(0.0, 0.0, OVERLAY_WIDTH, OVERLAY_HEIGHT), {
     background: Color(0.035, 0.040, 0.048, 0.92),
     border: Color(0.62, 0.70, 0.78, 0.95),
@@ -77,6 +78,6 @@ export function createJigsawConnectionOverlay(
     lineSpacing: 5.0,
   })
   overlay := JigsawConnectionOverlay { ui, statusLabel }
-  overlay.configure(surface)
+  overlay.configure(app.surface)
   return overlay
 }
