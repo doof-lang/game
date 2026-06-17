@@ -361,6 +361,20 @@ export function sendJoinGroups(
   })
 }
 
+export function jigsawClientCommandKey(command: JigsawClientCommand): string | null {
+  if command.kind == JigsawClientCommandKind.MoveGroup {
+    return moveCommandKey(command.clientId, command.primaryGroupId)
+  }
+  return null
+}
+
+export function jigsawServerEventKey(event: JigsawServerEvent): string | null {
+  if event.kind == JigsawServerEventKind.GroupMoved {
+    return moveEventKey(event.groupId)
+  }
+  return null
+}
+
 export function moveCommandKey(clientId: int, primaryGroupId: int): string {
   return "move:${clientId}:${primaryGroupId}"
 }

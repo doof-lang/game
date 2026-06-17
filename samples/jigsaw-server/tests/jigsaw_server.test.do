@@ -110,6 +110,25 @@ export function testServerOverwritesSpoofedClientIdBeforeBroadcast(): void {
   Assert.equal(state.movedY, 60.0)
 }
 
+export function testRemoteWebSocketMoveCommandsCoalesceBeforeSessionHandling(): void {
+  server := try! startJigsawHttpServer(
+    createDefaultJigsawServerState(),
+    JigsawHttpServerOptions { port: 0, commandCapacity: 1 },
+  )
+  remote := server.session.connectClient()
+
+  try! forwardJigsawCommandForClient(remote, moveCommandFrame(999, 0, 10.0, 20.0))
+  try! forwardJigsawCommandForClient(remote, moveCommandFrame(999, 0, 30.0, 40.0))
+  ignored := drainMainEventLoop()
+  remote.events.close()
+  server.close()
+
+  state := server.session.currentState()
+  position := groupPosition(state.pieces, 0)
+  Assert.equal(position.x, 30.0)
+  Assert.equal(position.y, 40.0)
+}
+
 export function testServerPersistsStateAfterCommand(): void {
   statePath := tempStatePath("doof-jigsaw-server-persist-command.json")
   server := try! startJigsawHttpServer(

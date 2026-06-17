@@ -29,6 +29,8 @@ import {
   JigsawServerEventKind,
   JigsawSessionConfig,
   createJigsawSession,
+  jigsawClientCommandKey,
+  jigsawServerEventKey,
   sendJoinGroups,
   sendMoveGroup,
 } from "./session"
@@ -177,6 +179,40 @@ export function testProtocolRoundTripsCommandAndEventFrames(): void {
   Assert.equal(decodedJoinEvent.kind, JigsawServerEventKind.GroupJoined)
   Assert.equal(joinEventPosition.groupId, 100)
   Assert.equal(joinEventPosition.x, 0.0)
+}
+
+export function testMoveCommandsAndEventsExposeCoalescingKeys(): void {
+  command := JigsawClientCommand {
+    kind: JigsawClientCommandKind.MoveGroup,
+    clientId: 4,
+    primaryGroupId: 9,
+  }
+  commandKey := jigsawClientCommandKey(command) else {
+    Assert.fail("expected move command key")
+    return
+  }
+  Assert.equal(commandKey, "move:4:9")
+
+  joinKey := jigsawClientCommandKey(JigsawClientCommand {
+    kind: JigsawClientCommandKind.JoinGroups,
+    clientId: 4,
+    groupIds: [9, 10],
+  })
+  Assert.isTrue(joinKey == null)
+
+  eventKey := jigsawServerEventKey(JigsawServerEvent {
+    kind: JigsawServerEventKind.GroupMoved,
+    groupId: 9,
+  }) else {
+    Assert.fail("expected move event key")
+    return
+  }
+  Assert.equal(eventKey, "move:9")
+
+  snapshotKey := jigsawServerEventKey(JigsawServerEvent {
+    kind: JigsawServerEventKind.BoardSnapshot,
+  })
+  Assert.isTrue(snapshotKey == null)
 }
 
 export function testNormalizeJigsawServerUrlDefaultsToWebSocketPath(): void {

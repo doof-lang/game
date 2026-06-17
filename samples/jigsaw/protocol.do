@@ -1,8 +1,9 @@
-import { ChannelSender, createChannel } from "std/event"
+import { ChannelSender, createChannel, setInterval } from "std/event"
 import {
   WebSocketClose,
   WebSocketBinary,
   WebSocketError,
+  WebSocketConnection,
   WebSocketOpen,
   WebSocketOptions,
   WebSocketSendText,
@@ -11,6 +12,7 @@ import {
   connectWebSocket,
 } from "std/http/websocket"
 import { formatJsonValue, parseJsonValue } from "std/json"
+import { Duration } from "std/time"
 
 import {
   GroupPosition,
@@ -21,9 +23,12 @@ import {
   JigsawClientConnection,
   JigsawServerEvent,
   JigsawServerEventKind,
+  jigsawClientCommandKey,
+  jigsawServerEventKey,
 } from "./session"
 
 export const JIGSAW_WEBSOCKET_PATH = "/jigsaw"
+const JIGSAW_MOVE_FLUSH_INTERVAL_MILLIS = 16L
 
 export function encodeJigsawCommandFrame(command: JigsawClientCommand): string {
   frame: JsonObject := {
@@ -307,17 +312,20 @@ export function normalizeJigsawServerUrl(address: string): string {
 }
 
 export function connectJigsawServer(address: string): Result<JigsawClientConnection, string> {
-  options := WebSocketOptions {}
+  options := WebSocketOptions {
+    eventCapacity: 8,
+    commandCapacity: 256,
+  }
   socket := connectWebSocket(normalizeJigsawServerUrl(address), options) else error {
     return Failure("${error.kind}: ${error.message}")
   }
 
   (commands, commandEvents) := createChannel<JigsawClientCommand>{
-    capacity: options.commandCapacity,
+    capacity: 256,
     keepsAlive: false,
   }
   (eventSender, events) := createChannel<JigsawServerEvent>{
-    capacity: options.eventCapacity,
+    capacity: 256,
     keepsAlive: false,
   }
 
@@ -327,27 +335,72 @@ export function connectJigsawServer(address: string): Result<JigsawClientConnect
     events,
   }
 
-  commandEvents.onMessage((command: JigsawClientCommand): void => {
-    sent := socket.commands.send(WebSocketSendText {
-      text: encodeJigsawCommandFrame(command),
-    })
-    case sent {
-      _: Success -> {}
-      _: Failure -> eventSender.close()
+  let pendingCommand: JigsawClientCommand | null = null
+  flushPendingCommand := (): void => {
+    command := pendingCommand else {
+      return
     }
+    pendingCommand = null
+    key := jigsawClientCommandKey(command) else {
+      return
+    }
+    if !sendCommandFrame(socket, command, key) {
+      eventSender.close()
+    }
+  }
+  flushTimer := setInterval{
+    interval: Duration.ofMillis(JIGSAW_MOVE_FLUSH_INTERVAL_MILLIS),
+    keepsAlive: false,
+    handler: flushPendingCommand,
+  }
+
+  commandEvents.onMessage((command: JigsawClientCommand): void => {
+    if jigsawClientCommandKey(command) == null {
+      flushPendingCommand.call()
+      if !sendCommandFrame(socket, command, null) {
+        eventSender.close()
+      }
+      return
+    }
+    pendingCommand = command
   })
-  commandEvents.onClosed((): void => socket.close())
-  eventSender.onClosed((): void => socket.close())
+  commandEvents.onClosed((): void => {
+    flushPendingCommand.call()
+    flushTimer.cancel()
+    socket.close()
+  })
+  eventSender.onClosed((): void => {
+    flushTimer.cancel()
+    socket.close()
+  })
 
   socket.events.onMessage((
     event: WebSocketOpen | WebSocketText | WebSocketBinary | WebSocketWritable | WebSocketClose | WebSocketError,
   ): void => handleRemoteSocketEvent(connection, eventSender, event))
   socket.events.onClosed((): void => {
+    flushTimer.cancel()
     commands.close()
     eventSender.close()
   })
 
   return Success(connection)
+}
+
+function sendCommandFrame(
+  socket: WebSocketConnection,
+  command: JigsawClientCommand,
+  key: string | null,
+): bool {
+  sent := if key == null then socket.commands.send(WebSocketSendText {
+    text: encodeJigsawCommandFrame(command),
+  }) else socket.commands.send(WebSocketSendText {
+    text: encodeJigsawCommandFrame(command),
+    coalesceKey: key,
+  }, key!)
+  return case sent {
+    _: Success -> true,
+    _: Failure -> false,
+  }
 }
 
 function handleRemoteSocketEvent(
@@ -365,7 +418,7 @@ function handleRemoteSocketEvent(
           if serverEvent.kind == JigsawServerEventKind.BoardSnapshot {
             connection.clientId = serverEvent.clientId
           }
-          ignored := eventSender.send(serverEvent)
+          ignored := eventSender.send(serverEvent, jigsawServerEventKey(serverEvent))
         }
         _: Failure -> {
           eventSender.close()
