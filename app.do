@@ -22,6 +22,7 @@ import {
 import { GameEvent } from "./event"
 import { InputState } from "./input"
 import { Renderer, Texture, createRenderer, loadTextureForSurface } from "./render"
+import { Sound, loadSound as loadSoundFile } from "./sound"
 import { GameSurface } from "./surface"
 
 function defaultGameEventHandler(event: GameEvent): void {}
@@ -68,6 +69,10 @@ export class GameApp {
 
   loadTexture(path: string): Result<Texture, string> {
     return loadTextureForSurface(this.surface, path)
+  }
+
+  loadSound(path: string): Result<Sound, string> {
+    return loadSoundFile(path)
   }
 
   stop(): void {

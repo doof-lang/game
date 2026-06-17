@@ -3,7 +3,9 @@
 `std/game` provides a macOS-first full-screen game/app host with a Metal-backed
 surface, neutral key and mouse events, queryable input state, and a small
 native-backed render pass API with static simple meshes and batched texture-quad
-drawing.
+drawing. It also includes a reusable native-backed `Sound` object for file and
+generated audio playback, plus a compact sfxr/bfxr-inspired synth for game sound
+effects.
 
 This first version is intentionally small: it owns the native app surface, input
 delivery, frame callbacks, Metal surface lifetime, render pass setup, and basic
@@ -127,6 +129,33 @@ on the next display tick. During render callbacks, `app.surface` holds the
 current Metal-backed surface and the callback receives a `Renderer` for issuing
 render passes. `app.fps()` reports the recent completed render callback rate.
 Call `app.stop()` to exit the native app loop.
+
+### Sound Effects
+
+```doof
+import { SfxrSoundConfig, SoundPlayOptions, synthSound } from "std/game"
+
+pickup := try! synthSound(SfxrSoundConfig.pickup())
+laser := try! synthSound(SfxrSoundConfig.laser())
+musicSting := try! app.loadSound("audio/sting.wav")
+
+try! pickup.play()
+try! laser.play(SoundPlayOptions { volume: 0.35, pan: -0.25 })
+try! musicSting.play(SoundPlayOptions { volume: 0.8 })
+```
+
+`Sound.load(path)` and `loadSound(path)` decode platform-supported audio files
+such as WAV, MP3, AAC, and CAF into a reusable sound object. `Sound.play(...)`
+starts playback immediately; repeated calls can overlap, which keeps one-shot
+effects simple. `Sound.stop()` stops active voices for that sound, `duration()`
+reports seconds, and `isPlaying()` reports whether any voices are still active.
+
+`SfxrSoundConfig` generates short mono effects in Doof and feeds them through
+the same `Sound` playback path. Use the presets (`pickup`, `laser`,
+`explosion`, `jump`, and `hit`) as starting points, or adjust waveform,
+frequency slide, envelope, vibrato, duty sweep, and simple low/high-pass filter
+settings directly before calling `synthSound(config)` or
+`generateSoundSamples(config)`.
 
 ### iOS Builds
 

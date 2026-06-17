@@ -7,7 +7,8 @@
       "extraCopyPaths": [
         "native_game.hpp",
         "native_mesh.hpp",
-        "native_mesh_internal.hpp"
+        "native_mesh_internal.hpp",
+        "native_sound.hpp"
       ],
       "macos": {
         "sourceFiles": [
@@ -15,9 +16,11 @@
           "native_mesh.mm",
           "native_mesh_internal.mm",
           "native_skymap.mm",
-          "native_space_dust.mm"
+          "native_space_dust.mm",
+          "native_sound.mm"
         ],
         "frameworks": [
+          "AVFoundation",
           "Cocoa",
           "CoreGraphics",
           "CoreVideo",
@@ -32,9 +35,11 @@
           "native_mesh.mm",
           "native_mesh_internal.mm",
           "native_skymap.mm",
-          "native_space_dust.mm"
+          "native_space_dust.mm",
+          "native_sound.mm"
         ],
         "frameworks": [
+          "AVFoundation",
           "UIKit",
           "Foundation",
           "QuartzCore",
@@ -49,9 +54,11 @@
           "native_mesh.mm",
           "native_mesh_internal.mm",
           "native_skymap.mm",
-          "native_space_dust.mm"
+          "native_space_dust.mm",
+          "native_sound.mm"
         ],
         "frameworks": [
+          "AVFoundation",
           "UIKit",
           "Foundation",
           "QuartzCore",
