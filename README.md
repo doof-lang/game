@@ -509,8 +509,8 @@ macOS/Metal-specific in this version.
 
 ### `GameEvent`
 
-Events expose `kind()`, `key()`, `mouseButton()`, position, movement, pan,
-scroll, magnify, and resize data.
+Events expose `kind()`, `key()`, `mouseButton()`, `controller()`, position,
+movement, pan, scroll, magnify, and resize data.
 
 On macOS, two-finger trackpad movement is reported as `Pan` with `panDeltaX()`
 and `panDeltaY()`. Mouse-wheel movement is reported separately as `Scroll` with
@@ -533,10 +533,15 @@ panDeltaY(): double
 scrollDeltaX(): double
 scrollDeltaY(): double
 magnificationDelta(): double
+controllers(): ControllerQuery
+isControllerConnected(slot: ControllerSlot): bool
+isControllerButtonDown(slot: ControllerSlot, button: ControllerButton): bool
+controllerAxis(slot: ControllerSlot, axis: ControllerAxis): double
 ```
 
 Mouse, pan, scroll, and magnification deltas are frame-relative. Key and button
-state persists while the key/button is held.
+state persists while the key/button is held. Controller slots are stable while a
+controller remains connected and are named `One` through `Four`.
 
 ### `InputButton`
 
@@ -562,6 +567,29 @@ behavior such as firing, alternate mouse modes, or device-specific
 interactions. Use `app.screenPointer()` for primary screen pointer
 interactions that should work across mouse and touch.
 
+### Controllers
+
+```doof
+move := app.controllerStick(.One, .Left).withDeadzone(0.2)
+jump := app.controllerButton(.One, .South)
+lookX := app.controllerAxis(.One, .RightX).withDeadzone(0.15)
+
+jump.onPressed((): void => playJumpSound())
+
+app.onEvent((event): void => {
+  if event.kind() == GameEventKind.ControllerConnected {
+    println("controller ${event.controller().name()} connected")
+  }
+})
+```
+
+Controller face buttons use compass-position names so code is not tied to a
+specific controller label set: `South`, `East`, `West`, and `North`.
+`InputAxis` and `InputStick` expose raw values by default and provide opt-in
+helpers such as `withDeadzone(...)`, `inverted()`, `clamped(...)`, and
+`invertedY()`. Use `app.input.controllers().connected(slot)` or
+`app.input.isControllerConnected(slot)` to check availability.
+
 ### `ScreenPointer`
 
 ```doof
@@ -584,10 +612,11 @@ path is `UiLayer(app, font)`, which creates the pointer and requests renders for
 pointer-driven visual changes.
 
 `GameApp.onEvent(...)` does not deliver key down/up or mouse button down/up
-events. Use `app.key(...)` and `app.mouseButton(...)` for binary input events,
-use `app.screenPointer()` for primary screen pointer movement and edges, use
-`app.gestures()` for pan, scroll, magnify, and double tap, and keep
-`onEvent(...)` for close, resize, compatibility, and other app events.
+events. Use `app.key(...)`, `app.mouseButton(...)`, and
+`app.controllerButton(...)` for binary input events, use `app.screenPointer()`
+for primary screen pointer movement and edges, use `app.gestures()` for pan,
+scroll, magnify, and double tap, and keep `onEvent(...)` for close, resize,
+controller availability, compatibility, and other app events.
 
 ### `ScreenGestures`
 
@@ -633,6 +662,10 @@ something non-panning, such as dragging an object or starting a pinch.
 - `samples/minimal` draws a screen-space simple mesh.
 - `samples/cards` draws textured atlas cards with one simple-model batch draw.
 - `samples/cube` draws a timer-driven spinning cube with one static simple mesh.
+- `samples/sound` plays five generated game effects with keyboard-triggered
+  volume and stereo pan options.
+- `samples/controller` demonstrates connection events, face buttons, a
+  deadzoned movement stick, and an analog trigger.
 - `samples/text` draws bitmap font text with wrapping, line spacing, and alignment.
 - `samples/skymap` draws an equirectangular panorama, a textured sphere planet,
   and a loaded OBJ mesh while mouse movement steers the camera.

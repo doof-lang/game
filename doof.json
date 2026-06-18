@@ -25,6 +25,7 @@
           "CoreGraphics",
           "CoreVideo",
           "Foundation",
+          "GameController",
           "Metal",
           "QuartzCore"
         ]
@@ -42,6 +43,7 @@
           "AVFoundation",
           "UIKit",
           "Foundation",
+          "GameController",
           "QuartzCore",
           "Metal",
           "CoreGraphics",
@@ -61,6 +63,7 @@
           "AVFoundation",
           "UIKit",
           "Foundation",
+          "GameController",
           "QuartzCore",
           "Metal",
           "CoreGraphics",

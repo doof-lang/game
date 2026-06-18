@@ -1,8 +1,19 @@
 export { GameApp, initGameApp } from "./app"
+export {
+  controllerAxisCode,
+  controllerAxisFromCode,
+  controllerButtonCode,
+  controllerButtonFromCode,
+  controllerSlotCode,
+  controllerSlotFromCode,
+  controllerStickXAxis,
+  controllerStickYAxis,
+} from "./controller"
 export { SpaceDust, SpaceDustConfig, drawSpaceDust } from "./dust"
-export { GameEvent, gameEventKindFromCode } from "./event"
+export { ControllerEvent, GameEvent, gameEventKindFromCode } from "./event"
+export { InputAxis, InputStick } from "./input_axis"
 export { InputButton } from "./input_button"
-export { InputState } from "./input"
+export { ControllerQuery, InputState } from "./input"
 export { ScreenGesture, ScreenGestures } from "./screen_gestures"
 export { ScreenPointer } from "./screen_pointer"
 export { keyCode, keyFromCode } from "./keys"
@@ -76,4 +87,12 @@ export {
 } from "./render"
 export { GameSurface } from "./surface"
 export { Mat3, Rotation, Transform, Vec3 } from "./transform"
-export { GameEventKind, Key, MouseButton } from "./types"
+export {
+  ControllerAxis,
+  ControllerButton,
+  ControllerSlot,
+  ControllerStick,
+  GameEventKind,
+  Key,
+  MouseButton,
+} from "./types"

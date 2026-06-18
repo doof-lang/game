@@ -13,6 +13,10 @@ import {
   Clear,
   ClearKind,
   Color,
+  ControllerAxis,
+  ControllerButton,
+  ControllerSlot,
+  ControllerStick,
   CullMode,
   Depth,
   DepthMode,
@@ -51,6 +55,12 @@ import {
   keyFromCode,
   mouseButtonCode,
   mouseButtonFromCode,
+  controllerAxisCode,
+  controllerAxisFromCode,
+  controllerButtonCode,
+  controllerButtonFromCode,
+  controllerSlotCode,
+  controllerSlotFromCode,
 } from "../index"
 
 function assertApprox(actual: double, expected: double, message: string | null = null): void {
@@ -74,6 +84,22 @@ function verifyGameAppPanGestureApi(app: GameApp): void {
   app.updatePanGesture(12.0, 24.0)
   app.endPanGesture()
   app.cancelPanGesture()
+}
+
+function verifyGameAppControllerApi(app: GameApp): void {
+  connected := app.input.isControllerConnected(ControllerSlot.One)
+  queryConnected := app.input.controllers().connected(ControllerSlot.One)
+  name := app.input.controllers().name(ControllerSlot.One)
+  south := app.controllerButton(ControllerSlot.One, ControllerButton.South)
+  leftX := app.controllerAxis(ControllerSlot.One, ControllerAxis.LeftX).withDeadzone(0.15)
+  leftStick := app.controllerStick(ControllerSlot.One, ControllerStick.Left).withDeadzone(0.2).invertedY()
+
+  connected
+  queryConnected
+  name
+  south.pressed()
+  leftX.value()
+  leftStick.x()
 }
 
 function subtractPoint3(a: Point3, b: Point3): Point3 {
@@ -197,6 +223,9 @@ function compileGameAppSmoke(): Result<void, string> {
   app := initGameApp{ title: "Doof Game Smoke" }
   let held = false
 
+  verifyGameAppPanGestureApi(app)
+  verifyGameAppControllerApi(app)
+
   simulationTimer := setInterval{
     interval: Duration.ofMillis(16L),
     handler: (): void => {
@@ -303,6 +332,22 @@ export function testMouseButtonCodeRoundTrips(): void {
   Assert.equal(mouseButtonFromCode(999), MouseButton.Other)
 }
 
+export function testControllerCodeRoundTrips(): void {
+  Assert.equal(controllerSlotFromCode(controllerSlotCode(ControllerSlot.One)), ControllerSlot.One)
+  Assert.equal(controllerSlotFromCode(controllerSlotCode(ControllerSlot.Four)), ControllerSlot.Four)
+  Assert.equal(controllerButtonFromCode(controllerButtonCode(ControllerButton.South)), ControllerButton.South)
+  Assert.equal(controllerButtonFromCode(controllerButtonCode(ControllerButton.North)), ControllerButton.North)
+  Assert.equal(controllerButtonFromCode(controllerButtonCode(ControllerButton.DPadRight)), ControllerButton.DPadRight)
+  Assert.equal(controllerAxisFromCode(controllerAxisCode(ControllerAxis.LeftX)), ControllerAxis.LeftX)
+  Assert.equal(controllerAxisFromCode(controllerAxisCode(ControllerAxis.RightTrigger)), ControllerAxis.RightTrigger)
+}
+
+export function testUnknownControllerCodesMapToSafeDefaults(): void {
+  Assert.equal(controllerSlotFromCode(999), ControllerSlot.One)
+  Assert.equal(controllerButtonFromCode(999), ControllerButton.South)
+  Assert.equal(controllerAxisFromCode(999), ControllerAxis.LeftX)
+}
+
 export function testGameEventKindMapping(): void {
   Assert.equal(gameEventKindFromCode(0), GameEventKind.CloseRequested)
   Assert.equal(gameEventKindFromCode(1), GameEventKind.Resized)
@@ -315,6 +360,8 @@ export function testGameEventKindMapping(): void {
   Assert.equal(gameEventKindFromCode(8), GameEventKind.DoubleTap)
   Assert.equal(gameEventKindFromCode(9), GameEventKind.Magnify)
   Assert.equal(gameEventKindFromCode(10), GameEventKind.Pan)
+  Assert.equal(gameEventKindFromCode(11), GameEventKind.ControllerConnected)
+  Assert.equal(gameEventKindFromCode(12), GameEventKind.ControllerDisconnected)
 }
 
 export function testRenderPassDescriptorDefaults(): void {

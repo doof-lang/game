@@ -2,6 +2,7 @@
 
 #import <CoreGraphics/CoreGraphics.h>
 #import <Foundation/Foundation.h>
+#import <GameController/GameController.h>
 #import <ImageIO/ImageIO.h>
 #import <Metal/Metal.h>
 #import <QuartzCore/CADisplayLink.h>
@@ -10,6 +11,7 @@
 #import <dispatch/dispatch.h>
 
 #include <algorithm>
+#include <array>
 #include <atomic>
 #include <chrono>
 #include <cctype>
@@ -42,10 +44,40 @@ constexpr int32_t kKindScroll = 7;
 constexpr int32_t kKindDoubleTap = 8;
 constexpr int32_t kKindMagnify = 9;
 constexpr int32_t kKindPan = 10;
+constexpr int32_t kKindControllerConnected = 11;
+constexpr int32_t kKindControllerDisconnected = 12;
 
 constexpr int32_t kKeyUnknown = 0;
 constexpr int32_t kMouseLeft = 0;
 constexpr int32_t kMouseOther = 3;
+
+constexpr int32_t kControllerSlotCount = 4;
+constexpr int32_t kControllerButtonCount = 16;
+constexpr int32_t kControllerAxisCount = 6;
+
+constexpr int32_t kControllerButtonSouth = 0;
+constexpr int32_t kControllerButtonEast = 1;
+constexpr int32_t kControllerButtonWest = 2;
+constexpr int32_t kControllerButtonNorth = 3;
+constexpr int32_t kControllerButtonLeftShoulder = 4;
+constexpr int32_t kControllerButtonRightShoulder = 5;
+constexpr int32_t kControllerButtonLeftTrigger = 6;
+constexpr int32_t kControllerButtonRightTrigger = 7;
+constexpr int32_t kControllerButtonMenu = 8;
+constexpr int32_t kControllerButtonOptions = 9;
+constexpr int32_t kControllerButtonLeftStick = 10;
+constexpr int32_t kControllerButtonRightStick = 11;
+constexpr int32_t kControllerButtonDPadUp = 12;
+constexpr int32_t kControllerButtonDPadDown = 13;
+constexpr int32_t kControllerButtonDPadLeft = 14;
+constexpr int32_t kControllerButtonDPadRight = 15;
+
+constexpr int32_t kControllerAxisLeftX = 0;
+constexpr int32_t kControllerAxisLeftY = 1;
+constexpr int32_t kControllerAxisRightX = 2;
+constexpr int32_t kControllerAxisRightY = 3;
+constexpr int32_t kControllerAxisLeftTrigger = 4;
+constexpr int32_t kControllerAxisRightTrigger = 5;
 
 constexpr double kDoubleTapMaxIntervalSeconds = 0.32;
 constexpr double kDoubleTapMaxDistancePoints = 28.0;
@@ -524,6 +556,10 @@ struct NativeRenderFrame::Impl {
 struct NativeInputState::Impl {
     std::unordered_set<int32_t> keysDown;
     std::unordered_set<int32_t> mouseButtonsDown;
+    std::array<bool, kControllerSlotCount> controllerConnected = { false, false, false, false };
+    std::array<std::string, kControllerSlotCount> controllerNames;
+    std::array<std::array<bool, kControllerButtonCount>, kControllerSlotCount> controllerButtonsDown = {};
+    std::array<std::array<double, kControllerAxisCount>, kControllerSlotCount> controllerAxes = {};
     double mouseX = 0.0;
     double mouseY = 0.0;
     double mouseDeltaX = 0.0;
@@ -718,6 +754,121 @@ CGPoint gamePointForTouch(UIView* view, UITouch* touch) {
     return [touch locationInView:view];
 }
 
+bool validControllerSlot(int32_t slot) {
+    return slot >= 0 && slot < kControllerSlotCount;
+}
+
+bool validControllerButton(int32_t button) {
+    return button >= 0 && button < kControllerButtonCount;
+}
+
+bool validControllerAxis(int32_t axis) {
+    return axis >= 0 && axis < kControllerAxisCount;
+}
+
+std::string stringFromNSString(NSString* value) {
+    if (value == nil) {
+        return "";
+    }
+    const char* utf8 = [value UTF8String];
+    return utf8 == nullptr ? "" : std::string(utf8);
+}
+
+std::string controllerDisplayName(GCController* controller) {
+    if (controller == nil) {
+        return "";
+    }
+    if (controller.vendorName != nil && controller.vendorName.length > 0) {
+        return stringFromNSString(controller.vendorName);
+    }
+    if (controller.productCategory != nil && controller.productCategory.length > 0) {
+        return stringFromNSString(controller.productCategory);
+    }
+    return "Controller";
+}
+
+bool controllerButtonPressed(GCControllerButtonInput* button) {
+    return button != nil && button.isPressed;
+}
+
+double controllerButtonValue(GCControllerButtonInput* button) {
+    return button == nil ? 0.0 : static_cast<double>(button.value);
+}
+
+void resetControllerSlotInput(const std::shared_ptr<NativeInputState>& input, int32_t slot) {
+    if (!input || !validControllerSlot(slot)) {
+        return;
+    }
+    for (int32_t button = 0; button < kControllerButtonCount; ++button) {
+        input->setControllerButtonDownCode(slot, button, false);
+    }
+    for (int32_t axis = 0; axis < kControllerAxisCount; ++axis) {
+        input->setControllerAxisCode(slot, axis, 0.0);
+    }
+}
+
+void updateControllerInputSlot(const std::shared_ptr<NativeInputState>& input, int32_t slot, GCController* controller) {
+    if (!input || !validControllerSlot(slot)) {
+        return;
+    }
+
+    if (controller == nil) {
+        input->setControllerConnectedCode(slot, "", false);
+        resetControllerSlotInput(input, slot);
+        return;
+    }
+
+    input->setControllerConnectedCode(slot, controllerDisplayName(controller), true);
+    resetControllerSlotInput(input, slot);
+
+    GCExtendedGamepad* gamepad = controller.extendedGamepad;
+    if (gamepad != nil) {
+        input->setControllerButtonDownCode(slot, kControllerButtonSouth, controllerButtonPressed(gamepad.buttonA));
+        input->setControllerButtonDownCode(slot, kControllerButtonEast, controllerButtonPressed(gamepad.buttonB));
+        input->setControllerButtonDownCode(slot, kControllerButtonWest, controllerButtonPressed(gamepad.buttonX));
+        input->setControllerButtonDownCode(slot, kControllerButtonNorth, controllerButtonPressed(gamepad.buttonY));
+        input->setControllerButtonDownCode(slot, kControllerButtonLeftShoulder, controllerButtonPressed(gamepad.leftShoulder));
+        input->setControllerButtonDownCode(slot, kControllerButtonRightShoulder, controllerButtonPressed(gamepad.rightShoulder));
+        input->setControllerButtonDownCode(slot, kControllerButtonLeftTrigger, controllerButtonPressed(gamepad.leftTrigger));
+        input->setControllerButtonDownCode(slot, kControllerButtonRightTrigger, controllerButtonPressed(gamepad.rightTrigger));
+        if (@available(iOS 13.0, *)) {
+            input->setControllerButtonDownCode(slot, kControllerButtonMenu, controllerButtonPressed(gamepad.buttonMenu));
+            input->setControllerButtonDownCode(slot, kControllerButtonOptions, controllerButtonPressed(gamepad.buttonOptions));
+        }
+        if (@available(iOS 12.1, *)) {
+            input->setControllerButtonDownCode(slot, kControllerButtonLeftStick, controllerButtonPressed(gamepad.leftThumbstickButton));
+            input->setControllerButtonDownCode(slot, kControllerButtonRightStick, controllerButtonPressed(gamepad.rightThumbstickButton));
+        }
+        input->setControllerButtonDownCode(slot, kControllerButtonDPadUp, controllerButtonPressed(gamepad.dpad.up));
+        input->setControllerButtonDownCode(slot, kControllerButtonDPadDown, controllerButtonPressed(gamepad.dpad.down));
+        input->setControllerButtonDownCode(slot, kControllerButtonDPadLeft, controllerButtonPressed(gamepad.dpad.left));
+        input->setControllerButtonDownCode(slot, kControllerButtonDPadRight, controllerButtonPressed(gamepad.dpad.right));
+
+        input->setControllerAxisCode(slot, kControllerAxisLeftX, static_cast<double>(gamepad.leftThumbstick.xAxis.value));
+        input->setControllerAxisCode(slot, kControllerAxisLeftY, static_cast<double>(gamepad.leftThumbstick.yAxis.value));
+        input->setControllerAxisCode(slot, kControllerAxisRightX, static_cast<double>(gamepad.rightThumbstick.xAxis.value));
+        input->setControllerAxisCode(slot, kControllerAxisRightY, static_cast<double>(gamepad.rightThumbstick.yAxis.value));
+        input->setControllerAxisCode(slot, kControllerAxisLeftTrigger, controllerButtonValue(gamepad.leftTrigger));
+        input->setControllerAxisCode(slot, kControllerAxisRightTrigger, controllerButtonValue(gamepad.rightTrigger));
+        return;
+    }
+
+    GCMicroGamepad* micro = controller.microGamepad;
+    if (micro != nil) {
+        input->setControllerButtonDownCode(slot, kControllerButtonSouth, controllerButtonPressed(micro.buttonA));
+        input->setControllerButtonDownCode(slot, kControllerButtonWest, controllerButtonPressed(micro.buttonX));
+        if (@available(iOS 13.0, *)) {
+            input->setControllerButtonDownCode(slot, kControllerButtonMenu, controllerButtonPressed(micro.buttonMenu));
+        }
+        input->setControllerButtonDownCode(slot, kControllerButtonDPadUp, controllerButtonPressed(micro.dpad.up));
+        input->setControllerButtonDownCode(slot, kControllerButtonDPadDown, controllerButtonPressed(micro.dpad.down));
+        input->setControllerButtonDownCode(slot, kControllerButtonDPadLeft, controllerButtonPressed(micro.dpad.left));
+        input->setControllerButtonDownCode(slot, kControllerButtonDPadRight, controllerButtonPressed(micro.dpad.right));
+        input->setControllerAxisCode(slot, kControllerAxisLeftX, static_cast<double>(micro.dpad.xAxis.value));
+        input->setControllerAxisCode(slot, kControllerAxisLeftY, static_cast<double>(micro.dpad.yAxis.value));
+    }
+}
+
 struct GameRuntimeState : std::enable_shared_from_this<GameRuntimeState> {
     std::shared_ptr<NativeInputState> input;
     std::shared_ptr<NativeGameSurface> surface;
@@ -737,10 +888,137 @@ struct GameRuntimeState : std::enable_shared_from_this<GameRuntimeState> {
     std::chrono::steady_clock::time_point fpsWindowStart = std::chrono::steady_clock::now();
     int32_t fpsFrameCount = 0;
     PanInertiaState panInertia;
+    std::array<GCController*, kControllerSlotCount> controllerSlots = { nil, nil, nil, nil };
+    id controllerConnectObserver = nil;
+    id controllerDisconnectObserver = nil;
+
+    ~GameRuntimeState() {
+        if (controllerConnectObserver != nil) {
+            [NSNotificationCenter.defaultCenter removeObserver:controllerConnectObserver];
+            controllerConnectObserver = nil;
+        }
+        if (controllerDisconnectObserver != nil) {
+            [NSNotificationCenter.defaultCenter removeObserver:controllerDisconnectObserver];
+            controllerDisconnectObserver = nil;
+        }
+        for (GCController* controller : controllerSlots) {
+            [controller release];
+        }
+    }
 
     void emit(std::shared_ptr<NativeGameEvent> event) {
         doof::detail::ActiveActorScope active(&doof::detail::ApplicationDomain::shared());
         onEvent.call(event, input);
+    }
+
+    void initializeControllers() {
+        for (GCController* controller in [GCController controllers]) {
+            assignController(controller, false);
+        }
+
+        std::weak_ptr<GameRuntimeState> weakSelf = shared_from_this();
+        controllerConnectObserver = [NSNotificationCenter.defaultCenter
+            addObserverForName:GCControllerDidConnectNotification
+                        object:nil
+                         queue:NSOperationQueue.mainQueue
+                    usingBlock:^(NSNotification* note) {
+                        auto self = weakSelf.lock();
+                        if (!self) {
+                            return;
+                        }
+                        GCController* controller = (GCController*)note.object;
+                        self->assignController(controller, true);
+                    }];
+        controllerDisconnectObserver = [NSNotificationCenter.defaultCenter
+            addObserverForName:GCControllerDidDisconnectNotification
+                        object:nil
+                         queue:NSOperationQueue.mainQueue
+                    usingBlock:^(NSNotification* note) {
+                        auto self = weakSelf.lock();
+                        if (!self) {
+                            return;
+                        }
+                        GCController* controller = (GCController*)note.object;
+                        self->disconnectController(controller);
+                    }];
+    }
+
+    void assignController(GCController* controller, bool emitEvent) {
+        if (controller == nil) {
+            return;
+        }
+        for (int32_t slot = 0; slot < kControllerSlotCount; ++slot) {
+            if (controllerSlots[slot] == controller) {
+                updateControllerInputSlot(input, slot, controller);
+                return;
+            }
+        }
+        for (int32_t slot = 0; slot < kControllerSlotCount; ++slot) {
+            if (controllerSlots[slot] != nil) {
+                continue;
+            }
+            controllerSlots[slot] = [controller retain];
+            updateControllerInputSlot(input, slot, controller);
+            if (emitEvent) {
+                emit(std::make_shared<NativeGameEvent>(
+                    kKindControllerConnected,
+                    kKeyUnknown,
+                    kMouseOther,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0,
+                    0,
+                    0.0,
+                    slot,
+                    controllerDisplayName(controller)
+                ));
+            }
+            return;
+        }
+    }
+
+    void disconnectController(GCController* controller) {
+        for (int32_t slot = 0; slot < kControllerSlotCount; ++slot) {
+            if (controllerSlots[slot] != controller) {
+                continue;
+            }
+            std::string name = controllerDisplayName(controllerSlots[slot]);
+            [controllerSlots[slot] release];
+            controllerSlots[slot] = nil;
+            input->setControllerConnectedCode(slot, "", false);
+            resetControllerSlotInput(input, slot);
+            emit(std::make_shared<NativeGameEvent>(
+                kKindControllerDisconnected,
+                kKeyUnknown,
+                kMouseOther,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0,
+                0,
+                0.0,
+                slot,
+                name
+            ));
+            return;
+        }
+    }
+
+    void updateControllers() {
+        for (int32_t slot = 0; slot < kControllerSlotCount; ++slot) {
+            updateControllerInputSlot(input, slot, controllerSlots[slot]);
+        }
     }
 
     void resetFrameDeltas() {
@@ -772,6 +1050,7 @@ struct GameRuntimeState : std::enable_shared_from_this<GameRuntimeState> {
             return;
         }
 
+        updateControllers();
         {
             doof::detail::ActiveActorScope active(&doof::detail::ApplicationDomain::shared());
             onRender.call(surface, input);
@@ -1721,10 +2000,14 @@ NativeGameEvent::NativeGameEvent(
     double scrollDeltaY,
     int32_t pixelWidth,
     int32_t pixelHeight,
-    double magnificationDelta
+    double magnificationDelta,
+    int32_t controllerSlotCode,
+    const std::string& controllerName
 ) : kindCode_(kindCode),
     keyCode_(keyCode),
     mouseButtonCode_(mouseButtonCode),
+    controllerSlotCode_(controllerSlotCode),
+    controllerName_(controllerName),
     x_(x),
     y_(y),
     deltaX_(deltaX),
@@ -1740,6 +2023,8 @@ NativeGameEvent::NativeGameEvent(
 int32_t NativeGameEvent::kindCode() const { return kindCode_; }
 int32_t NativeGameEvent::keyCode() const { return keyCode_; }
 int32_t NativeGameEvent::mouseButtonCode() const { return mouseButtonCode_; }
+int32_t NativeGameEvent::controllerSlotCode() const { return controllerSlotCode_; }
+std::string NativeGameEvent::controllerName() const { return controllerName_; }
 double NativeGameEvent::x() const { return x_; }
 double NativeGameEvent::y() const { return y_; }
 double NativeGameEvent::deltaX() const { return deltaX_; }
@@ -1763,6 +2048,28 @@ bool NativeInputState::isKeyDownCode(int32_t key) const {
 
 bool NativeInputState::isMouseButtonDownCode(int32_t button) const {
     return impl_->mouseButtonsDown.find(button) != impl_->mouseButtonsDown.end();
+}
+
+bool NativeInputState::isControllerConnectedCode(int32_t slot) const {
+    return validControllerSlot(slot) && impl_->controllerConnected[slot];
+}
+
+std::string NativeInputState::controllerNameCode(int32_t slot) const {
+    return validControllerSlot(slot) ? impl_->controllerNames[slot] : "";
+}
+
+bool NativeInputState::isControllerButtonDownCode(int32_t slot, int32_t button) const {
+    if (!validControllerSlot(slot) || !validControllerButton(button)) {
+        return false;
+    }
+    return impl_->controllerButtonsDown[slot][button];
+}
+
+double NativeInputState::controllerAxisCode(int32_t slot, int32_t axis) const {
+    if (!validControllerSlot(slot) || !validControllerAxis(axis)) {
+        return 0.0;
+    }
+    return impl_->controllerAxes[slot][axis];
 }
 
 double NativeInputState::mouseX() const { return impl_->mouseX; }
@@ -1799,6 +2106,28 @@ void NativeInputState::setMouseButtonDownCode(int32_t button, bool isDown) {
     } else {
         impl_->mouseButtonsDown.erase(button);
     }
+}
+
+void NativeInputState::setControllerConnectedCode(int32_t slot, const std::string& name, bool isConnected) {
+    if (!validControllerSlot(slot)) {
+        return;
+    }
+    impl_->controllerConnected[slot] = isConnected;
+    impl_->controllerNames[slot] = isConnected ? name : "";
+}
+
+void NativeInputState::setControllerButtonDownCode(int32_t slot, int32_t button, bool isDown) {
+    if (!validControllerSlot(slot) || !validControllerButton(button)) {
+        return;
+    }
+    impl_->controllerButtonsDown[slot][button] = isDown;
+}
+
+void NativeInputState::setControllerAxisCode(int32_t slot, int32_t axis, double value) {
+    if (!validControllerSlot(slot) || !validControllerAxis(axis)) {
+        return;
+    }
+    impl_->controllerAxes[slot][axis] = value;
 }
 
 void NativeInputState::setMousePosition(double x, double y) {
@@ -1913,6 +2242,7 @@ doof::Result<void, std::string> NativeGameApp::run(
         }
 
         gActiveState = state.get();
+        state->initializeControllers();
         drainEvents.call();
         state->emit(makeResizeEvent(state->surface));
         state->requestRender();

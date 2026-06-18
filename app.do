@@ -20,6 +20,8 @@ import {
 } from "./native"
 
 import { GameEvent } from "./event"
+import { controllerStickXAxis, controllerStickYAxis } from "./controller"
+import { InputAxis, InputStick } from "./input_axis"
 import { InputButton } from "./input_button"
 import { InputState } from "./input"
 import { Point, Renderer, Texture, createRenderer, loadTextureForSurface } from "./render"
@@ -27,7 +29,7 @@ import { ScreenGesture, ScreenGestures } from "./screen_gestures"
 import { ScreenPointer } from "./screen_pointer"
 import { Sound, loadSound as loadSoundFile } from "./sound"
 import { GameSurface } from "./surface"
-import { GameEventKind, Key, MouseButton } from "./types"
+import { ControllerAxis, ControllerButton, ControllerSlot, ControllerStick, GameEventKind, Key, MouseButton } from "./types"
 
 function defaultGameEventHandler(event: GameEvent): void {}
 
@@ -79,6 +81,23 @@ export class GameApp {
     inputButton := InputButton.source((): bool => this.input.isMouseButtonDown(button))
     inputButtons.push(inputButton)
     return inputButton
+  }
+
+  controllerButton(slot: ControllerSlot, button: ControllerButton): InputButton {
+    inputButton := InputButton.source((): bool => this.input.isControllerButtonDown(slot, button))
+    inputButtons.push(inputButton)
+    return inputButton
+  }
+
+  controllerAxis(slot: ControllerSlot, axis: ControllerAxis): InputAxis {
+    return InputAxis.source((): double => this.input.controllerAxis(slot, axis))
+  }
+
+  controllerStick(slot: ControllerSlot, stick: ControllerStick): InputStick {
+    return InputStick.source(
+      (): double => this.input.controllerAxis(slot, controllerStickXAxis(stick)),
+      (): double => this.input.controllerAxis(slot, controllerStickYAxis(stick)),
+    )
   }
 
   screenPointer(): ScreenPointer {

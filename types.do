@@ -10,6 +10,8 @@ export enum GameEventKind {
   DoubleTap,
   Magnify,
   Pan,
+  ControllerConnected,
+  ControllerDisconnected,
 }
 
 export enum Key {
@@ -82,4 +84,45 @@ export enum MouseButton {
   Right,
   Middle,
   Other,
+}
+
+export enum ControllerSlot {
+  One,
+  Two,
+  Three,
+  Four,
+}
+
+export enum ControllerButton {
+  South,
+  East,
+  West,
+  North,
+  LeftShoulder,
+  RightShoulder,
+  LeftTrigger,
+  RightTrigger,
+  Menu,
+  Options,
+  LeftStick,
+  RightStick,
+  DPadUp,
+  DPadDown,
+  DPadLeft,
+  DPadRight,
+}
+
+export enum ControllerAxis {
+  LeftX,
+  LeftY,
+  RightX,
+  RightY,
+  LeftTrigger,
+  RightTrigger,
+}
+
+export enum ControllerStick {
+  Left,
+  Right,
+  DPad,
 }

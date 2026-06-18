@@ -104,12 +104,16 @@ public:
         double scrollDeltaY = 0.0,
         int32_t pixelWidth = 0,
         int32_t pixelHeight = 0,
-        double magnificationDelta = 0.0
+        double magnificationDelta = 0.0,
+        int32_t controllerSlotCode = 0,
+        const std::string& controllerName = ""
     );
 
     int32_t kindCode() const;
     int32_t keyCode() const;
     int32_t mouseButtonCode() const;
+    int32_t controllerSlotCode() const;
+    std::string controllerName() const;
     double x() const;
     double y() const;
     double deltaX() const;
@@ -126,6 +130,8 @@ private:
     int32_t kindCode_;
     int32_t keyCode_;
     int32_t mouseButtonCode_;
+    int32_t controllerSlotCode_;
+    std::string controllerName_;
     double x_;
     double y_;
     double deltaX_;
@@ -146,6 +152,10 @@ public:
 
     bool isKeyDownCode(int32_t key) const;
     bool isMouseButtonDownCode(int32_t button) const;
+    bool isControllerConnectedCode(int32_t slot) const;
+    std::string controllerNameCode(int32_t slot) const;
+    bool isControllerButtonDownCode(int32_t slot, int32_t button) const;
+    double controllerAxisCode(int32_t slot, int32_t axis) const;
     double mouseX() const;
     double mouseY() const;
     double mouseDeltaX() const;
@@ -158,6 +168,9 @@ public:
     void resetFrameDeltas();
     void setKeyDownCode(int32_t key, bool isDown);
     void setMouseButtonDownCode(int32_t button, bool isDown);
+    void setControllerConnectedCode(int32_t slot, const std::string& name, bool isConnected);
+    void setControllerButtonDownCode(int32_t slot, int32_t button, bool isDown);
+    void setControllerAxisCode(int32_t slot, int32_t axis, double value);
     void setMousePosition(double x, double y);
     void addMouseDelta(double x, double y);
     void addPanDelta(double x, double y);

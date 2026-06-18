@@ -1,7 +1,8 @@
 import { NativeGameEvent } from "./native"
+import { controllerSlotFromCode } from "./controller"
 import { keyFromCode } from "./keys"
 import { mouseButtonFromCode } from "./mouse"
-import { GameEventKind, Key, MouseButton } from "./types"
+import { ControllerSlot, GameEventKind, Key, MouseButton } from "./types"
 
 const KIND_CLOSE_REQUESTED = 0
 const KIND_RESIZED = 1
@@ -14,11 +15,22 @@ const KIND_SCROLL = 7
 const KIND_DOUBLE_TAP = 8
 const KIND_MAGNIFY = 9
 const KIND_PAN = 10
+const KIND_CONTROLLER_CONNECTED = 11
+const KIND_CONTROLLER_DISCONNECTED = 12
+
+export class ControllerEvent {
+  private readonly native: NativeGameEvent
+
+  slot(): ControllerSlot => controllerSlotFromCode(this.native.controllerSlotCode())
+  connected(): bool => this.native.kindCode() == KIND_CONTROLLER_CONNECTED
+  name(): string => this.native.controllerName()
+}
 
 export class GameEvent {
   private readonly native: NativeGameEvent
 
   kind(): GameEventKind => gameEventKindFromCode(this.native.kindCode())
+  controller(): ControllerEvent => ControllerEvent(this.native)
   key(): Key => keyFromCode(this.native.keyCode())
   mouseButton(): MouseButton => mouseButtonFromCode(this.native.mouseButtonCode())
   x(): double => this.native.x()
@@ -47,6 +59,8 @@ export function gameEventKindFromCode(code: int): GameEventKind {
     KIND_DOUBLE_TAP -> GameEventKind.DoubleTap,
     KIND_MAGNIFY -> GameEventKind.Magnify,
     KIND_PAN -> GameEventKind.Pan,
+    KIND_CONTROLLER_CONNECTED -> GameEventKind.ControllerConnected,
+    KIND_CONTROLLER_DISCONNECTED -> GameEventKind.ControllerDisconnected,
     _ -> GameEventKind.CloseRequested,
   }
 }

@@ -11,6 +11,8 @@ export import class NativeGameEvent from "native_game.hpp" as doof_game::NativeG
   kindCode(): int
   keyCode(): int
   mouseButtonCode(): int
+  controllerSlotCode(): int
+  controllerName(): string
   x(): double
   y(): double
   deltaX(): double
@@ -27,6 +29,10 @@ export import class NativeGameEvent from "native_game.hpp" as doof_game::NativeG
 export import class NativeInputState from "native_game.hpp" as doof_game::NativeInputState {
   isKeyDownCode(key: int): bool
   isMouseButtonDownCode(button: int): bool
+  isControllerConnectedCode(slot: int): bool
+  controllerNameCode(slot: int): string
+  isControllerButtonDownCode(slot: int, button: int): bool
+  controllerAxisCode(slot: int, axis: int): double
   mouseX(): double
   mouseY(): double
   mouseDeltaX(): double
