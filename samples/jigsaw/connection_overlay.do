@@ -5,7 +5,6 @@ import {
   Point3,
   Rect,
   RenderPass,
-  Texture,
   Transform,
   UiLabel,
   UiLayer,
@@ -62,16 +61,15 @@ export class JigsawConnectionOverlay {
 export function createJigsawConnectionOverlay(
   app: GameApp,
   font: BitmapFont,
-  fontTexture: Texture,
 ): JigsawConnectionOverlay {
-  ui := UiLayer(app, font)
+  ui := UiLayer(app)
   ui.addPanel(Rect(0.0, 0.0, OVERLAY_WIDTH, OVERLAY_HEIGHT), {
     background: Color(0.035, 0.040, 0.048, 0.92),
     border: Color(0.62, 0.70, 0.78, 0.95),
     borderWidth: 2.0,
   })
   statusLabel := ui.addLabel("", Rect(28.0, 24.0, OVERLAY_WIDTH - 56.0, OVERLAY_HEIGHT - 48.0), {
-    fontTexture,
+    font,
     textColor: Color(0.92, 0.96, 1.0, 1.0),
     paddingX: 0.0,
     paddingY: 0.0,

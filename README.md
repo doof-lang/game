@@ -273,12 +273,10 @@ applying the same lighting.
 ### Bitmap Font Text
 
 ```doof
-fontTexture := try! app.loadTexture("fonts/hud.png")
-font := try! loadBitmapFont("fonts/hud.fnt")
+font := try! app.loadBitmapFont("fonts/hud.fnt")
 label := createTextModel(
   app.surface,
   font,
-  fontTexture,
   "Score 1200",
   TextLayoutOptions {
     position: Point(24.0, 32.0),
@@ -298,8 +296,9 @@ renderer.pass(
 )
 ```
 
-`loadBitmapFont(path)` reads AngelCode BMFont text `.fnt` metrics for a
-single-page bitmap atlas. `createTextMeshSpec(...)`, `createTextMesh(...)`, and
+`app.loadBitmapFont(path)` reads AngelCode BMFont text `.fnt` metrics and loads
+its referenced single-page bitmap atlas relative to the font file. The returned
+`BitmapFont` owns that texture. `createTextMeshSpec(...)`, `createTextMesh(...)`, and
 `createTextModel(...)` lay out text in logical screen coordinates for
 `Camera.screen()`, including newlines, kerning, optional word wrapping, letter
 spacing, and left/center/right alignment. Spaces advance the cursor but do not
@@ -308,9 +307,8 @@ emit glyph quads, and the generated UVs target the supplied font texture.
 ### Retained UI
 
 ```doof
-font := try! loadBitmapFont("fonts/hud.fnt")
-fontTexture := try! app.loadTexture("fonts/hud.png")
-ui := UiLayer(app, font)
+font := try! app.loadBitmapFont("fonts/hud.fnt")
+ui := UiLayer(app)
 
 ui.addPanel(
   Rect(16.0, 16.0, 300.0, 128.0),
@@ -324,7 +322,7 @@ status := ui.addLabel(
   "Ready",
   Rect(24.0, 24.0, 260.0, 40.0),
   UiStyle {
-    fontTexture,
+    font,
     textColor: Color(0.95, 0.88, 0.35, 1.0),
   },
 )
@@ -332,7 +330,7 @@ status := ui.addLabel(
 ui.addButton(
   "Start",
   Rect(24.0, 80.0, 160.0, 44.0),
-  UiButtonStyle { fontTexture },
+  UiButtonStyle { font },
   (): void => {
     status.setText("Started")
   },
@@ -362,7 +360,7 @@ app.onRender((renderer): void => {
 
 `UiLayer` is a small retained UI container for panels, labels, and buttons.
 Bounds are in UI-local top-left coordinates, and `setTransform(...)` maps that
-UI space into the screen-space render pass. Constructing `UiLayer(app, font)`
+UI space into the screen-space render pass. Constructing `UiLayer(app)`
 lets the layer create the primary screen pointer and request renders when
 pointer interaction changes visual state. Pointer positions are mapped back
 through the inverse transform for hit testing, so hover, press, and click
@@ -608,7 +606,7 @@ the primary mouse button, and on iOS it is backed by the current single-touch
 translation used by the native game host. It exposes screen-space coordinates,
 held/released state, and edge/move callbacks. `UiLayer.registerPointer(...)`
 wires a retained UI layer directly to a pointer for custom setups. The usual UI
-path is `UiLayer(app, font)`, which creates the pointer and requests renders for
+path is `UiLayer(app)`, which creates the pointer and requests renders for
 pointer-driven visual changes.
 
 `GameApp.onEvent(...)` does not deliver key down/up or mouse button down/up

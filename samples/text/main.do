@@ -13,18 +13,12 @@ import {
   createTextModel,
   drawSimpleModel,
   initGameApp,
-  loadBitmapFont,
 } from "std/game"
 
 function main(): int {
   app := initGameApp{ title: "Doof Game Text" }
 
-  font := loadBitmapFont("fonts/DejaVuSans.fnt") else error {
-    println(error)
-    return 1
-  }
-
-  fontTexture := app.loadTexture("fonts/DejaVuSans_0.png") else error {
+  font := app.loadBitmapFont("fonts/DejaVuSans.fnt") else error {
     println(error)
     return 1
   }
@@ -32,7 +26,6 @@ function main(): int {
   title := createTextModel(
     app.surface,
     font,
-    fontTexture,
     "Bitmap Font Text",
     TextLayoutOptions {
       position: Point(48.0, 44.0),
@@ -43,7 +36,6 @@ function main(): int {
   leftLabel := createTextModel(
     app.surface,
     font,
-    fontTexture,
     "Left aligned text uses the font atlas glyphs and kerning: AVA WAVE.",
     TextLayoutOptions {
       position: Point(48.0, 120.0),
@@ -56,7 +48,6 @@ function main(): int {
   centerLabel := createTextModel(
     app.surface,
     font,
-    fontTexture,
     "Center aligned wrapping\nfor HUD labels and menus",
     TextLayoutOptions {
       position: Point(560.0, 128.0),
@@ -70,7 +61,6 @@ function main(): int {
   rightLabel := createTextModel(
     app.surface,
     font,
-    fontTexture,
     "Right aligned score\n0123456789",
     TextLayoutOptions {
       position: Point(560.0, 286.0),

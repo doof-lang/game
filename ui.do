@@ -2,7 +2,6 @@ import { GameApp } from "./app"
 import { GameEvent } from "./event"
 import { InputState } from "./input"
 import { ScreenPointer } from "./screen_pointer"
-import { BitmapFont } from "./text"
 import { GameEventKind, MouseButton } from "./types"
 import { Point, Point3, Rect, RenderPass } from "./render"
 import { GameSurface } from "./surface"
@@ -40,7 +39,6 @@ export { UiButton, UiLabel, UiPanel } from "./ui_controls"
 
 export class UiLayer {
   surface: GameSurface | null
-  font: BitmapFont
   transform: Transform = Transform.identity()
 
   private elements: UiElement[] = []
@@ -51,23 +49,20 @@ export class UiLayer {
   private pressedButtonId: int = 0
   private pointerRenderVersion: int = 0
 
-  static constructor(target: GameApp | GameSurface | null, font: BitmapFont): UiLayer {
+  static constructor(target: GameApp | GameSurface | null): UiLayer {
     app := target as GameApp else {
       surface := target as GameSurface else {
         return UiLayer {
           surface: null,
-          font,
         }
       }
       return UiLayer {
         surface,
-        font,
       }
     }
 
     layer := UiLayer {
       surface: app.surface,
-      font,
     }
     layer.registerApp(app)
     return layer
@@ -267,14 +262,14 @@ export class UiLayer {
         button := buttonForElement(element.id) else {
           continue
         }
-        drawUiButton(localSurface, font, pass, button, model)
+        drawUiButton(localSurface, pass, button, model)
         continue
       }
 
       label := labelForElement(element.id) else {
         continue
       }
-      drawUiLabel(localSurface, font, pass, label, model)
+      drawUiLabel(localSurface, pass, label, model)
     }
   }
 
@@ -383,8 +378,8 @@ export class UiLayer {
   }
 }
 
-export function createTestUiLayer(font: BitmapFont): UiLayer {
-  return UiLayer(null, font)
+export function createTestUiLayer(): UiLayer {
+  return UiLayer(null)
 }
 
 function isPrimaryButton(button: MouseButton): bool {

@@ -29,6 +29,7 @@ import { ScreenGesture, ScreenGestures } from "./screen_gestures"
 import { ScreenPointer } from "./screen_pointer"
 import { Sound, loadSound as loadSoundFile } from "./sound"
 import { GameSurface } from "./surface"
+import { BitmapFont, loadBitmapFontForSurface } from "./text"
 import { ControllerAxis, ControllerButton, ControllerSlot, ControllerStick, GameEventKind, Key, MouseButton } from "./types"
 
 function defaultGameEventHandler(event: GameEvent): void {}
@@ -122,6 +123,10 @@ export class GameApp {
 
   loadTexture(path: string): Result<Texture, string> {
     return loadTextureForSurface(this.surface, path)
+  }
+
+  loadBitmapFont(path: string): Result<BitmapFont, string> {
+    return loadBitmapFontForSurface(this.surface, path)
   }
 
   loadSound(path: string): Result<Sound, string> {

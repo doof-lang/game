@@ -37,17 +37,18 @@ export { createSphereMeshSpec } from "./sphere"
 export { SkyMap, drawEquirectangularSkyMap } from "./sky"
 export {
   BitmapFont,
+  BitmapFontData,
   BitmapGlyph,
   BitmapKerning,
+  BitmapFontMetrics,
   TextAlign,
   TextBounds,
   TextLayoutOptions,
   createTextMesh,
   createTextMeshSpec,
   createTextModel,
-  loadBitmapFont,
   measureText,
-  parseBitmapFont,
+  parseBitmapFontData,
 } from "./text"
 export {
   UiButton,

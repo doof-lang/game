@@ -5,11 +5,11 @@ import {
   Color,
   Point,
   TextAlign,
-  BitmapFont,
+  BitmapFontData,
   TextLayoutOptions,
   createTextMeshSpec,
   measureText,
-  parseBitmapFont,
+  parseBitmapFontData,
 } from "../index"
 
 const FONT_TEXT =
@@ -25,8 +25,8 @@ const FONT_TEXT =
   "kernings count=1\n" +
   "kerning first=65 second=66 amount=-1\n"
 
-function requireFont(): BitmapFont {
-  parsed := parseBitmapFont(FONT_TEXT, "tiny.fnt")
+function requireFont(): BitmapFontData {
+  parsed := parseBitmapFontData(FONT_TEXT, "tiny.fnt")
   return try! parsed
 }
 
@@ -34,7 +34,7 @@ function assertApprox(actual: double, expected: double): void {
   Assert.isTrue(approxEqual(actual, expected), "expected ${actual} to approximately equal ${expected}")
 }
 
-export function testParseBitmapFontReadsMetricsGlyphsAndKerning(): void {
+export function testParseBitmapFontReadsMetricsGlyphsKerningAndTextureFile(): void {
   font := requireFont()
   glyphA := font.glyph(65) else {
     Assert.fail("expected A glyph")
@@ -45,6 +45,7 @@ export function testParseBitmapFontReadsMetricsGlyphsAndKerning(): void {
   Assert.equal(font.base, 8)
   Assert.equal(font.scaleWidth, 64)
   Assert.equal(font.scaleHeight, 32)
+  Assert.equal(font.textureFile, "tiny font.png")
   Assert.equal(glyphA.xOffset, 1)
   Assert.equal(glyphA.xAdvance, 6)
   Assert.equal(font.kerning(65, 66), -1)
@@ -52,12 +53,12 @@ export function testParseBitmapFontReadsMetricsGlyphsAndKerning(): void {
 }
 
 export function testParseBitmapFontRejectsMalformedInput(): void {
-  missingCommon := parseBitmapFont("char id=65 x=0 y=0 width=1 height=1 xoffset=0 yoffset=0 xadvance=1\n")
-  badNumber := parseBitmapFont(
+  missingCommon := parseBitmapFontData("char id=65 x=0 y=0 width=1 height=1 xoffset=0 yoffset=0 xadvance=1\n")
+  badNumber := parseBitmapFontData(
     "common lineHeight=nope base=8 scaleW=64 scaleH=32 pages=1\n" +
     "char id=65 x=0 y=0 width=1 height=1 xoffset=0 yoffset=0 xadvance=1\n",
   )
-  multiPage := parseBitmapFont(
+  multiPage := parseBitmapFontData(
     "common lineHeight=10 base=8 scaleW=64 scaleH=32 pages=2\n" +
     "char id=65 x=0 y=0 width=1 height=1 xoffset=0 yoffset=0 xadvance=1 page=0\n",
   )
@@ -65,6 +66,21 @@ export function testParseBitmapFontRejectsMalformedInput(): void {
   Assert.isTrue(missingCommon.isFailure())
   Assert.isTrue(badNumber.isFailure())
   Assert.isTrue(multiPage.isFailure())
+}
+
+export function testParseBitmapFontRejectsMissingAndNonzeroPages(): void {
+  missingPage := parseBitmapFontData(
+    "common lineHeight=10 base=8 scaleW=64 scaleH=32 pages=1\n" +
+    "char id=65 x=0 y=0 width=1 height=1 xoffset=0 yoffset=0 xadvance=1 page=0\n",
+  )
+  nonzeroPage := parseBitmapFontData(
+    "common lineHeight=10 base=8 scaleW=64 scaleH=32 pages=1\n" +
+    "page id=1 file=\"tiny.png\"\n" +
+    "char id=65 x=0 y=0 width=1 height=1 xoffset=0 yoffset=0 xadvance=1 page=0\n",
+  )
+
+  Assert.isTrue(missingPage.isFailure())
+  Assert.isTrue(nonzeroPage.isFailure())
 }
 
 export function testMeasureTextHandlesKerningLinesAndWrap(): void {

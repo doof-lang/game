@@ -1,5 +1,5 @@
-import { TextAlign } from "./text"
-import { Color, Point, Rect, Texture } from "./render"
+import { BitmapFont, TextAlign } from "./text"
+import { Color, Point, Rect } from "./render"
 
 export type UiCallback = (): void
 
@@ -17,7 +17,7 @@ export class UiPanelStyle {
 }
 
 export class UiStyle {
-  fontTexture: Texture | null = null
+  font: BitmapFont
   textColor: Color = Color(1.0, 1.0, 1.0, 1.0)
   paddingX: double = 12.0
   paddingY: double = 8.0
@@ -27,7 +27,7 @@ export class UiStyle {
 }
 
 export class UiButtonStyle {
-  fontTexture: Texture | null = null
+  font: BitmapFont
   background: Color = Color(0.16, 0.18, 0.22, 1.0)
   hoverBackground: Color = Color(0.22, 0.25, 0.30, 1.0)
   pressedBackground: Color = Color(0.10, 0.12, 0.16, 1.0)

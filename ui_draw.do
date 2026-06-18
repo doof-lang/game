@@ -1,6 +1,6 @@
 import { SimpleMesh, SimpleMeshBuilder, drawSimpleMesh, drawTexturedSimpleMesh } from "./mesh"
 import { BitmapFont, TextLayoutOptions, createTextMesh, measureText } from "./text"
-import { Color, Mat4, Point, Point3, Rect, RenderPass, Texture } from "./render"
+import { Color, Mat4, Point, Point3, Rect, RenderPass } from "./render"
 import { GameSurface } from "./surface"
 import { UiButton, UiLabel, UiPanel } from "./ui_controls"
 
@@ -34,7 +34,6 @@ export function drawUiPanel(
 
 export function drawUiLabel(
   surface: GameSurface,
-  font: BitmapFont,
   pass: RenderPass,
   label: UiLabel,
   model: Mat4,
@@ -52,12 +51,11 @@ export function drawUiLabel(
     lineSpacing: label.style.lineSpacing,
     color: label.style.textColor,
   }
-  drawUiText(surface, font, labelTexture(label), pass, label.text, options, model)
+  drawUiText(surface, label.style.font, pass, label.text, options, model)
 }
 
 export function drawUiButton(
   surface: GameSurface,
-  font: BitmapFont,
   pass: RenderPass,
   button: UiButton,
   model: Mat4,
@@ -71,7 +69,7 @@ export function drawUiButton(
   }
 
   textColor := if button.enabled then button.style.textColor else button.style.disabledTextColor
-  textBounds := measureText(font, button.text)
+  textBounds := measureText(button.style.font, button.text)
   textY := bounds.y + (bounds.height - textBounds.height) * 0.5
   options := TextLayoutOptions {
     position: Point(bounds.x + button.style.paddingX, textY),
@@ -80,34 +78,19 @@ export function drawUiButton(
     align: button.style.align,
     color: textColor,
   }
-  drawUiText(surface, font, buttonTexture(button), pass, button.text, options, model)
-}
-
-function labelTexture(label: UiLabel): Texture {
-  texture := label.style.fontTexture else {
-    panic("UiLabel requires style.fontTexture when text is drawn")
-  }
-  return texture
-}
-
-function buttonTexture(button: UiButton): Texture {
-  texture := button.style.fontTexture else {
-    panic("UiButton requires style.fontTexture when text is drawn")
-  }
-  return texture
+  drawUiText(surface, button.style.font, pass, button.text, options, model)
 }
 
 function drawUiText(
   surface: GameSurface,
   font: BitmapFont,
-  fontTexture: Texture,
   pass: RenderPass,
   text: string,
   options: TextLayoutOptions,
   model: Mat4,
 ): void {
   mesh := createTextMesh(surface, font, text, options)
-  drawTexturedSimpleMesh(pass, mesh, fontTexture, model)
+  drawTexturedSimpleMesh(pass, mesh, font.texture, model)
 }
 
 function buttonBackground(button: UiButton): Color {

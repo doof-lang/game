@@ -10,7 +10,6 @@ import {
   SimpleModelBatch,
   drawSimpleModelBatch,
   initGameApp,
-  loadBitmapFont,
 } from "std/game"
 import { Timer, setInterval } from "std/event"
 import { abs } from "std/math"
@@ -128,11 +127,7 @@ function main(args: string[]): int {
     println(error)
     return 1
   }
-  font := loadBitmapFont(join([resources, "fonts/DejaVuSans.fnt"])) else error {
-    println(error)
-    return 1
-  }
-  fontTexture := app.loadTexture(join([resources, "fonts/DejaVuSans_0.png"])) else error {
+  font := app.loadBitmapFont(join([resources, "fonts/DejaVuSans.fnt"])) else error {
     println(error)
     return 1
   }
@@ -159,7 +154,7 @@ function main(args: string[]): int {
   }
   let mainBatch = createBatch(app.surface, mesh, loadedAtlasTexture, pieces, drawOrder, -1)
   let dragBatch = createDragBatch(app.surface, mesh, loadedAtlasTexture)
-  overlay := createJigsawConnectionOverlay(app, font, fontTexture)
+  overlay := createJigsawConnectionOverlay(app, font)
   overlay.update(runtime)
 
   let draggedPiece = -1

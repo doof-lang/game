@@ -1,8 +1,9 @@
 import { readText } from "std/fs"
+import { dirname, join } from "std/path"
 
 import { SimpleMesh, SimpleMeshSpec } from "./mesh"
 import { SimpleModel } from "./model"
-import { Color, Point, Point3, Texture } from "./render"
+import { Color, Point, Point3, Texture, loadTextureForSurface } from "./render"
 import { GameSurface } from "./surface"
 import { Transform } from "./transform"
 
@@ -31,11 +32,45 @@ export class BitmapKerning {
   readonly amount: int
 }
 
+export interface BitmapFontMetrics {
+  readonly lineHeight: int
+  readonly base: int
+  readonly scaleWidth: int
+  readonly scaleHeight: int
+  glyph(codepoint: int): BitmapGlyph | null
+  kerning(first: int, second: int): int
+}
+
+export class BitmapFontData {
+  readonly lineHeight: int
+  readonly base: int
+  readonly scaleWidth: int
+  readonly scaleHeight: int
+  readonly textureFile: string
+  glyphs: Map<int, BitmapGlyph>
+  kernings: Map<string, int>
+
+  glyph(codepoint: int): BitmapGlyph | null {
+    return case glyphs.get(codepoint) {
+      s: Success -> s.value,
+      f: Failure -> null,
+    }
+  }
+
+  kerning(first: int, second: int): int {
+    return case kernings.get(kerningKey(first, second)) {
+      s: Success -> s.value,
+      f: Failure -> 0,
+    }
+  }
+}
+
 export class BitmapFont {
   readonly lineHeight: int
   readonly base: int
   readonly scaleWidth: int
   readonly scaleHeight: int
+  readonly texture: Texture
   glyphs: Map<int, BitmapGlyph>
   kernings: Map<string, int>
 
@@ -78,6 +113,7 @@ class FontParseState {
   scaleWidth: int = 0
   scaleHeight: int = 0
   pages: int = 1
+  textureFile: string | null = null
   glyphs: Map<int, BitmapGlyph> = {}
   kernings: Map<string, int> = {}
 }
@@ -278,6 +314,34 @@ function parseGlyph(attributes: Map<string, string>, state: FontParseState, sour
   return Success()
 }
 
+function parsePage(attributes: Map<string, string>, state: FontParseState, source: string, lineNumber: int): Result<void, string> {
+  try id := requiredInt(attributes, "id", source, lineNumber)
+  if id != 0 {
+    return Failure {
+      error: parseError(source, lineNumber, "bitmap font page id must be 0")
+    }
+  }
+
+  file := attributes.get("file") else {
+    return Failure {
+      error: parseError(source, lineNumber, "missing file attribute")
+    }
+  }
+  if file == "" {
+    return Failure {
+      error: parseError(source, lineNumber, "bitmap font page file cannot be empty")
+    }
+  }
+  if state.textureFile != null {
+    return Failure {
+      error: parseError(source, lineNumber, "bitmap fonts with multiple pages are not supported")
+    }
+  }
+
+  state.textureFile = file
+  return Success()
+}
+
 function parseKerning(attributes: Map<string, string>, state: FontParseState, source: string, lineNumber: int): Result<void, string> {
   try first := requiredInt(attributes, "first", source, lineNumber)
   try second := requiredInt(attributes, "second", source, lineNumber)
@@ -287,7 +351,7 @@ function parseKerning(attributes: Map<string, string>, state: FontParseState, so
   return Success()
 }
 
-export function parseBitmapFont(text: string, source: string = "<font>"): Result<BitmapFont, string> {
+export function parseBitmapFontData(text: string, source: string = "<font>"): Result<BitmapFontData, string> {
   state := FontParseState {}
   normalizedText := text.replaceAll("\r\n", "\n").replaceAll("\r", "\n")
   lines := normalizedText.split("\n")
@@ -328,7 +392,14 @@ export function parseBitmapFont(text: string, source: string = "<font>"): Result
       continue
     }
 
-    if kind == "info" || kind == "page" || kind == "chars" || kind == "kernings" {
+    if kind == "page" {
+      parsePage(attributes, state, source, lineNumber) else error {
+        return Failure(error)
+      }
+      continue
+    }
+
+    if kind == "info" || kind == "chars" || kind == "kernings" {
       continue
     }
   }
@@ -345,29 +416,56 @@ export function parseBitmapFont(text: string, source: string = "<font>"): Result
     }
   }
 
+  textureFile := state.textureFile else {
+    return Failure {
+      error: parseError(source, 0, "missing bitmap font page")
+    }
+  }
+
   return Success {
-    value: BitmapFont {
+    value: BitmapFontData {
       lineHeight: state.lineHeight,
       base: state.base,
       scaleWidth: state.scaleWidth,
       scaleHeight: state.scaleHeight,
+      textureFile,
       glyphs: state.glyphs,
       kernings: state.kernings,
     }
   }
 }
 
-export function loadBitmapFont(path: string): Result<BitmapFont, string> {
+export function loadBitmapFontForSurface(surface: GameSurface, path: string): Result<BitmapFont, string> {
   text := readText(path) else error {
     return Failure {
       error: `${path}: failed to read bitmap font: ${error}`
     }
   }
 
-  return parseBitmapFont(text, path)
+  data := parseBitmapFontData(text, path) else error {
+    return Failure(error)
+  }
+  texturePath := join([dirname(path), data.textureFile])
+  texture := loadTextureForSurface(surface, texturePath) else error {
+    return Failure {
+      error: `${path}: failed to load bitmap font texture ${texturePath}: ${error}`
+    }
+  }
+
+  return Success {
+    value: BitmapFont {
+      lineHeight: data.lineHeight,
+      base: data.base,
+      scaleWidth: data.scaleWidth,
+      scaleHeight: data.scaleHeight,
+      texture,
+      glyphs: data.glyphs,
+      kernings: data.kernings,
+    }
+  }
 }
 
-function requireGlyph(font: BitmapFont, codepoint: int, options: TextLayoutOptions): BitmapGlyph {
+function requireGlyph(font: BitmapFontMetrics, codepoint: int, options: TextLayoutOptions): BitmapGlyph {
   glyph := font.glyph(codepoint)
   if glyph != null {
     return glyph!
@@ -381,12 +479,12 @@ function requireGlyph(font: BitmapFont, codepoint: int, options: TextLayoutOptio
   panic("BitmapFont has no glyph for codepoint ${codepoint} and no fallback glyph ${options.fallbackCodepoint}")
 }
 
-function glyphAdvance(font: BitmapFont, previous: int, codepoint: int, glyph: BitmapGlyph, options: TextLayoutOptions): double {
+function glyphAdvance(font: BitmapFontMetrics, previous: int, codepoint: int, glyph: BitmapGlyph, options: TextLayoutOptions): double {
   kerning := if previous >= 0 then font.kerning(previous, codepoint) else 0
   return double(kerning + glyph.xAdvance) + options.letterSpacing
 }
 
-function measureSegment(font: BitmapFont, text: string, startPenX: double, previous: int, options: TextLayoutOptions): double {
+function measureSegment(font: BitmapFontMetrics, text: string, startPenX: double, previous: int, options: TextLayoutOptions): double {
   let penX = startPenX
   let prev = previous
 
@@ -400,7 +498,7 @@ function measureSegment(font: BitmapFont, text: string, startPenX: double, previ
   return penX
 }
 
-function addCodepoint(builder: TextLineBuilder, font: BitmapFont, codepoint: int, options: TextLayoutOptions): void {
+function addCodepoint(builder: TextLineBuilder, font: BitmapFontMetrics, codepoint: int, options: TextLayoutOptions): void {
   glyph := requireGlyph(font, codepoint, options)
   kerning := if builder.prevCodepoint >= 0 then font.kerning(builder.prevCodepoint, codepoint) else 0
   glyphX := builder.penX + double(kerning + glyph.xOffset)
@@ -430,7 +528,7 @@ function finishLine(lines: TextLine[], builder: TextLineBuilder): void {
   builder.hasAdvance = false
 }
 
-function addWordBreaking(lines: TextLine[], builder: TextLineBuilder, font: BitmapFont, word: string, options: TextLayoutOptions): void {
+function addWordBreaking(lines: TextLine[], builder: TextLineBuilder, font: BitmapFontMetrics, word: string, options: TextLayoutOptions): void {
   for index of 0..<word.length {
     codepoint := int(word.charAt(index))
     glyph := requireGlyph(font, codepoint, options)
@@ -444,7 +542,7 @@ function addWordBreaking(lines: TextLine[], builder: TextLineBuilder, font: Bitm
   }
 }
 
-function addTextSegment(builder: TextLineBuilder, font: BitmapFont, text: string, options: TextLayoutOptions): void {
+function addTextSegment(builder: TextLineBuilder, font: BitmapFontMetrics, text: string, options: TextLayoutOptions): void {
   for index of 0..<text.length {
     addCodepoint(builder, font, int(text.charAt(index)), options)
   }
@@ -454,7 +552,7 @@ function isSpace(ch: char): bool {
   return ch == ' ' || ch == '\t'
 }
 
-function layoutParagraph(lines: TextLine[], font: BitmapFont, text: string, options: TextLayoutOptions): void {
+function layoutParagraph(lines: TextLine[], font: BitmapFontMetrics, text: string, options: TextLayoutOptions): void {
   builder := TextLineBuilder {}
   let word = ""
   let pendingSpaces = ""
@@ -484,7 +582,7 @@ function layoutParagraph(lines: TextLine[], font: BitmapFont, text: string, opti
 function addWordWithWrap(
   lines: TextLine[],
   builder: TextLineBuilder,
-  font: BitmapFont,
+  font: BitmapFontMetrics,
   word: string,
   pendingSpaces: string,
   options: TextLayoutOptions,
@@ -504,7 +602,7 @@ function addWordWithWrap(
   addWordBreaking(lines, builder, font, word, options)
 }
 
-function layoutText(font: BitmapFont, text: string, options: TextLayoutOptions): TextLayout {
+function layoutText(font: BitmapFontMetrics, text: string, options: TextLayoutOptions): TextLayout {
   lines: TextLine[] := []
   normalizedText := text.replaceAll("\r\n", "\n").replaceAll("\r", "\n")
   paragraphs := normalizedText.split("\n")
@@ -543,7 +641,7 @@ function lineOffset(line: TextLine, options: TextLayoutOptions): double {
   return 0.0
 }
 
-export function measureText(font: BitmapFont, text: string, options: TextLayoutOptions = TextLayoutOptions {}): TextBounds {
+export function measureText(font: BitmapFontMetrics, text: string, options: TextLayoutOptions = TextLayoutOptions {}): TextBounds {
   layout := layoutText(font, text, options)
   return TextBounds {
     width: layout.width,
@@ -552,7 +650,7 @@ export function measureText(font: BitmapFont, text: string, options: TextLayoutO
   }
 }
 
-export function createTextMeshSpec(font: BitmapFont, text: string, options: TextLayoutOptions = TextLayoutOptions {}): SimpleMeshSpec {
+export function createTextMeshSpec(font: BitmapFontMetrics, text: string, options: TextLayoutOptions = TextLayoutOptions {}): SimpleMeshSpec {
   layout := layoutText(font, text, options)
   positions: Point3[] := []
   indices: int[] := []
@@ -618,7 +716,7 @@ export function createTextMeshSpec(font: BitmapFont, text: string, options: Text
 
 export function createTextMesh(
   surface: GameSurface,
-  font: BitmapFont,
+  font: BitmapFontMetrics,
   text: string,
   options: TextLayoutOptions = TextLayoutOptions {},
 ): SimpleMesh {
@@ -632,9 +730,8 @@ export function createTextMesh(
 export function createTextModel(
   surface: GameSurface,
   font: BitmapFont,
-  texture: Texture,
   text: string,
   options: TextLayoutOptions = TextLayoutOptions {},
 ): SimpleModel {
-  return SimpleModel(createTextMesh(surface, font, text, options), texture)
+  return SimpleModel(createTextMesh(surface, font, text, options), font.texture)
 }

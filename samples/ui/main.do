@@ -18,7 +18,6 @@ import {
   UiStyle,
   Vec3,
   initGameApp,
-  loadBitmapFont,
 } from "std/game"
 import { join, resourcesDirectory } from "std/path"
 
@@ -76,17 +75,12 @@ function main(): int {
 
   resources := try! resourcesDirectory()
 
-  font := loadBitmapFont(join([resources, "fonts/DejaVuSans.fnt"])) else error {
+  font := app.loadBitmapFont(join([resources, "fonts/DejaVuSans.fnt"])) else error {
     println(error)
     return 1
   }
 
-  fontTexture := app.loadTexture(join([resources, "fonts/DejaVuSans_0.png"])) else error {
-    println(error)
-    return 1
-  }
-
-  ui := UiLayer(app, font)
+  ui := UiLayer(app)
 
   let clicks = 0
   ui.addPanel(Rect(0.0, 0.0, PANEL_WIDTH, PANEL_HEIGHT), {
@@ -95,13 +89,13 @@ function main(): int {
     borderWidth: 2.0,
   })
   ui.addLabel("Retained UI", Rect(26.0, 22.0, 428.0, 42.0), {
-    fontTexture,
+    font,
     textColor: Color(0.95, 0.88, 0.38, 1.0),
     paddingX: 0.0,
     paddingY: 0.0,
   })
   body := ui.addLabel("", Rect(26.0, 74.0, 600.0, 170.0), {
-    fontTexture,
+    font,
     textColor: Color(0.82, 0.88, 0.94, 1.0),
     paddingX: 0.0,
     paddingY: 0.0,
@@ -109,7 +103,7 @@ function main(): int {
   })
 
   buttonStyle := UiButtonStyle{
-    fontTexture,
+    font,
     background: Color(0.18, 0.25, 0.30, 1.0),
     hoverBackground: Color(0.24, 0.36, 0.42, 1.0),
     pressedBackground: Color(0.10, 0.18, 0.23, 1.0),
