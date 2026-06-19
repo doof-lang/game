@@ -170,7 +170,7 @@ function compileTexturedSimpleMeshSmoke(texture: Texture, surface: GameSurface, 
 function compileUiLayerSmoke(font: BitmapFont, texture: Texture, surface: GameSurface, pass: RenderPass): void {
   ui := UiLayer(surface)
   ui.addPanel(Rect(16.0, 16.0, 240.0, 124.0), {})
-  ui.addLabel("Score 1200", Rect(24.0, 24.0, 220.0, 40.0), { font })
+  ui.addLabel("Score 1200", Rect(24.0, 24.0, 220.0, 40.0), {})
   ui.addButton("Start", Rect(24.0, 76.0, 160.0, 44.0), { font }, (): void => {})
   ui.draw(pass)
 }

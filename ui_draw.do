@@ -36,6 +36,7 @@ export function drawUiLabel(
   surface: GameSurface,
   pass: RenderPass,
   label: UiLabel,
+  font: BitmapFont,
   model: Mat4,
 ): void {
   if label.text == "" {
@@ -51,13 +52,14 @@ export function drawUiLabel(
     lineSpacing: label.style.lineSpacing,
     color: label.style.textColor,
   }
-  drawUiText(surface, label.style.font, pass, label.text, options, model)
+  drawUiText(surface, font, pass, label.text, options, model)
 }
 
 export function drawUiButton(
   surface: GameSurface,
   pass: RenderPass,
   button: UiButton,
+  font: BitmapFont,
   model: Mat4,
 ): void {
   bounds := button.bounds()
@@ -69,7 +71,7 @@ export function drawUiButton(
   }
 
   textColor := if button.enabled then button.style.textColor else button.style.disabledTextColor
-  textBounds := measureText(button.style.font, button.text)
+  textBounds := measureText(font, button.text)
   textY := bounds.y + (bounds.height - textBounds.height) * 0.5
   options := TextLayoutOptions {
     position: Point(bounds.x + button.style.paddingX, textY),
@@ -78,7 +80,7 @@ export function drawUiButton(
     align: button.style.align,
     color: textColor,
   }
-  drawUiText(surface, button.style.font, pass, button.text, options, model)
+  drawUiText(surface, font, pass, button.text, options, model)
 }
 
 function drawUiText(

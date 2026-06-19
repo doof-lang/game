@@ -24,6 +24,7 @@ import { controllerStickXAxis, controllerStickYAxis } from "./controller"
 import { InputAxis, InputStick } from "./input_axis"
 import { InputButton } from "./input_button"
 import { InputState } from "./input"
+import { loadIntrinsicBitmapFontForSurface } from "./intrinsic_font"
 import { Point, Renderer, Texture, createRenderer, loadTextureForSurface } from "./render"
 import { ScreenGesture, ScreenGestures } from "./screen_gestures"
 import { ScreenPointer } from "./screen_pointer"
@@ -127,6 +128,10 @@ export class GameApp {
 
   loadBitmapFont(path: string): Result<BitmapFont, string> {
     return loadBitmapFontForSurface(this.surface, path)
+  }
+
+  loadIntrinsicFont(): Result<BitmapFont, string> {
+    return loadIntrinsicBitmapFontForSurface(this.surface)
   }
 
   loadSound(path: string): Result<Sound, string> {

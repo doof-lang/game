@@ -127,11 +127,6 @@ function main(args: string[]): int {
     println(error)
     return 1
   }
-  font := app.loadBitmapFont(join([resources, "fonts/DejaVuSans.fnt"])) else error {
-    println(error)
-    return 1
-  }
-
   layout := createLayout(app.surface)
   let camera = createCamera(app.surface, layout)
   mesh := createPieceMesh(app.surface, layout)
@@ -154,7 +149,7 @@ function main(args: string[]): int {
   }
   let mainBatch = createBatch(app.surface, mesh, loadedAtlasTexture, pieces, drawOrder, -1)
   let dragBatch = createDragBatch(app.surface, mesh, loadedAtlasTexture)
-  overlay := createJigsawConnectionOverlay(app, font)
+  overlay := createJigsawConnectionOverlay(app)
   overlay.update(runtime)
 
   let draggedPiece = -1

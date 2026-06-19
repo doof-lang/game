@@ -58,10 +58,19 @@ export import class NativeGameApp from "native_game.hpp" as doof_game::NativeGam
 
 export import class NativeTexture from "native_game.hpp" as doof_game::NativeTexture {
   static load(path: string, metalDeviceHandle: long): Result<NativeTexture, string>
+  static createAlpha4(
+    data: readonly byte[],
+    pixelWidth: int,
+    pixelHeight: int,
+    metalDeviceHandle: long,
+  ): Result<NativeTexture, string>
   pixelWidth(): int
   pixelHeight(): int
   metalTextureHandle(): long
 }
+
+export import function intrinsicFontGzip(): readonly byte[] from "native_intrinsic_font.hpp" as doof_game::intrinsicFontGzip
+export import function intrinsicFontAlpha4Gzip(): readonly byte[] from "native_intrinsic_font.hpp" as doof_game::intrinsicFontAlpha4Gzip
 
 export import class NativeRenderFrame from "native_game.hpp" as doof_game::NativeRenderFrame {
   static create(surface: NativeGameSurface): NativeRenderFrame

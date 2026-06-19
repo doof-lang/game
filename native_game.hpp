@@ -5,6 +5,7 @@
 #include <cstdint>
 #include <memory>
 #include <string>
+#include <vector>
 
 namespace doof_game {
 
@@ -29,6 +30,12 @@ class NativeTexture {
 public:
     static doof::Result<std::shared_ptr<NativeTexture>, std::string> load(
         const std::string& path,
+        int64_t metalDeviceHandle
+    );
+    static doof::Result<std::shared_ptr<NativeTexture>, std::string> createAlpha4(
+        const std::shared_ptr<std::vector<uint8_t>>& data,
+        int32_t pixelWidth,
+        int32_t pixelHeight,
         int64_t metalDeviceHandle
     );
     NativeTexture(void* texture, int32_t pixelWidth, int32_t pixelHeight);

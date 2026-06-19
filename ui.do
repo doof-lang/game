@@ -1,7 +1,9 @@
 import { GameApp } from "./app"
 import { GameEvent } from "./event"
 import { InputState } from "./input"
+import { loadIntrinsicBitmapFontForSurface } from "./intrinsic_font"
 import { ScreenPointer } from "./screen_pointer"
+import { BitmapFont } from "./text"
 import { GameEventKind, MouseButton } from "./types"
 import { Point, Point3, Rect, RenderPass } from "./render"
 import { GameSurface } from "./surface"
@@ -48,6 +50,7 @@ export class UiLayer {
   private nextId: int = 1
   private pressedButtonId: int = 0
   private pointerRenderVersion: int = 0
+  private intrinsicFont: BitmapFont | null = null
 
   static constructor(target: GameApp | GameSurface | null): UiLayer {
     app := target as GameApp else {
@@ -262,14 +265,16 @@ export class UiLayer {
         button := buttonForElement(element.id) else {
           continue
         }
-        drawUiButton(localSurface, pass, button, model)
+        font := resolveFont(localSurface, button.style.font)
+        drawUiButton(localSurface, pass, button, font, model)
         continue
       }
 
       label := labelForElement(element.id) else {
         continue
       }
-      drawUiLabel(localSurface, pass, label, model)
+      font := resolveFont(localSurface, label.style.font)
+      drawUiLabel(localSurface, pass, label, font, model)
     }
   }
 
@@ -282,6 +287,21 @@ export class UiLayer {
     nextId += 1
     elements.push(element)
     return element
+  }
+
+  private resolveFont(surface: GameSurface, font: BitmapFont | null): BitmapFont {
+    if font != null {
+      return font!
+    }
+    if intrinsicFont != null {
+      return intrinsicFont!
+    }
+
+    loaded := loadIntrinsicBitmapFontForSurface(surface) else error {
+      panic("failed to load intrinsic UI font: ${error}")
+    }
+    intrinsicFont = loaded
+    return loaded
   }
 
   private screenToUi(point: Point): Point {

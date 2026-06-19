@@ -21,10 +21,10 @@ import { createTestUiLayer } from "../ui"
 
 function testFont(): BitmapFont {
   app := initGameApp{ title: "Doof Game UI Tests" }
-  rootFont := app.loadBitmapFont("game/samples/ui/fonts/DejaVuSans.fnt")
+  rootFont := app.loadBitmapFont("game/samples/text/fonts/handwriting.fnt")
   return case rootFont {
     s: Success -> s.value,
-    f: Failure -> try! app.loadBitmapFont("samples/ui/fonts/DejaVuSans.fnt"),
+    f: Failure -> try! app.loadBitmapFont("samples/text/fonts/handwriting.fnt"),
   }
 }
 
@@ -48,6 +48,11 @@ function assertApprox(actual: double, expected: double): void {
   Assert.isTrue(approxEqual(actual, expected), "expected ${actual} to approximately equal ${expected}")
 }
 
+export function testUiStylesDefaultToIntrinsicFont(): void {
+  Assert.equal(UiStyle {}.font, null)
+  Assert.equal(UiButtonStyle {}.font, null)
+}
+
 export function testRectContainsIncludesEdgesAndRejectsOutside(): void {
   rect := Rect(10.0, 20.0, 30.0, 40.0)
 
@@ -61,7 +66,7 @@ export function testRectContainsIncludesEdgesAndRejectsOutside(): void {
 export function testGameAppLoadsReferencedBitmapFontTexture(): void {
   font := testFont()
   Assert.equal(font.texture.pixelWidth(), 256)
-  Assert.equal(font.texture.pixelHeight(), 256)
+  Assert.equal(font.texture.pixelHeight(), 128)
 }
 
 export function testGameAppBitmapFontTextureErrorIncludesFontAndAtlasPaths(): void {

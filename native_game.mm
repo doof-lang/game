@@ -18,6 +18,7 @@
 #include <cstdio>
 #include <fstream>
 #include <iterator>
+#include <limits>
 #include <memory>
 #include <mutex>
 #include <sstream>
@@ -1786,6 +1787,81 @@ doof::Result<std::shared_ptr<NativeTexture>, std::string> NativeTexture::load(
     }
     return doof::Result<std::shared_ptr<NativeTexture>, std::string>::success(native);
 }
+
+doof::Result<std::shared_ptr<NativeTexture>, std::string> NativeTexture::createAlpha4(
+    const std::shared_ptr<std::vector<uint8_t>>& data,
+    int32_t pixelWidth,
+    int32_t pixelHeight,
+    int64_t metalDeviceHandle
+) {
+    id<MTLDevice> device = (__bridge id<MTLDevice>)reinterpret_cast<void*>(metalDeviceHandle);
+    if (device == nil) {
+        return doof::Result<std::shared_ptr<NativeTexture>, std::string>::failure("Metal device handle is invalid");
+    }
+    if (pixelWidth <= 0 || pixelHeight <= 0) {
+        return doof::Result<std::shared_ptr<NativeTexture>, std::string>::failure(
+            "Alpha texture dimensions must be positive"
+        );
+    }
+
+    const size_t width = static_cast<size_t>(pixelWidth);
+    const size_t height = static_cast<size_t>(pixelHeight);
+    if (width > std::numeric_limits<size_t>::max() / height ||
+        width * height > std::numeric_limits<size_t>::max() / 4u) {
+        return doof::Result<std::shared_ptr<NativeTexture>, std::string>::failure(
+            "Alpha texture dimensions are too large"
+        );
+    }
+
+    const size_t pixelCount = width * height;
+    const size_t expectedSize = (pixelCount + 1u) / 2u;
+    if (!data || data->size() != expectedSize) {
+        const size_t actualSize = data ? data->size() : 0u;
+        return doof::Result<std::shared_ptr<NativeTexture>, std::string>::failure(
+            "Alpha4 buffer has " + std::to_string(actualSize) +
+            " bytes; expected " + std::to_string(expectedSize)
+        );
+    }
+
+    std::vector<uint8_t> pixels(pixelCount * 4u);
+    for (size_t pixelIndex = 0; pixelIndex < pixelCount; ++pixelIndex) {
+        const uint8_t packed = (*data)[pixelIndex / 2u];
+        const uint8_t alpha4 = (pixelIndex % 2u == 0u)
+            ? static_cast<uint8_t>(packed >> 4u)
+            : static_cast<uint8_t>(packed & 0x0fu);
+        const size_t rgbaIndex = pixelIndex * 4u;
+        pixels[rgbaIndex] = 255u;
+        pixels[rgbaIndex + 1u] = 255u;
+        pixels[rgbaIndex + 2u] = 255u;
+        pixels[rgbaIndex + 3u] = static_cast<uint8_t>(alpha4 * 17u);
+    }
+
+    MTLTextureDescriptor* descriptor = [MTLTextureDescriptor texture2DDescriptorWithPixelFormat:MTLPixelFormatRGBA8Unorm
+                                                                                          width:width
+                                                                                         height:height
+                                                                                      mipmapped:NO];
+    descriptor.usage = MTLTextureUsageShaderRead;
+    id<MTLTexture> texture = [device newTextureWithDescriptor:descriptor];
+    if (texture == nil) {
+        return doof::Result<std::shared_ptr<NativeTexture>, std::string>::failure(
+            "Failed to create Alpha4 texture"
+        );
+    }
+
+    [texture replaceRegion:MTLRegionMake2D(0, 0, width, height)
+               mipmapLevel:0
+                 withBytes:pixels.data()
+               bytesPerRow:width * 4u];
+
+    auto native = std::make_shared<NativeTexture>(
+        (__bridge void*)texture,
+        pixelWidth,
+        pixelHeight
+    );
+    [texture release];
+    return doof::Result<std::shared_ptr<NativeTexture>, std::string>::success(native);
+}
+
 
 NativeTexture::NativeTexture(void* texture, int32_t pixelWidth, int32_t pixelHeight)
     : impl_(std::make_shared<Impl>(texture, pixelWidth, pixelHeight)) {}

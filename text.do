@@ -484,12 +484,69 @@ function glyphAdvance(font: BitmapFontMetrics, previous: int, codepoint: int, gl
   return double(kerning + glyph.xAdvance) + options.letterSpacing
 }
 
-function measureSegment(font: BitmapFontMetrics, text: string, startPenX: double, previous: int, options: TextLayoutOptions): double {
+function decodeUtf8(text: string): int[] {
+  codepoints: int[] := []
+  let index = 0
+
+  while index < text.length {
+    first := int(text.charAt(index))
+    if first <= 127 {
+      codepoints.push(first)
+      index += 1
+      continue
+    }
+
+    if first >= 194 && first <= 223 && index + 1 < text.length {
+      second := int(text.charAt(index + 1))
+      if second >= 128 && second <= 191 {
+        codepoints.push((first - 192) * 64 + second - 128)
+        index += 2
+        continue
+      }
+    }
+
+    if first >= 224 && first <= 239 && index + 2 < text.length {
+      second := int(text.charAt(index + 1))
+      third := int(text.charAt(index + 2))
+      validSecond := second >= 128 && second <= 191 &&
+        (first != 224 || second >= 160) &&
+        (first != 237 || second <= 159)
+      if validSecond && third >= 128 && third <= 191 {
+        codepoints.push((first - 224) * 4096 + (second - 128) * 64 + third - 128)
+        index += 3
+        continue
+      }
+    }
+
+    if first >= 240 && first <= 244 && index + 3 < text.length {
+      second := int(text.charAt(index + 1))
+      third := int(text.charAt(index + 2))
+      fourth := int(text.charAt(index + 3))
+      validSecond := second >= 128 && second <= 191 &&
+        (first != 240 || second >= 144) &&
+        (first != 244 || second <= 143)
+      if validSecond && third >= 128 && third <= 191 && fourth >= 128 && fourth <= 191 {
+        codepoints.push(
+          (first - 240) * 262144 + (second - 128) * 4096 +
+          (third - 128) * 64 + fourth - 128,
+        )
+        index += 4
+        continue
+      }
+    }
+
+    codepoints.push(65533)
+    index += 1
+  }
+
+  return codepoints
+}
+
+function measureSegment(font: BitmapFontMetrics, codepoints: int[], startPenX: double, previous: int, options: TextLayoutOptions): double {
   let penX = startPenX
   let prev = previous
 
-  for index of 0..<text.length {
-    codepoint := int(text.charAt(index))
+  for codepoint of codepoints {
     glyph := requireGlyph(font, codepoint, options)
     penX += glyphAdvance(font, prev, codepoint, glyph, options)
     prev = codepoint
@@ -528,9 +585,8 @@ function finishLine(lines: TextLine[], builder: TextLineBuilder): void {
   builder.hasAdvance = false
 }
 
-function addWordBreaking(lines: TextLine[], builder: TextLineBuilder, font: BitmapFontMetrics, word: string, options: TextLayoutOptions): void {
-  for index of 0..<word.length {
-    codepoint := int(word.charAt(index))
+function addWordBreaking(lines: TextLine[], builder: TextLineBuilder, font: BitmapFontMetrics, word: int[], options: TextLayoutOptions): void {
+  for codepoint of word {
     glyph := requireGlyph(font, codepoint, options)
     nextPen := builder.penX + glyphAdvance(font, builder.prevCodepoint, codepoint, glyph, options)
 
@@ -542,37 +598,37 @@ function addWordBreaking(lines: TextLine[], builder: TextLineBuilder, font: Bitm
   }
 }
 
-function addTextSegment(builder: TextLineBuilder, font: BitmapFontMetrics, text: string, options: TextLayoutOptions): void {
-  for index of 0..<text.length {
-    addCodepoint(builder, font, int(text.charAt(index)), options)
+function addSpaces(builder: TextLineBuilder, font: BitmapFontMetrics, count: int, options: TextLayoutOptions): void {
+  for spaceIndex of 0..<count {
+    addCodepoint(builder, font, 32, options)
   }
 }
 
-function isSpace(ch: char): bool {
-  return ch == ' ' || ch == '\t'
+function isSpace(codepoint: int): bool {
+  return codepoint == 32 || codepoint == 9
 }
 
 function layoutParagraph(lines: TextLine[], font: BitmapFontMetrics, text: string, options: TextLayoutOptions): void {
   builder := TextLineBuilder {}
-  let word = ""
-  let pendingSpaces = ""
+  let word: int[] = []
+  let pendingSpaces = 0
+  codepoints := decodeUtf8(text)
 
-  for index of 0..<text.length {
-    ch := text.charAt(index)
-    if isSpace(ch) {
-      if word != "" {
+  for codepoint of codepoints {
+    if isSpace(codepoint) {
+      if word.length > 0 {
         addWordWithWrap(lines, builder, font, word, pendingSpaces, options)
-        word = ""
-        pendingSpaces = ""
+        word = []
+        pendingSpaces = 0
       }
-      pendingSpaces += " "
+      pendingSpaces += 1
       continue
     }
 
-    word += ch
+    word.push(codepoint)
   }
 
-  if word != "" {
+  if word.length > 0 {
     addWordWithWrap(lines, builder, font, word, pendingSpaces, options)
   }
 
@@ -583,12 +639,20 @@ function addWordWithWrap(
   lines: TextLine[],
   builder: TextLineBuilder,
   font: BitmapFontMetrics,
-  word: string,
-  pendingSpaces: string,
+  word: int[],
+  pendingSpaces: int,
   options: TextLayoutOptions,
 ): void {
-  candidateText := if builder.hasAdvance then pendingSpaces + word else word
-  candidateWidth := measureSegment(font, candidateText, builder.penX, builder.prevCodepoint, options)
+  candidate: int[] := []
+  if builder.hasAdvance {
+    for spaceIndex of 0..<pendingSpaces {
+      candidate.push(32)
+    }
+  }
+  for codepoint of word {
+    candidate.push(codepoint)
+  }
+  candidateWidth := measureSegment(font, candidate, builder.penX, builder.prevCodepoint, options)
 
   if options.maxWidth > 0.0 && builder.hasAdvance && candidateWidth > options.maxWidth {
     finishLine(lines, builder)
@@ -597,7 +661,7 @@ function addWordWithWrap(
   }
 
   if builder.hasAdvance {
-    addTextSegment(builder, font, pendingSpaces, options)
+    addSpaces(builder, font, pendingSpaces, options)
   }
   addWordBreaking(lines, builder, font, word, options)
 }

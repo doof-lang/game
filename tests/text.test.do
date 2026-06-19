@@ -8,6 +8,7 @@ import {
   BitmapFontData,
   TextLayoutOptions,
   createTextMeshSpec,
+  intrinsicBitmapFontData,
   measureText,
   parseBitmapFontData,
 } from "../index"
@@ -16,12 +17,15 @@ const FONT_TEXT =
   "info face=\"Tiny Font\" size=16 bold=0 italic=0 charset=\"\" unicode=1 stretchH=100 smooth=1 aa=1 padding=0,0,0,0 spacing=1,1\n" +
   "common lineHeight=10 base=8 scaleW=64 scaleH=32 pages=1 packed=0\n" +
   "page id=0 file=\"tiny font.png\"\n" +
-  "chars count=5\n" +
+  "chars count=8\n" +
   "char id=32 x=0 y=0 width=0 height=0 xoffset=0 yoffset=0 xadvance=3 page=0 chnl=15\n" +
   "char id=63 x=48 y=0 width=4 height=7 xoffset=0 yoffset=1 xadvance=5 page=0 chnl=15\n" +
   "char id=65 x=0 y=0 width=5 height=7 xoffset=1 yoffset=2 xadvance=6 page=0 chnl=15\n" +
   "char id=66 x=8 y=0 width=4 height=7 xoffset=0 yoffset=2 xadvance=5 page=0 chnl=15\n" +
   "char id=67 x=16 y=0 width=5 height=7 xoffset=0 yoffset=2 xadvance=6 page=0 chnl=15\n" +
+  "char id=233 x=24 y=0 width=5 height=7 xoffset=0 yoffset=2 xadvance=7 page=0 chnl=15\n" +
+  "char id=8364 x=32 y=0 width=6 height=7 xoffset=0 yoffset=2 xadvance=8 page=0 chnl=15\n" +
+  "char id=128512 x=40 y=0 width=7 height=7 xoffset=0 yoffset=2 xadvance=9 page=0 chnl=15\n" +
   "kernings count=1\n" +
   "kerning first=65 second=66 amount=-1\n"
 
@@ -50,6 +54,19 @@ export function testParseBitmapFontReadsMetricsGlyphsKerningAndTextureFile(): vo
   Assert.equal(glyphA.xAdvance, 6)
   Assert.equal(font.kerning(65, 66), -1)
   Assert.equal(font.kerning(66, 65), 0)
+}
+
+export function testIntrinsicBitmapFontDataIsUseful(): void {
+  font := try! intrinsicBitmapFontData()
+
+  Assert.equal(font.lineHeight, 19)
+  Assert.equal(font.base, 15)
+  Assert.equal(font.scaleWidth, 256)
+  Assert.equal(font.scaleHeight, 256)
+  Assert.isTrue(font.glyph(32) != null, "expected a space glyph")
+  Assert.isTrue(font.glyph(63) != null, "expected a fallback glyph")
+  Assert.isTrue(font.glyph(65) != null, "expected a Latin glyph")
+  Assert.isTrue(font.glyph(8364) != null, "expected a euro glyph")
 }
 
 export function testParseBitmapFontRejectsMalformedInput(): void {
@@ -99,6 +116,24 @@ export function testMeasureTextHandlesKerningLinesAndWrap(): void {
   assertApprox(wrapped.width, 6.0)
   assertApprox(wrapped.height, 30.0)
   Assert.equal(wrapped.lineCount, 3)
+}
+
+export function testMeasureTextDecodesUtf8Codepoints(): void {
+  font := requireFont()
+
+  measured := measureText(font, "Aé€😀")
+
+  assertApprox(measured.width, 30.0)
+  Assert.equal(measured.lineCount, 1)
+}
+
+export function testCreateTextMeshSpecEmitsOneQuadPerUtf8Codepoint(): void {
+  font := requireFont()
+
+  spec := createTextMeshSpec(font, "é€😀")
+
+  Assert.equal(spec.vertexCount(), 12)
+  Assert.equal(spec.indexCount(), 18)
 }
 
 export function testCreateTextMeshSpecBuildsGlyphQuadsAndUvs(): void {

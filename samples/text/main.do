@@ -14,19 +14,26 @@ import {
   drawSimpleModel,
   initGameApp,
 } from "std/game"
+import { join, resourcesDirectory } from "std/path"
 
 function main(): int {
   app := initGameApp{ title: "Doof Game Text" }
 
-  font := app.loadBitmapFont("fonts/DejaVuSans.fnt") else error {
+  intrinsicFont := app.loadIntrinsicFont() else error {
+    println(error)
+    return 1
+  }
+
+  resources := try! resourcesDirectory()
+  handwritingFont := app.loadBitmapFont(join([resources, "fonts/handwriting.fnt"])) else error {
     println(error)
     return 1
   }
 
   title := createTextModel(
     app.surface,
-    font,
-    "Bitmap Font Text",
+    intrinsicFont,
+    "Intrinsic Bitmap Font",
     TextLayoutOptions {
       position: Point(48.0, 44.0),
       color: Color(0.96, 0.88, 0.35),
@@ -35,7 +42,7 @@ function main(): int {
 
   leftLabel := createTextModel(
     app.surface,
-    font,
+    intrinsicFont,
     "Left aligned text uses the font atlas glyphs and kerning: AVA WAVE.",
     TextLayoutOptions {
       position: Point(48.0, 120.0),
@@ -47,7 +54,7 @@ function main(): int {
 
   centerLabel := createTextModel(
     app.surface,
-    font,
+    intrinsicFont,
     "Center aligned wrapping\nfor HUD labels and menus",
     TextLayoutOptions {
       position: Point(560.0, 128.0),
@@ -60,7 +67,7 @@ function main(): int {
 
   rightLabel := createTextModel(
     app.surface,
-    font,
+    intrinsicFont,
     "Right aligned score\n0123456789",
     TextLayoutOptions {
       position: Point(560.0, 286.0),
@@ -68,6 +75,18 @@ function main(): int {
       align: TextAlign.Right,
       lineSpacing: 8.0,
       color: Color(1.0, 0.70, 0.58),
+    },
+  )
+
+  handwritingLabel := createTextModel(
+    app.surface,
+    handwritingFont,
+    "A separate bitmap font: handwritten with Caveat.",
+    TextLayoutOptions {
+      position: Point(48.0, 410.0),
+      maxWidth: 932.0,
+      align: TextAlign.Center,
+      color: Color(0.98, 0.78, 0.92),
     },
   )
 
@@ -92,6 +111,7 @@ function main(): int {
         drawSimpleModel(pass, leftLabel)
         drawSimpleModel(pass, centerLabel)
         drawSimpleModel(pass, rightLabel)
+        drawSimpleModel(pass, handwritingLabel)
       },
     )
   })

@@ -9,7 +9,6 @@ import {
   UiLabel,
   UiLayer,
   Vec3,
-  BitmapFont,
 } from "std/game"
 
 import {
@@ -58,10 +57,7 @@ export class JigsawConnectionOverlay {
   }
 }
 
-export function createJigsawConnectionOverlay(
-  app: GameApp,
-  font: BitmapFont,
-): JigsawConnectionOverlay {
+export function createJigsawConnectionOverlay(app: GameApp): JigsawConnectionOverlay {
   ui := UiLayer(app)
   ui.addPanel(Rect(0.0, 0.0, OVERLAY_WIDTH, OVERLAY_HEIGHT), {
     background: Color(0.035, 0.040, 0.048, 0.92),
@@ -69,7 +65,6 @@ export function createJigsawConnectionOverlay(
     borderWidth: 2.0,
   })
   statusLabel := ui.addLabel("", Rect(28.0, 24.0, OVERLAY_WIDTH - 56.0, OVERLAY_HEIGHT - 48.0), {
-    font,
     textColor: Color(0.92, 0.96, 1.0, 1.0),
     paddingX: 0.0,
     paddingY: 0.0,

@@ -273,7 +273,7 @@ applying the same lighting.
 ### Bitmap Font Text
 
 ```doof
-font := try! app.loadBitmapFont("fonts/hud.fnt")
+font := try! app.loadIntrinsicFont()
 label := createTextModel(
   app.surface,
   font,
@@ -296,18 +296,25 @@ renderer.pass(
 )
 ```
 
-`app.loadBitmapFont(path)` reads AngelCode BMFont text `.fnt` metrics and loads
-its referenced single-page bitmap atlas relative to the font file. The returned
-`BitmapFont` owns that texture. `createTextMeshSpec(...)`, `createTextMesh(...)`, and
+`app.loadIntrinsicFont()` creates the small font embedded in `std/game`, so
+basic text and UI need no external font assets. Its compressed BMFont metrics
+and packed 4-bit alpha atlas add about 15 KB to the module.
+
+For a custom font, use `app.loadBitmapFont("fonts/hud.fnt")`. It reads AngelCode
+BMFont text `.fnt` metrics and loads its referenced single-page bitmap atlas
+relative to the font file.
+
+The returned `BitmapFont` owns that texture. `createTextMeshSpec(...)`, `createTextMesh(...)`, and
 `createTextModel(...)` lay out text in logical screen coordinates for
 `Camera.screen()`, including newlines, kerning, optional word wrapping, letter
-spacing, and left/center/right alignment. Spaces advance the cursor but do not
-emit glyph quads, and the generated UVs target the supplied font texture.
+spacing, left/center/right alignment, and UTF-8 text. Unicode codepoints use the
+matching BMFont glyph when present and otherwise use `fallbackCodepoint`. Spaces
+advance the cursor but do not emit glyph quads, and the generated UVs target the
+supplied font texture.
 
 ### Retained UI
 
 ```doof
-font := try! app.loadBitmapFont("fonts/hud.fnt")
 ui := UiLayer(app)
 
 ui.addPanel(
@@ -322,7 +329,6 @@ status := ui.addLabel(
   "Ready",
   Rect(24.0, 24.0, 260.0, 40.0),
   UiStyle {
-    font,
     textColor: Color(0.95, 0.88, 0.35, 1.0),
   },
 )
@@ -330,7 +336,7 @@ status := ui.addLabel(
 ui.addButton(
   "Start",
   Rect(24.0, 80.0, 160.0, 44.0),
-  UiButtonStyle { font },
+  UiButtonStyle {},
   (): void => {
     status.setText("Started")
   },
@@ -365,9 +371,10 @@ lets the layer create the primary screen pointer and request renders when
 pointer interaction changes visual state. Pointer positions are mapped back
 through the inverse transform for hit testing, so hover, press, and click
 behavior stays aligned with rendering. Hit
-testing walks last-added elements first, making later elements topmost. Labels
-and buttons take their font texture from their style, so one layer can mix text
-atlases when needed.
+testing walks last-added elements first, making later elements topmost. Label
+and button styles default `font` to `null`, which uses the embedded intrinsic
+font. Set `font` to a loaded `BitmapFont` for custom typography; one layer can
+mix text atlases when needed.
 
 ### Sphere Meshes
 
@@ -664,6 +671,7 @@ something non-panning, such as dragging an object or starting a pinch.
   volume and stereo pan options.
 - `samples/controller` demonstrates connection events, face buttons, a
   deadzoned movement stick, and an analog trigger.
-- `samples/text` draws bitmap font text with wrapping, line spacing, and alignment.
+- `samples/text` contrasts the intrinsic font with a loaded handwriting BMFont,
+  and demonstrates wrapping, line spacing, and alignment.
 - `samples/skymap` draws an equirectangular panorama, a textured sphere planet,
   and a loaded OBJ mesh while mouse movement steers the camera.

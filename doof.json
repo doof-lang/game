@@ -6,12 +6,15 @@
     "native": {
       "extraCopyPaths": [
         "native_game.hpp",
+        "native_intrinsic_font.hpp",
+        "native_intrinsic_font_data.inc",
         "native_mesh.hpp",
         "native_mesh_internal.hpp",
         "native_sound.hpp"
       ],
       "macos": {
         "sourceFiles": [
+          "native_intrinsic_font.cpp",
           "native_game.mm",
           "native_mesh.mm",
           "native_mesh_internal.mm",
@@ -32,6 +35,7 @@
       },
       "iosSimulator": {
         "sourceFiles": [
+          "native_intrinsic_font.cpp",
           "native_game_ios.mm",
           "native_mesh.mm",
           "native_mesh_internal.mm",
@@ -52,6 +56,7 @@
       },
       "iosDevice": {
         "sourceFiles": [
+          "native_intrinsic_font.cpp",
           "native_game_ios.mm",
           "native_mesh.mm",
           "native_mesh_internal.mm",
