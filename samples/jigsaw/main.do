@@ -6,6 +6,7 @@ import {
   Depth,
   GameEventKind,
   Key,
+  synthSound,
   RenderPassDescriptor,
   SimpleModelBatch,
   drawSimpleModelBatch,
@@ -160,6 +161,21 @@ function main(args: string[]): int {
   let lastDragScreenY = 0.0
   let boardPanActive = false
   let reconnectTimer: Timer | null = null
+
+  click := try! synthSound({
+    wave: .Noise,
+    baseFrequency: 1220.0,
+    frequencySlide: 0,
+    vibratoDepth: 0.0,
+    vibratoSpeed: 0.0,
+    attackTime: 0.0,
+    sustainTime: 0.008,
+    sustainPunch: 0.42,
+    decayTime: 0.015,
+    lowPassCutoff: 0.72,
+    highPassCutoff: 0.16,
+    volume: 0.3,
+  })
 
   moveDraggedGroupToPointer := (): void => {
     if draggedPiece < 0 {
@@ -411,6 +427,7 @@ function main(args: string[]): int {
       activeConnection := runtime.connection
       if activeConnection != null {
         if joinedGroups.length > 1 {
+          click.play({}) else {}
           sendJoinGroups(activeConnection!, joinedGroups, position.x, position.y) else error {
             println("Failed to queue jigsaw join: ${error}")
           }
