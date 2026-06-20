@@ -66,6 +66,7 @@ import {
   cameraTransform,
   createBatch,
   createDragBatch,
+  createJoinFlashBatch,
   createPieceMesh,
 } from "./render_helpers"
 import { jigsawAtlasCachePath, loadJigsawAtlasTexture } from "./jigsaw_atlas"
@@ -76,6 +77,10 @@ readonly MASK_ATLAS_PATH = "images/jigjig.png"
 const DRAG_EDGE_AUTO_PAN_INTERVAL_MILLIS = 16L
 const DRAG_EDGE_AUTO_PAN_MARGIN = 72.0
 const DRAG_EDGE_AUTO_PAN_MAX_STEP = 18.0
+const JOIN_FLASH_INTERVAL_MILLIS = 16L
+// Peak amount of white blended into joined pieces. Tune this to adjust the flash strength.
+const JOIN_FLASH_INTENSITY = 0.82
+const JOIN_FLASH_INTENSITY_STEP = 0.075
 
 function dragEdgeAutoPanAxis(pointer: double, size: double): double {
   margin := if size * 0.35 < DRAG_EDGE_AUTO_PAN_MARGIN then size * 0.35 else DRAG_EDGE_AUTO_PAN_MARGIN
@@ -161,6 +166,11 @@ function main(args: string[]): int {
   }
   let mainBatch = createBatch(app.surface, mesh, loadedAtlasTexture, pieces, drawOrder, -1)
   let dragBatch = createDragBatch(app.surface, mesh, loadedAtlasTexture)
+  let joinFlashPieceIds: int[] = []
+  let joinFlashIntensity = 0.0
+  let joinFlashBatch = createJoinFlashBatch(
+    app.surface, mesh, loadedAtlasTexture, pieces, joinFlashPieceIds, joinFlashIntensity,
+  )
   overlay := createJigsawConnectionOverlay(app)
   overlay.update(runtime)
 
@@ -233,6 +243,27 @@ function main(args: string[]): int {
       camera.x = camera.x + panX / camera.zoom
       camera.y = camera.y + panY / camera.zoom
       moveDraggedGroupToPointer()
+      app.requestRender()
+    },
+  }
+
+  joinFlashTimer := setInterval{
+    interval: Duration.ofMillis(JOIN_FLASH_INTERVAL_MILLIS),
+    keepsAlive: false,
+    handler: (): void => {
+      if joinFlashIntensity <= 0.0 {
+        return
+      }
+      joinFlashIntensity = joinFlashIntensity - JOIN_FLASH_INTENSITY_STEP
+      if joinFlashIntensity < 0.0 {
+        joinFlashIntensity = 0.0
+      }
+      if joinFlashIntensity == 0.0 {
+        joinFlashPieceIds = []
+      }
+      joinFlashBatch = createJoinFlashBatch(
+        app.surface, mesh, loadedAtlasTexture, pieces, joinFlashPieceIds, joinFlashIntensity,
+      )
       app.requestRender()
     },
   }
@@ -393,6 +424,7 @@ function main(args: string[]): int {
   gestures := app.gestures()
 
   pointer.onPressed((point): void => {
+    app.cancelPanInertia()
     if !runtime.isInteractive() {
       boardPanActive = false
       app.cancelPanGesture()
@@ -439,6 +471,16 @@ function main(args: string[]): int {
       if activeConnection != null {
         if joinedGroups.length > 1 {
           click.play({}) else {}
+          joinFlashPieceIds = []
+          for piece of pieces {
+            if piece.group == draggedGroup {
+              joinFlashPieceIds.push(piece.id)
+            }
+          }
+          joinFlashIntensity = JOIN_FLASH_INTENSITY
+          joinFlashBatch = createJoinFlashBatch(
+            app.surface, mesh, loadedAtlasTexture, pieces, joinFlashPieceIds, joinFlashIntensity,
+          )
           sendJoinGroups(activeConnection!, joinedGroups, position.x, position.y) else error {
             println("Failed to queue jigsaw join: ${error}")
           }
@@ -565,6 +607,7 @@ function main(args: string[]): int {
     }) {
       drawSimpleModelBatch(pass, mainBatch)
       drawSimpleModelBatch(pass, dragBatch)
+      drawSimpleModelBatch(pass, joinFlashBatch)
     }
     if runtime.isServerMode() && runtime.state != ServerConnectionState.Connected {
       renderer.pass(RenderPassDescriptor {

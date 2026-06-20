@@ -50,13 +50,43 @@ export function createPieceMesh(surface: GameSurface, layout: PuzzleLayout): Sim
     .build(surface)
 }
 
-function addPieceToBatch(batch: SimpleModelBatch, piece: Piece): SimpleModelInstance {
+function addPieceToBatch(
+  batch: SimpleModelBatch,
+  piece: Piece,
+  tint: Color = Color { r: 1.0, g: 1.0, b: 1.0, a: 1.0 },
+): SimpleModelInstance {
   return batch.add{
     transform: Transform.identity().withPosition(Point3(piece.x, piece.y, 0.0)),
-    tint: Color.white,
+    tint,
     uvOffset: uvOffset(piece.column, piece.row),
     uvScale: Vec2.xy(1.0 / double(COLUMNS), 1.0 / double(ROWS)),
   }
+}
+
+export function createJoinFlashBatch(
+  surface: GameSurface,
+  mesh: SimpleMesh,
+  texture: Texture,
+  pieces: Piece[],
+  pieceIds: int[],
+  intensity: double,
+): SimpleModelBatch {
+  batch := SimpleModelBatch {
+    surface,
+    mesh,
+    texture,
+    capacity: COLUMNS * ROWS,
+  }
+  for pieceId of pieceIds {
+    piece := pieces[pieceId]
+    batch.add{
+      transform: Transform.identity().withPosition(Point3(piece.x, piece.y, 0.0)),
+      whiteBlend: intensity,
+      uvOffset: uvOffset(piece.column, piece.row),
+      uvScale: Vec2.xy(1.0 / double(COLUMNS), 1.0 / double(ROWS)),
+    }
+  }
+  return batch
 }
 
 export function createBatch(

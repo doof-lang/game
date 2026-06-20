@@ -84,6 +84,7 @@ function verifyGameAppPanGestureApi(app: GameApp): void {
   app.beginPanGesture(10.0, 20.0)
   app.updatePanGesture(12.0, 24.0)
   app.endPanGesture()
+  app.cancelPanInertia()
   app.cancelPanGesture()
 }
 
@@ -203,6 +204,7 @@ function compileSimpleModelBatchSmoke(texture: Texture, surface: GameSurface, pa
   }
   first := batch.add{
     transform: Transform.identity().withPosition(Point3(80.0, 90.0, 0.0)),
+    whiteBlend: 0.4,
     uvOffset: Vec2.zero,
     uvScale: Vec2.xy(1.0 / 14.0, 1.0 / 4.0),
   }
@@ -213,6 +215,8 @@ function compileSimpleModelBatchSmoke(texture: Texture, surface: GameSurface, pa
     uvScale: Vec2.xy(1.0 / 14.0, 1.0 / 4.0),
   }
   first.moveWorldBy(Vec3.xyz(1.0, 0.0, 0.0))
+  first.setWhiteBlend(0.6)
+  Assert.equal(first.whiteBlend(), 0.6)
   second.remove()
 
   Assert.equal(batch.count(), 1)
