@@ -1,4 +1,5 @@
 build
+dist
 *.hdr
 .DS_Store
 samples/skymap/images/earth_daymap.jpg
