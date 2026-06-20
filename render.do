@@ -5,6 +5,7 @@ import {
 } from "./native"
 import { GameSurface } from "./surface"
 import { Rotation, Transform, Vec3 } from "./transform"
+import { Image, PixelAlphaMode, PixelBytes } from "std/image"
 import { cos, sin, tan } from "std/math"
 
 export enum CameraKind {
@@ -569,6 +570,14 @@ export class Renderer {
     return loadTextureForSurface(gameSurface, path)
   }
 
+  createTexture(image: Image): Result<Texture, string> {
+    return createTextureForSurface(gameSurface, image)
+  }
+
+  createTextureFromPixels(pixels: PixelBytes): Result<Texture, string> {
+    return createTextureFromPixelsForSurface(gameSurface, pixels)
+  }
+
   pass(desc: RenderPassDescriptor, draw: (pass: RenderPass): void): void {
     nativePass := nativeFrame.beginPass(
       clearKindCode(desc.clear.kind),
@@ -621,5 +630,25 @@ export function loadTextureForSurface(surface: GameSurface, path: string): Resul
     f: Failure -> Failure {
       error: f.error
     }
+  }
+}
+
+export function createTextureForSurface(surface: GameSurface, image: Image): Result<Texture, string> {
+  pixels := image.pixelBytes(PixelAlphaMode.Straight) else error {
+    return Failure { error: error.message }
+  }
+  return createTextureFromPixelsForSurface(surface, pixels)
+}
+
+export function createTextureFromPixelsForSurface(surface: GameSurface, pixels: PixelBytes): Result<Texture, string> {
+  return case NativeTexture.createRgba(
+    pixels.bytes,
+    pixels.width,
+    pixels.height,
+    pixels.alphaMode.value,
+    surface.metalDeviceHandle(),
+  ) {
+    success: Success -> Success { value: createTexture(success.value) },
+    failure: Failure -> Failure { error: failure.error },
   }
 }

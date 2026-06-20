@@ -455,6 +455,13 @@ renderer.pass(
 load textures during setup before `run()`. `Renderer.loadTexture(path)` remains
 available as the same cached lookup for render-time convenience. Both decode and
 upload only when the texture is not already alive for the current device.
+For generated or composited content, `app.createTexture(image)` and
+`renderer.createTexture(image)` upload a `std/image` `Image` directly without an
+encoded file round trip. The image is converted to straight-alpha RGBA at the
+renderer boundary to match `Blend.alpha()`.
+`app.createTextureFromPixels(pixels)` and the matching renderer method accept
+`PixelBytes` when generated pixels are already available, avoiding an
+unnecessary `Image` conversion and pixel snapshot.
 `SimpleModelBatch` stores repeated instances of one mesh and optional shared
 texture, then `drawSimpleModelBatch(...)` draws the live instances with one Metal
 instanced draw call. Instance handles update their batch slot through ergonomic

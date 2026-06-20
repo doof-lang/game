@@ -2,6 +2,7 @@
   "name": "std-game-jigsaw-sample",
   "version": "0.1.0",
   "license": "ISC",
+  "id": "doof.jigsaw",
   "build": {
     "target": "macos-app",
     "executable": "DoofJigsaw",
@@ -9,11 +10,9 @@
     "icon": "app_icon.png",
     "resources": ["images"],
     "macosApp": {
-      "bundleId": "dev.doof.jigsaw",
       "category": "public.app-category.games"
     },
     "iosApp": {
-      "bundleId": "extremebasic.jigsaw",
       "infoPlist": {
         "NSLocalNetworkUsageDescription": "Doof Jigsaw connects to a local puzzle server on your network.",
         "NSAppTransportSecurity": {
@@ -24,21 +23,8 @@
     },
     "native": {
       "extraCopyPaths": [
-        "native_jigsaw.hpp"
-      ],
-      "sourceFiles": [
-        "native_jigsaw.mm"
-      ],
-      "frameworks": [
-        "CoreGraphics",
-        "Foundation",
-        "ImageIO"
-      ],
-      "macos": {
-        "frameworks": [
-          "AppKit"
-        ]
-      }
+        "native_jigsaw_atlas.hpp"
+      ]
     }
   },
   "dependencies": {

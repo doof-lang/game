@@ -23,6 +23,7 @@
 #include <limits>
 #include <memory>
 #include <mutex>
+#include <new>
 #include <sstream>
 #include <string>
 #include <unordered_map>
@@ -1857,6 +1858,91 @@ doof::Result<std::shared_ptr<NativeTexture>, std::string> NativeTexture::load(
         std::lock_guard<std::mutex> lock(textureCacheMutex());
         textureCache()[cacheKey] = native;
     }
+    return doof::Result<std::shared_ptr<NativeTexture>, std::string>::success(native);
+}
+
+doof::Result<std::shared_ptr<NativeTexture>, std::string> NativeTexture::createRgba(
+    const std::shared_ptr<std::vector<uint8_t>>& data,
+    int32_t pixelWidth,
+    int32_t pixelHeight,
+    int32_t alphaMode,
+    int64_t metalDeviceHandle
+) {
+    id<MTLDevice> device = (__bridge id<MTLDevice>)reinterpret_cast<void*>(metalDeviceHandle);
+    if (device == nil) {
+        return doof::Result<std::shared_ptr<NativeTexture>, std::string>::failure("Metal device handle is invalid");
+    }
+    if (pixelWidth <= 0 || pixelHeight <= 0) {
+        return doof::Result<std::shared_ptr<NativeTexture>, std::string>::failure(
+            "RGBA texture dimensions must be positive"
+        );
+    }
+
+    const size_t width = static_cast<size_t>(pixelWidth);
+    const size_t height = static_cast<size_t>(pixelHeight);
+    if (width > std::numeric_limits<size_t>::max() / height ||
+        width * height > std::numeric_limits<size_t>::max() / 4u) {
+        return doof::Result<std::shared_ptr<NativeTexture>, std::string>::failure(
+            "RGBA texture dimensions are too large"
+        );
+    }
+
+    const size_t expectedSize = width * height * 4u;
+    if (!data || data->size() != expectedSize) {
+        const size_t actualSize = data ? data->size() : 0u;
+        return doof::Result<std::shared_ptr<NativeTexture>, std::string>::failure(
+            "RGBA buffer has " + std::to_string(actualSize) +
+            " bytes; expected " + std::to_string(expectedSize)
+        );
+    }
+    if (alphaMode < 0 || alphaMode > 1) {
+        return doof::Result<std::shared_ptr<NativeTexture>, std::string>::failure(
+            "RGBA texture alpha mode is invalid"
+        );
+    }
+
+    std::vector<uint8_t> straightPixels;
+    const uint8_t* uploadBytes = data->data();
+    try {
+        if (alphaMode == 0) {
+            straightPixels = *data;
+            for (size_t offset = 0; offset < straightPixels.size(); offset += 4u) {
+                const uint32_t alpha = straightPixels[offset + 3u];
+                for (size_t channel = 0; channel < 3u; ++channel) {
+                    straightPixels[offset + channel] = alpha == 0u
+                        ? 0u
+                        : static_cast<uint8_t>(std::min(
+                            255u,
+                            (static_cast<uint32_t>(straightPixels[offset + channel]) * 255u + alpha / 2u) / alpha
+                        ));
+                }
+            }
+            uploadBytes = straightPixels.data();
+        }
+    } catch (const std::bad_alloc&) {
+        return doof::Result<std::shared_ptr<NativeTexture>, std::string>::failure(
+            "Not enough memory to convert RGBA texture pixels"
+        );
+    }
+
+    MTLTextureDescriptor* descriptor = [MTLTextureDescriptor texture2DDescriptorWithPixelFormat:MTLPixelFormatRGBA8Unorm
+                                                                                          width:width
+                                                                                         height:height
+                                                                                      mipmapped:NO];
+    descriptor.usage = MTLTextureUsageShaderRead;
+    id<MTLTexture> texture = [device newTextureWithDescriptor:descriptor];
+    if (texture == nil) {
+        return doof::Result<std::shared_ptr<NativeTexture>, std::string>::failure(
+            "Failed to create RGBA texture"
+        );
+    }
+
+    [texture replaceRegion:MTLRegionMake2D(0, 0, width, height)
+               mipmapLevel:0
+                 withBytes:uploadBytes
+               bytesPerRow:width * 4u];
+
+    auto native = std::make_shared<NativeTexture>((__bridge void*)texture, pixelWidth, pixelHeight);
     return doof::Result<std::shared_ptr<NativeTexture>, std::string>::success(native);
 }
 

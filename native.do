@@ -58,6 +58,13 @@ export import class NativeGameApp from "native_game.hpp" as doof_game::NativeGam
 
 export import class NativeTexture from "native_game.hpp" as doof_game::NativeTexture {
   static load(path: string, metalDeviceHandle: long): Result<NativeTexture, string>
+  static createRgba(
+    data: readonly byte[],
+    pixelWidth: int,
+    pixelHeight: int,
+    alphaMode: int,
+    metalDeviceHandle: long,
+  ): Result<NativeTexture, string>
   static createAlpha4(
     data: readonly byte[],
     pixelWidth: int,

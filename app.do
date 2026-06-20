@@ -3,6 +3,7 @@ import {
   drainMainEventLoop,
   setMainEventWakeHandler,
 } from "std/event"
+import { Image, PixelBytes } from "std/image"
 
 import {
   NativeGameApp,
@@ -25,7 +26,15 @@ import { InputAxis, InputStick } from "./input_axis"
 import { InputButton } from "./input_button"
 import { InputState } from "./input"
 import { loadIntrinsicBitmapFontForSurface } from "./intrinsic_font"
-import { Point, Renderer, Texture, createRenderer, loadTextureForSurface } from "./render"
+import {
+  Point,
+  Renderer,
+  Texture,
+  createRenderer,
+  createTextureForSurface,
+  createTextureFromPixelsForSurface,
+  loadTextureForSurface,
+} from "./render"
 import { ScreenGesture, ScreenGestures } from "./screen_gestures"
 import { ScreenPointer } from "./screen_pointer"
 import { Sound, loadSound as loadSoundFile } from "./sound"
@@ -124,6 +133,14 @@ export class GameApp {
 
   loadTexture(path: string): Result<Texture, string> {
     return loadTextureForSurface(this.surface, path)
+  }
+
+  createTexture(image: Image): Result<Texture, string> {
+    return createTextureForSurface(this.surface, image)
+  }
+
+  createTextureFromPixels(pixels: PixelBytes): Result<Texture, string> {
+    return createTextureFromPixelsForSurface(this.surface, pixels)
   }
 
   loadBitmapFont(path: string): Result<BitmapFont, string> {

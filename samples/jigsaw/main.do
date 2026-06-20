@@ -14,7 +14,7 @@ import {
 } from "std/game"
 import { Timer, setInterval } from "std/event"
 import { abs } from "std/math"
-import { join, resourcesDirectory } from "std/path"
+import { cacheDirectory, join, resourcesDirectory } from "std/path"
 import { Duration } from "std/time"
 
 import {
@@ -68,19 +68,11 @@ import {
   createDragBatch,
   createPieceMesh,
 } from "./render_helpers"
-
-import function buildJigsawAtlas(
-  photoPath: string,
-  maskAtlasPath: string,
-  outputPath: string,
-  columns: int,
-  rows: int,
-): Result<void, string> from "native_jigsaw.hpp" as doof_game_jigsaw::buildJigsawAtlas
+import { jigsawAtlasCachePath, loadJigsawAtlasTexture } from "./jigsaw_atlas"
 
 const RECONNECT_INTERVAL_MILLIS = 1000L
 readonly SOURCE_PHOTO_PATH = "images/IMG_0459.jpeg"
 readonly MASK_ATLAS_PATH = "images/jigjig.png"
-readonly GENERATED_ATLAS_PATH = "images/generated_jigsaw_atlas.png"
 const DRAG_EDGE_AUTO_PAN_INTERVAL_MILLIS = 16L
 const DRAG_EDGE_AUTO_PAN_MARGIN = 72.0
 const DRAG_EDGE_AUTO_PAN_MAX_STEP = 18.0
@@ -116,15 +108,34 @@ function main(args: string[]): int {
   resources := try! resourcesDirectory()
   sourcePhoto := join([resources, SOURCE_PHOTO_PATH])
   maskAtlas := join([resources, MASK_ATLAS_PATH])
-  generatedAtlas := join([resources, GENERATED_ATLAS_PATH])
-
-  buildJigsawAtlas(sourcePhoto, maskAtlas, generatedAtlas, COLUMNS, ROWS) else error {
-    println(error)
-    return 1
-  }
 
   app := initGameApp{ title: "Doof Game Jigsaw" }
-  loadedAtlasTexture := app.loadTexture(generatedAtlas) else error {
+  cacheRoot := case cacheDirectory() {
+    success: Success -> success.value,
+    failure: Failure -> {
+      println("Could not resolve jigsaw cache directory: ${failure.error}")
+      yield ""
+    },
+  }
+  let atlasCachePath: string | null = null
+  if cacheRoot.length > 0 {
+    case jigsawAtlasCachePath(cacheRoot, sourcePhoto, maskAtlas, COLUMNS, ROWS) {
+      success: Success -> {
+        atlasCachePath = success.value
+      }
+      failure: Failure -> {
+        println(failure.error)
+      }
+    }
+  }
+  loadedAtlasTexture := loadJigsawAtlasTexture(
+    app,
+    sourcePhoto,
+    maskAtlas,
+    atlasCachePath,
+    COLUMNS,
+    ROWS,
+  ) else error {
     println(error)
     return 1
   }

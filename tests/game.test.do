@@ -1,5 +1,6 @@
 import { Assert } from "std/assert"
 import { setInterval } from "std/event"
+import { Image, PixelBytes } from "std/image"
 import { approxEqual } from "std/math"
 import { Duration } from "std/time"
 
@@ -221,6 +222,13 @@ function compileSimpleModelBatchSmoke(texture: Texture, surface: GameSurface, pa
 
 function compileGameAppSmoke(): Result<void, string> {
   app := initGameApp{ title: "Doof Game Smoke" }
+  inMemoryPixels := PixelBytes(1, 1, [255, 255, 255, 255])
+  inMemoryImage := try! Image.fromPixelBytes(inMemoryPixels)
+  inMemoryTexture := try! app.createTexture(inMemoryImage)
+  pixelTexture := try! app.createTextureFromPixels(inMemoryPixels)
+  Assert.equal(inMemoryTexture.pixelWidth(), 1)
+  Assert.equal(inMemoryTexture.pixelHeight(), 1)
+  Assert.equal(pixelTexture.pixelWidth(), 1)
   let held = false
 
   verifyGameAppPanGestureApi(app)
@@ -248,6 +256,10 @@ function compileGameAppSmoke(): Result<void, string> {
   })
 
   app.onRender((renderer): void => {
+    rendererTexture := try! renderer.createTexture(inMemoryImage)
+    rendererPixelTexture := try! renderer.createTextureFromPixels(inMemoryPixels)
+    Assert.equal(rendererTexture.pixelWidth(), 1)
+    Assert.equal(rendererPixelTexture.pixelWidth(), 1)
     surface := app.surface
     renderer.pass(
       RenderPassDescriptor {

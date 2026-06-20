@@ -32,6 +32,13 @@ public:
         const std::string& path,
         int64_t metalDeviceHandle
     );
+    static doof::Result<std::shared_ptr<NativeTexture>, std::string> createRgba(
+        const std::shared_ptr<std::vector<uint8_t>>& data,
+        int32_t pixelWidth,
+        int32_t pixelHeight,
+        int32_t alphaMode,
+        int64_t metalDeviceHandle
+    );
     static doof::Result<std::shared_ptr<NativeTexture>, std::string> createAlpha4(
         const std::shared_ptr<std::vector<uint8_t>>& data,
         int32_t pixelWidth,
