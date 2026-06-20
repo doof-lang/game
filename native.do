@@ -156,6 +156,7 @@ export import class NativeSimpleModelBatch from "native_mesh.hpp" as doof_game::
     green: double,
     blue: double,
     alpha: double,
+    whiteBlend: double,
     uvOffsetX: double,
     uvOffsetY: double,
     uvScaleX: double,
@@ -319,3 +320,4 @@ export import function beginGameAppPanGesture(x: double, y: double): void from "
 export import function updateGameAppPanGesture(x: double, y: double): void from "native_game.hpp" as doof_game::updateGameAppPanGesture
 export import function endGameAppPanGesture(): void from "native_game.hpp" as doof_game::endGameAppPanGesture
 export import function cancelGameAppPanGesture(): void from "native_game.hpp" as doof_game::cancelGameAppPanGesture
+export import function cancelGameAppPanInertia(): void from "native_game.hpp" as doof_game::cancelGameAppPanInertia

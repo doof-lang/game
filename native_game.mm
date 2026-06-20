@@ -148,6 +148,8 @@ constexpr double kPanInertiaMinStartVelocity = 20.0;
 constexpr double kPanInertiaStopVelocity = 8.0;
 constexpr double kPanInertiaMaxStepSeconds = 0.05;
 constexpr double kPanVelocityMaxSampleSeconds = 0.10;
+constexpr double kPanVelocityMaxPointsPerSecond = 5000.0;
+constexpr double kPanInertiaMinGestureTravel = 4.0;
 
 constexpr int32_t kClearNone = 0;
 constexpr int32_t kClearColor = 1;
@@ -181,6 +183,7 @@ struct PanInertiaState {
     double lastVelocityTime = 0.0;
     double velocityX = 0.0;
     double velocityY = 0.0;
+    double gestureTravel = 0.0;
     double lastInertialTime = 0.0;
     double inertialVelocityX = 0.0;
     double inertialVelocityY = 0.0;
@@ -189,6 +192,7 @@ struct PanInertiaState {
     void update(GameRuntimeState* state, double x, double y, double timestamp);
     void finish(GameRuntimeState* state, double timestamp);
     void cancel();
+    void cancelInertia();
     bool step(GameRuntimeState* state, double timestamp);
 
 private:
@@ -196,6 +200,16 @@ private:
     void updateVelocity(double deltaX, double deltaY, double timestamp);
     void resetVelocity();
 };
+
+void clampPanVelocity(double& velocityX, double& velocityY) {
+    const double speed = std::sqrt(velocityX * velocityX + velocityY * velocityY);
+    if (speed <= kPanVelocityMaxPointsPerSecond || speed <= 0.0) {
+        return;
+    }
+    const double scale = kPanVelocityMaxPointsPerSecond / speed;
+    velocityX *= scale;
+    velocityY *= scale;
+}
 
 GameRuntimeState* gActiveState = nullptr;
 std::mutex gDepthTextureCacheMutex;
@@ -1227,15 +1241,20 @@ void PanInertiaState::resetVelocity() {
     lastVelocityTime = 0.0;
     velocityX = 0.0;
     velocityY = 0.0;
+    gestureTravel = 0.0;
 }
 
 void PanInertiaState::cancel() {
     gestureActive = false;
+    cancelInertia();
+    resetVelocity();
+}
+
+void PanInertiaState::cancelInertia() {
     inertialActive = false;
     lastInertialTime = 0.0;
     inertialVelocityX = 0.0;
     inertialVelocityY = 0.0;
-    resetVelocity();
 }
 
 void PanInertiaState::begin(GameRuntimeState* state, double x, double y, double timestamp) {
@@ -1259,12 +1278,16 @@ void PanInertiaState::updateVelocity(double deltaX, double deltaY, double timest
             if (std::abs(velocityX) <= 0.000001 && std::abs(velocityY) <= 0.000001) {
                 velocityX = sampleVelocityX;
                 velocityY = sampleVelocityY;
+            } else if (velocityX * sampleVelocityX + velocityY * sampleVelocityY <= 0.0) {
+                velocityX = sampleVelocityX;
+                velocityY = sampleVelocityY;
             } else {
                 velocityX = velocityX * (1.0 - kPanVelocitySmoothing) +
                     sampleVelocityX * kPanVelocitySmoothing;
                 velocityY = velocityY * (1.0 - kPanVelocitySmoothing) +
                     sampleVelocityY * kPanVelocitySmoothing;
             }
+            clampPanVelocity(velocityX, velocityY);
         }
     }
     lastVelocityTime = timestamp;
@@ -1299,6 +1322,7 @@ void PanInertiaState::update(GameRuntimeState* state, double x, double y, double
     }
     const double deltaX = x - lastX;
     const double deltaY = y - lastY;
+    gestureTravel += std::sqrt(deltaX * deltaX + deltaY * deltaY);
     updateVelocity(deltaX, deltaY, timestamp);
     lastX = x;
     lastY = y;
@@ -1316,7 +1340,8 @@ void PanInertiaState::finish(GameRuntimeState* state, double timestamp) {
     gestureActive = false;
     // A pause before release means the pointer is no longer moving. Do not
     // carry the last sampled drag velocity indefinitely into inertia.
-    if (lastVelocityTime <= 0.0 || timestamp - lastVelocityTime > kPanVelocityMaxSampleSeconds) {
+    if (gestureTravel < kPanInertiaMinGestureTravel ||
+        lastVelocityTime <= 0.0 || timestamp - lastVelocityTime > kPanVelocityMaxSampleSeconds) {
         velocityX = 0.0;
         velocityY = 0.0;
     }
@@ -2315,6 +2340,12 @@ void endGameAppPanGesture() {
 void cancelGameAppPanGesture() {
     if (gActiveState != nullptr) {
         gActiveState->panInertia.cancel();
+    }
+}
+
+void cancelGameAppPanInertia() {
+    if (gActiveState != nullptr) {
+        gActiveState->panInertia.cancelInertia();
     }
 }
 

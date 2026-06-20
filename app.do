@@ -18,6 +18,7 @@ import {
   updateGameAppPanGesture,
   endGameAppPanGesture,
   cancelGameAppPanGesture,
+  cancelGameAppPanInertia,
 } from "./native"
 
 import { GameEvent } from "./event"
@@ -173,6 +174,10 @@ export class GameApp {
 
   cancelPanGesture(): void {
     cancelGameAppPanGesture()
+  }
+
+  cancelPanInertia(): void {
+    cancelGameAppPanInertia()
   }
 
   run(): Result<void, string> {

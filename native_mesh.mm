@@ -15,6 +15,7 @@ struct SimpleModelInstance {
     float row2[4];
     float row3[4];
     float tint[4];
+    float effects[4];
     float uv[4];
 };
 
@@ -110,9 +111,9 @@ id<MTLRenderPipelineState> simpleModelBatchPipeline(id<MTLDevice> device, int32_
         @"#include <metal_stdlib>\n"
         @"using namespace metal;\n"
         @"struct VertexIn { packed_float4 position; packed_float4 color; packed_float2 uv; packed_float4 normal; };\n"
-        @"struct Instance { float4 row0; float4 row1; float4 row2; float4 row3; float4 tint; float4 uv; };\n"
+        @"struct Instance { float4 row0; float4 row1; float4 row2; float4 row3; float4 tint; float4 effects; float4 uv; };\n"
         @"struct Uniforms { float4 row0; float4 row1; float4 row2; float4 row3; };\n"
-        @"struct VertexOut { float4 position [[position]]; float4 color; float2 uv; float3 normal; };\n"
+        @"struct VertexOut { float4 position [[position]]; float4 color; float2 uv; float3 normal; float whiteBlend; };\n"
         @"vertex VertexOut doof_game_simple_model_batch_vertex(const device VertexIn* vertices [[buffer(0)]], constant Uniforms& uniforms [[buffer(1)]], const device uint* indices [[buffer(2)]], const device Instance* instances [[buffer(3)]], uint vertexId [[vertex_id]], uint instanceId [[instance_id]]) {\n"
         @"  VertexIn meshVertex = vertices[indices[vertexId]];\n"
         @"  Instance inst = instances[instanceId];\n"
@@ -123,6 +124,7 @@ id<MTLRenderPipelineState> simpleModelBatchPipeline(id<MTLDevice> device, int32_
         @"  out.color = meshVertex.color * inst.tint;\n"
         @"  out.uv = meshVertex.uv * inst.uv.zw + inst.uv.xy;\n"
         @"  out.normal = meshVertex.normal.xyz;\n"
+        @"  out.whiteBlend = inst.effects.x;\n"
         @"  return out;\n"
         @"}\n"
         @"float4 doof_game_apply_simple_model_batch_light(float4 base, float3 normal) {\n"
@@ -136,7 +138,9 @@ id<MTLRenderPipelineState> simpleModelBatchPipeline(id<MTLDevice> device, int32_
         @"  return doof_game_apply_simple_model_batch_light(in.color, in.normal);\n"
         @"}\n"
         @"fragment float4 doof_game_textured_simple_model_batch_fragment(VertexOut in [[stage_in]], texture2d<float> tex [[texture(0)]], sampler textureSampler [[sampler(0)]]) {\n"
-        @"  return doof_game_apply_simple_model_batch_light(tex.sample(textureSampler, in.uv) * in.color, in.normal);\n"
+        @"  float4 sampled = tex.sample(textureSampler, in.uv) * in.color;\n"
+        @"  sampled.rgb = mix(sampled.rgb, float3(1.0), clamp(in.whiteBlend, 0.0, 1.0));\n"
+        @"  return doof_game_apply_simple_model_batch_light(sampled, in.normal);\n"
         @"}\n";
 
     NSError* error = nil;
@@ -462,6 +466,7 @@ void NativeSimpleModelBatch::setInstance(
     double green,
     double blue,
     double alpha,
+    double whiteBlend,
     double uvOffsetX,
     double uvOffsetY,
     double uvScaleX,
@@ -478,6 +483,7 @@ void NativeSimpleModelBatch::setInstance(
         { static_cast<float>(m20), static_cast<float>(m21), static_cast<float>(m22), static_cast<float>(m23) },
         { static_cast<float>(m30), static_cast<float>(m31), static_cast<float>(m32), static_cast<float>(m33) },
         { static_cast<float>(red), static_cast<float>(green), static_cast<float>(blue), static_cast<float>(alpha) },
+        { static_cast<float>(whiteBlend), 0.0f, 0.0f, 0.0f },
         { static_cast<float>(uvOffsetX), static_cast<float>(uvOffsetY), static_cast<float>(uvScaleX), static_cast<float>(uvScaleY) },
     };
 }

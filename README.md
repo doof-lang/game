@@ -655,13 +655,16 @@ the drag belongs to the background, map, board, or other pannable surface:
 app.beginPanGesture(x, y)
 app.updatePanGesture(x, y)
 app.endPanGesture()
+app.cancelPanInertia()
 app.cancelPanGesture()
 ```
 
 `updatePanGesture` emits ordinary `Pan` events with `panDeltaX()` and
 `panDeltaY()`. `endPanGesture` starts damped inertial pan events when the release
-velocity is high enough. Use `cancelPanGesture` when the interaction changes to
-something non-panning, such as dragging an object or starting a pinch.
+velocity is high enough. Use `cancelPanInertia` on pointer down to stop existing
+momentum without affecting an active gesture. Use `cancelPanGesture` when the
+interaction changes to something non-panning, such as dragging an object or
+starting a pinch.
 
 ## Notes
 

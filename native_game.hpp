@@ -238,5 +238,6 @@ void beginGameAppPanGesture(double x, double y);
 void updateGameAppPanGesture(double x, double y);
 void endGameAppPanGesture();
 void cancelGameAppPanGesture();
+void cancelGameAppPanInertia();
 
 }  // namespace doof_game

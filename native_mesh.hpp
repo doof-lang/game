@@ -83,6 +83,7 @@ public:
         double green,
         double blue,
         double alpha,
+        double whiteBlend,
         double uvOffsetX,
         double uvOffsetY,
         double uvScaleX,

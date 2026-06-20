@@ -23,6 +23,7 @@ export class SimpleModelInstanceConfig {
     scale: Vec3 { x: 1.0, y: 1.0, z: 1.0 },
   }
   tint: Color = Color { r: 1.0, g: 1.0, b: 1.0, a: 1.0 }
+  whiteBlend: double = 0.0
   uvOffset: Vec2 = Vec2 { x: 0.0, y: 0.0 }
   uvScale: Vec2 = Vec2 { x: 1.0, y: 1.0 }
 }
@@ -40,6 +41,7 @@ export class SimpleModelBatch {
 
   private transforms: Transform[] = []
   private tints: Color[] = []
+  private whiteBlends: double[] = []
   private uvOffsets: Vec2[] = []
   private uvScales: Vec2[] = []
   private dirty: int[] = []
@@ -55,6 +57,7 @@ export class SimpleModelBatch {
       scale: Vec3 { x: 1.0, y: 1.0, z: 1.0 },
     },
     tint: Color = Color { r: 1.0, g: 1.0, b: 1.0, a: 1.0 },
+    whiteBlend: double = 0.0,
     uvOffset: Vec2 = Vec2 { x: 0.0, y: 0.0 },
     uvScale: Vec2 = Vec2 { x: 1.0, y: 1.0 },
   ): SimpleModelInstance {
@@ -66,6 +69,7 @@ export class SimpleModelBatch {
     state := SimpleModelInstanceState { slot: slot }
     transforms.push(transform)
     tints.push(tint)
+    whiteBlends.push(whiteBlend)
     uvOffsets.push(uvOffset)
     uvScales.push(uvScale)
     dirty.push(1)
@@ -93,6 +97,10 @@ export class SimpleModelBatch {
     return uvOffsets[requireLive(state)]
   }
 
+  private whiteBlendOf(state: SimpleModelInstanceState): double {
+    return whiteBlends[requireLive(state)]
+  }
+
   private uvScaleOf(state: SimpleModelInstanceState): Vec2 {
     return uvScales[requireLive(state)]
   }
@@ -106,6 +114,12 @@ export class SimpleModelBatch {
   private setTintFor(state: SimpleModelInstanceState, tint: Color): void {
     slot := requireLive(state)
     tints[slot] = tint
+    dirty[slot] = 1
+  }
+
+  private setWhiteBlendFor(state: SimpleModelInstanceState, whiteBlend: double): void {
+    slot := requireLive(state)
+    whiteBlends[slot] = whiteBlend
     dirty[slot] = 1
   }
 
@@ -129,6 +143,7 @@ export class SimpleModelBatch {
     if slot != last {
       transforms[slot] = transforms[last]
       tints[slot] = tints[last]
+      whiteBlends[slot] = whiteBlends[last]
       uvOffsets[slot] = uvOffsets[last]
       uvScales[slot] = uvScales[last]
       dirty[slot] = 1
@@ -140,6 +155,7 @@ export class SimpleModelBatch {
 
     transforms = transforms.slice(0, last)
     tints = tints.slice(0, last)
+    whiteBlends = whiteBlends.slice(0, last)
     uvOffsets = uvOffsets.slice(0, last)
     uvScales = uvScales.slice(0, last)
     dirty = dirty.slice(0, last)
@@ -157,6 +173,7 @@ export class SimpleModelBatch {
       if dirty[slot] != 0 {
         matrix := transforms[slot].toMat4()
         tint := tints[slot]
+        whiteBlend := whiteBlends[slot]
         uvOffset := uvOffsets[slot]
         uvScale := uvScales[slot]
         target.setInstance(
@@ -181,6 +198,7 @@ export class SimpleModelBatch {
           tint.g,
           tint.b,
           tint.a,
+          whiteBlend,
           uvOffset.x,
           uvOffset.y,
           uvScale.x,
@@ -201,6 +219,7 @@ export class SimpleModelInstance {
 
   transform(): Transform => batch.transformOf(state)
   tint(): Color => batch.tintOf(state)
+  whiteBlend(): double => batch.whiteBlendOf(state)
   uvOffset(): Vec2 => batch.uvOffsetOf(state)
   uvScale(): Vec2 => batch.uvScaleOf(state)
 
@@ -211,6 +230,11 @@ export class SimpleModelInstance {
 
   setTint(tint: Color): SimpleModelInstance {
     batch.setTintFor(state, tint)
+    return this
+  }
+
+  setWhiteBlend(whiteBlend: double): SimpleModelInstance {
+    batch.setWhiteBlendFor(state, whiteBlend)
     return this
   }
 
