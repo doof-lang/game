@@ -1208,6 +1208,12 @@ void PanInertiaState::finish(GameRuntimeState* state, double timestamp) {
         return;
     }
     gestureActive = false;
+    // A pause before release means the pointer is no longer moving. Do not
+    // carry the last sampled drag velocity indefinitely into inertia.
+    if (lastVelocityTime <= 0.0 || timestamp - lastVelocityTime > kPanVelocityMaxSampleSeconds) {
+        velocityX = 0.0;
+        velocityY = 0.0;
+    }
     const double speed = std::sqrt(velocityX * velocityX + velocityY * velocityY);
     if (speed >= kPanInertiaMinStartVelocity) {
         inertialActive = true;
