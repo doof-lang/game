@@ -2,7 +2,7 @@ import { Assert } from "std/assert"
 import { BlobBuilder } from "std/blob"
 import { setInterval } from "std/event"
 import { Image, PixelBytes } from "std/image"
-import { approxEqual } from "std/math"
+import { approxEqual, sqrt } from "std/math"
 import { Duration } from "std/time"
 
 import {
@@ -57,6 +57,7 @@ import {
   ShaderVertexFormat,
   ShaderVertexLayout,
   ShaderVertexStepFunction,
+  createIcosphereMeshSpec,
   createSphereMeshSpec,
   drawShader,
   drawSimpleModelBatch,
@@ -1057,6 +1058,42 @@ export function testCreateSphereMeshSpecBuildsEquirectangularSphere(): void {
     (a.x + b.x + c.x) / 3.0,
     (a.y + b.y + c.y) / 3.0,
     (a.z + b.z + c.z) / 3.0,
+  )
+  Assert.isTrue(normal.x * outward.x + normal.y * outward.y + normal.z * outward.z > 0.0)
+}
+
+export function testCreateIcosphereMeshSpecBuildsSubdividedIcosahedron(): void {
+  spec := createIcosphereMeshSpec{
+    radius: 2.0,
+    subdivisions: 1,
+    color: Color(0.9, 0.5, 0.2),
+  }
+
+  Assert.equal(spec.vertexCount(), 42)
+  Assert.equal(spec.indexCount(), 240)
+  Assert.equal(spec.colors.length, spec.positions.length)
+  Assert.equal(spec.uvs.length, spec.positions.length)
+  Assert.equal(spec.normals.length, spec.positions.length)
+  Assert.equal(spec.colors[0].r, 0.9)
+
+  for position of spec.positions {
+    radius := sqrt(position.x * position.x + position.y * position.y + position.z * position.z)
+    Assert.isTrue(approxEqual(radius, 2.0))
+  }
+
+  for normal of spec.normals {
+    length := sqrt(normal.x * normal.x + normal.y * normal.y + normal.z * normal.z)
+    Assert.isTrue(approxEqual(length, 1.0))
+  }
+
+  first := spec.positions[spec.indices[0]]
+  second := spec.positions[spec.indices[1]]
+  third := spec.positions[spec.indices[2]]
+  normal := crossPoint3(subtractPoint3(second, first), subtractPoint3(third, first))
+  outward := Point3(
+    (first.x + second.x + third.x) / 3.0,
+    (first.y + second.y + third.y) / 3.0,
+    (first.z + second.z + third.z) / 3.0,
   )
   Assert.isTrue(normal.x * outward.x + normal.y * outward.y + normal.z * outward.z > 0.0)
 }

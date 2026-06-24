@@ -378,6 +378,17 @@ twice that count for equirectangular textures. The generated UVs use `(0, 0)`
 at the top-left of the texture and duplicate the seam vertices so `u` wraps
 cleanly from `1` to `0`.
 
+```doof
+spec := createIcosphereMeshSpec{ radius: 1.0, subdivisions: 2 }
+planet := SimpleModel(SimpleMesh(app.surface, spec))
+```
+
+`createIcosphereMeshSpec(...)` creates an icosphere as a `SimpleMeshSpec`.
+`subdivisions` controls how many times each triangular face is split into four
+smaller triangles. Icospheres are useful for untextured or procedurally shaded
+spheres where evenly distributed triangles matter more than an equirectangular
+UV seam.
+
 ### OBJ Meshes
 
 ```doof

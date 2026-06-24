@@ -49,6 +49,7 @@ export {
   drawShader,
 } from "./shader"
 export { createSphereMeshSpec } from "./sphere"
+export { createIcosphereMeshSpec } from "./icosphere"
 export { SkyMap, drawEquirectangularSkyMap } from "./sky"
 export {
   BitmapFont,

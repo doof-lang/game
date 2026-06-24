@@ -1,12 +1,12 @@
 import { BlobBuilder } from "std/blob"
 import { readText } from "std/fs"
-import { floor, sin, sqrt } from "std/math"
+import { floor, sin } from "std/math"
 import { join, resourcesDirectory } from "std/path"
 import {
   GameSurface,
   Mat4,
-  Point3,
   RenderPass,
+  SimpleMeshSpec,
   ShaderBuffer,
   ShaderBufferBinding,
   ShaderBytesBinding,
@@ -18,6 +18,7 @@ import {
   ShaderVertexLayout,
   ShaderVertexStepFunction,
   Vec3,
+  createIcosphereMeshSpec,
   drawShader,
 } from "std/game"
 const ASTEROID_COUNT = 72
@@ -34,11 +35,6 @@ export class AsteroidShaderResources {
   readonly indexCount: int
 }
 
-class AsteroidGeometry {
-  vertices: Point3[] = []
-  indices: int[] = []
-}
-
 function randomUnit(index: int, salt: double): double {
   value := sin((double(index) + 1.0) * 12.9898 + salt * 78.233) * 43758.5453123
   return value - floor(value)
@@ -48,150 +44,34 @@ function randomSigned(index: int, salt: double): double {
   return randomUnit(index, salt) * 2.0 - 1.0
 }
 
-function normalizePoint(point: Point3): Point3 {
-  length := sqrt(point.x * point.x + point.y * point.y + point.z * point.z)
-  return Point3(point.x / length, point.y / length, point.z / length)
-}
-
 function writeFloat3(builder: BlobBuilder, x: double, y: double, z: double): void {
   builder.writeFloat(float(x))
   builder.writeFloat(float(y))
   builder.writeFloat(float(z))
 }
 
-function writeAsteroidVertex(builder: BlobBuilder, point: Point3): void {
-  normal := normalizePoint(point)
-  writeFloat3(builder, normal.x, normal.y, normal.z)
+function writeAsteroidVertex(builder: BlobBuilder, spec: SimpleMeshSpec, index: int): void {
+  position := spec.positions[index]
+  normal := spec.normals[index]
+  writeFloat3(builder, position.x, position.y, position.z)
   writeFloat3(builder, normal.x, normal.y, normal.z)
   vertexSeed := normal.x * 0.41 + normal.y * 1.37 + normal.z * 2.11
   builder.writeFloat(float(vertexSeed))
 }
 
-function midpoint(a: Point3, b: Point3): Point3 {
-  return Point3((a.x + b.x) * 0.5, (a.y + b.y) * 0.5, (a.z + b.z) * 0.5)
+function createAsteroidGeometry(): SimpleMeshSpec {
+  return createIcosphereMeshSpec{ subdivisions: ASTEROID_SUBDIVISIONS }
 }
 
-function addAsteroidVertex(geometry: AsteroidGeometry, point: Point3): int {
-  geometry.vertices.push(normalizePoint(point))
-  return geometry.vertices.length - 1
-}
-
-function asteroidEdgeKey(a: int, b: int): long {
-  let low = a
-  let high = b
-  if low > high {
-    low = b
-    high = a
-  }
-  return long(low) * 1_000_000L + long(high)
-}
-
-function midpointIndex(geometry: AsteroidGeometry, midpointCache: Map<long, int>, a: int, b: int): int {
-  key := asteroidEdgeKey(a, b)
-  cached := midpointCache.get(key) else {
-    point := midpoint(geometry.vertices[a], geometry.vertices[b])
-    index := addAsteroidVertex(geometry, point)
-    midpointCache.set(key, index)
-    return index
-  }
-  return cached
-}
-
-function addRawTriangle(geometry: AsteroidGeometry, a: int, b: int, c: int): void {
-  geometry.indices.push(a)
-  geometry.indices.push(b)
-  geometry.indices.push(c)
-}
-
-function addSubdividedTriangle(geometry: AsteroidGeometry, midpointCache: Map<long, int>, a: int, b: int, c: int, depth: int): void {
-  if depth <= 0 {
-    addRawTriangle(geometry, a, b, c)
-    return
-  }
-
-  ab := midpointIndex(geometry, midpointCache, a, b)
-  bc := midpointIndex(geometry, midpointCache, b, c)
-  ca := midpointIndex(geometry, midpointCache, c, a)
-  next := depth - 1
-  addSubdividedTriangle(geometry, midpointCache, a, ab, ca, next)
-  addSubdividedTriangle(geometry, midpointCache, ab, b, bc, next)
-  addSubdividedTriangle(geometry, midpointCache, ca, bc, c, next)
-  addSubdividedTriangle(geometry, midpointCache, ab, bc, ca, next)
-}
-
-function addTriangle(geometry: AsteroidGeometry, midpointCache: Map<long, int>, a: int, b: int, c: int): void {
-  addSubdividedTriangle(geometry, midpointCache, a, b, c, ASTEROID_SUBDIVISIONS)
-}
-
-function addIcosahedronVertices(geometry: AsteroidGeometry): void {
-  phi := 1.61803398875
-  vertices := [
-    Point3(-1.0, phi, 0.0),
-    Point3(1.0, phi, 0.0),
-    Point3(-1.0, -phi, 0.0),
-    Point3(1.0, -phi, 0.0),
-    Point3(0.0, -1.0, phi),
-    Point3(0.0, 1.0, phi),
-    Point3(0.0, -1.0, -phi),
-    Point3(0.0, 1.0, -phi),
-    Point3(phi, 0.0, -1.0),
-    Point3(phi, 0.0, 1.0),
-    Point3(-phi, 0.0, -1.0),
-    Point3(-phi, 0.0, 1.0),
-  ]
-  for vertex of vertices {
-    addAsteroidVertex(geometry, vertex)
-  }
-}
-
-function addIcosahedronFaces(geometry: AsteroidGeometry, midpointCache: Map<long, int>): void {
-  faces := [
-    0, 11, 5,
-    0, 5, 1,
-    0, 1, 7,
-    0, 7, 10,
-    0, 10, 11,
-    1, 5, 9,
-    5, 11, 4,
-    11, 10, 2,
-    10, 7, 6,
-    7, 1, 8,
-    3, 9, 4,
-    3, 4, 2,
-    3, 2, 6,
-    3, 6, 8,
-    3, 8, 9,
-    4, 9, 5,
-    2, 4, 11,
-    6, 2, 10,
-    8, 6, 7,
-    9, 8, 1,
-  ]
-
-  let index = 0
-  while index < faces.length {
-    addTriangle(geometry, midpointCache, faces[index], faces[index + 1], faces[index + 2])
-    index += 3
-  }
-}
-
-function createAsteroidGeometry(): AsteroidGeometry {
-  geometry := AsteroidGeometry {}
-  midpointCache: Map<long, int> := {}
-  addIcosahedronVertices(geometry)
-  addIcosahedronFaces(geometry, midpointCache)
-  return geometry
-}
-
-function asteroidVertexBytes(geometry: AsteroidGeometry): readonly byte[] {
+function asteroidVertexBytes(geometry: SimpleMeshSpec): readonly byte[] {
   builder := BlobBuilder {}
-  for vertex of geometry.vertices {
-    writeAsteroidVertex(builder, vertex)
+  for index of 0..<geometry.positions.length {
+    writeAsteroidVertex(builder, geometry, index)
   }
   return builder.build()
 }
 
-function asteroidIndexBytes(geometry: AsteroidGeometry): readonly byte[] {
+function asteroidIndexBytes(geometry: SimpleMeshSpec): readonly byte[] {
   builder := BlobBuilder {}
   for index of geometry.indices {
     builder.writeUnsignedInt(index)
