@@ -86,11 +86,6 @@ function main(): int {
 
     if event.kind() == GameEventKind.MouseMove {
       camera.rotateLocalX(-event.deltaY() * 0.15).rotateLocalY(-event.deltaX() * 0.15)
-      app.requestRender()
-    }
-
-    if event.kind() == GameEventKind.Resized {
-      app.requestRender()
     }
   })
 
@@ -142,11 +137,8 @@ function main(): int {
         drawSpaceDust(pass, dust)
       },
     )
-
-    app.requestRender()
   })
 
-  app.requestRender()
   result := app.run()
   case result {
     s: Success -> return 0

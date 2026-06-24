@@ -24,6 +24,7 @@ import {
   DepthMode,
   GameApp,
   GameEventKind,
+  GameRenderMode,
   GameSurface,
   Key,
   Mat4,
@@ -559,6 +560,9 @@ function compileShaderSmoke(texture: Texture, surface: GameSurface, pass: Render
 
 function compileGameAppSmoke(): Result<void, string> {
   app := initGameApp{ title: "Doof Game Smoke" }
+  Assert.equal(app.renderMode, GameRenderMode.Continuous)
+  requestedApp := initGameApp{ title: "Doof Game Requested Smoke", renderMode: GameRenderMode.Requested }
+  Assert.equal(requestedApp.renderMode, GameRenderMode.Requested)
   inMemoryPixels := PixelBytes(1, 1, [255, 255, 255, 255])
   inMemoryImage := try! Image.fromPixelBytes(inMemoryPixels)
   inMemoryTexture := try! app.createTexture(inMemoryImage)

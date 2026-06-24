@@ -5,6 +5,7 @@ import {
   Color,
   Depth,
   GameEventKind,
+  GameRenderMode,
   Key,
   synthSound,
   RenderPassDescriptor,
@@ -114,7 +115,7 @@ function main(args: string[]): int {
   sourcePhoto := join([resources, SOURCE_PHOTO_PATH])
   maskAtlas := join([resources, MASK_ATLAS_PATH])
 
-  app := initGameApp{ title: "Doof Game Jigsaw" }
+  app := initGameApp{ title: "Doof Game Jigsaw", renderMode: GameRenderMode.Requested }
   cacheRoot := case cacheDirectory() {
     success: Success -> success.value,
     failure: Failure -> {

@@ -14,6 +14,11 @@ export enum GameEventKind {
   ControllerDisconnected,
 }
 
+export enum GameRenderMode {
+  Continuous,
+  Requested,
+}
+
 export enum Key {
   Unknown,
   A,

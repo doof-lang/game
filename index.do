@@ -109,6 +109,7 @@ export {
   ControllerSlot,
   ControllerStick,
   GameEventKind,
+  GameRenderMode,
   Key,
   MouseButton,
 } from "./types"

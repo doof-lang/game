@@ -6,6 +6,7 @@ import {
   Depth,
   GameSurface,
   GameEventKind,
+  GameRenderMode,
   Key,
   Point3,
   Rect,
@@ -70,7 +71,7 @@ function updateSampleBody(surface: GameSurface, scale: double, body: UiLabel, cl
 }
 
 function main(): int {
-  app := initGameApp{ title: "Doof Game UI" }
+  app := initGameApp{ title: "Doof Game UI", renderMode: GameRenderMode.Requested }
 
   ui := UiLayer(app)
 

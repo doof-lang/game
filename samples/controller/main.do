@@ -78,7 +78,6 @@ function main(): int {
       },
       (pass): void => drawSimpleModel(pass, player),
     )
-    app.requestRender()
   })
 
   app.run() else error {

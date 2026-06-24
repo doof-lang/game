@@ -1,6 +1,5 @@
-import { setInterval } from "std/event"
 import { sin } from "std/math"
-import { Duration, Instant } from "std/time"
+import { Instant } from "std/time"
 
 import {
   Blend,
@@ -8,7 +7,6 @@ import {
   Clear,
   Color,
   Depth,
-  GameEventKind,
   Point3,
   RenderPassDescriptor,
   initGameApp,
@@ -24,16 +22,6 @@ function main(): int {
 
   app.key(.Escape).onPressed() {
     app.stop()
-  }
-
-  setInterval(Duration.ofMillis(16L)) {
-    app.requestRender()
-  }
-
-  app.onEvent() {
-    if event.kind() == GameEventKind.Resized {
-      app.requestRender()
-    }
   }
 
   app.onRender() {

@@ -20,7 +20,6 @@ Hardware keyboard events are not exposed on iOS yet.
 ## Usage
 
 ```doof
-import { setInterval } from "std/event"
 import {
   Blend,
   Camera,
@@ -28,6 +27,7 @@ import {
   Color,
   Depth,
   GameEventKind,
+  GameRenderMode,
   GameSurface,
   Key,
   Point3,
@@ -37,7 +37,6 @@ import {
   drawSimpleMesh,
   initGameApp,
 } from "std/game"
-import { Duration } from "std/time"
 
 function createMesh(surface: GameSurface): SimpleMesh {
   builder := SimpleMeshBuilder.create()
@@ -55,24 +54,6 @@ function main(): int {
   app := initGameApp{ title: "Doof Game" }
   mesh := createMesh(app.surface)
 
-  simulationTimer := setInterval{
-    interval: Duration.ofMillis(16L),
-    handler: (): void => {
-      input := app.input
-      if input.isKeyDown(Key.Space) {
-        println("space held")
-      }
-      app.requestRender()
-    },
-  }
-
-  heartbeatTimer := setInterval{
-    interval: Duration.ofMillis(250L),
-    handler: (): void => {
-      println("heartbeat")
-    },
-  }
-
   app.key(Key.Escape).onPressed() {
     app.stop()
   }
@@ -84,6 +65,10 @@ function main(): int {
   })
 
   app.onRender((renderer): void => {
+    if app.input.isKeyDown(Key.Space) {
+      println("space held")
+    }
+
     renderer.pass(
       RenderPassDescriptor {
         camera: Camera.screen(),
@@ -115,6 +100,7 @@ function main(): int {
 
 ```doof
 app := initGameApp{ title: "Game" }
+requestedApp := initGameApp{ title: "Tools", renderMode: GameRenderMode.Requested }
 
 app.onEvent((event: GameEvent): void => {})
 app.onRender((renderer: Renderer): void => {})
@@ -123,11 +109,12 @@ result := app.run()
 ```
 
 Creates a full-screen macOS app host. Register event and render callbacks, set
-up any `std/event` timers or channels, then call `run()`. The host drains
-`std/event` work during wakeups, so `setInterval` can drive simulation or
-slower heartbeat loops while rendering remains owned by the game host.
+up any `std/event` timers or channels, then call `run()`. By default,
+`GameRenderMode.Continuous` calls `onRender` on each display tick, which is the
+right mode for animated games and simulations.
 
-Use `app.input` to query the latest input state from timer callbacks. Call
+Use `GameRenderMode.Requested` for retained UI, editors, board games, or other
+apps that only redraw after state changes. In requested mode, call
 `app.requestRender()` after simulation or state changes to schedule `onRender`
 on the next display tick. During render callbacks, `app.surface` holds the
 current Metal-backed surface and the callback receives a `Renderer` for issuing

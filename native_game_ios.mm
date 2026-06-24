@@ -892,6 +892,7 @@ struct GameRuntimeState : std::enable_shared_from_this<GameRuntimeState> {
     doof::callback<void(std::shared_ptr<NativeGameSurface>, std::shared_ptr<NativeInputState>)> onRender;
     doof::callback<int32_t()> drainEvents;
     std::atomic<double>* framesPerSecond = nullptr;
+    bool continuousRendering = true;
     CADisplayLink* displayLink = nil;
     DoofGameDisplayLinkTarget* displayLinkTarget = nil;
     DoofGameIOSView* view = nil;
@@ -1073,6 +1074,10 @@ struct GameRuntimeState : std::enable_shared_from_this<GameRuntimeState> {
         }
         recordRenderedFrame();
         resetFrameDeltas();
+
+        if (continuousRendering) {
+            requestRender();
+        }
     }
 
     void scheduleDrainEvents() {
@@ -2420,6 +2425,7 @@ void cancelGameAppPanInertia() {
 }
 
 doof::Result<void, std::string> NativeGameApp::run(
+    bool continuousRendering,
     doof::callback<void(std::shared_ptr<NativeGameEvent>, std::shared_ptr<NativeInputState>)> onEvent,
     doof::callback<void(std::shared_ptr<NativeGameSurface>, std::shared_ptr<NativeInputState>)> onRender,
     doof::callback<int32_t()> drainEvents
@@ -2436,6 +2442,7 @@ doof::Result<void, std::string> NativeGameApp::run(
         state->onRender = onRender;
         state->drainEvents = drainEvents;
         state->framesPerSecond = &impl_->framesPerSecond;
+        state->continuousRendering = continuousRendering;
         impl_->framesPerSecond.store(0.0);
 
         const std::string installError = installIOSSurface(state);
@@ -2462,11 +2469,12 @@ doof::Result<void, std::string> NativeGameApp::run(
 
 doof::Result<void, std::string> runNativeGameApp(
     const std::string& title,
+    bool continuousRendering,
     doof::callback<void(std::shared_ptr<NativeGameEvent>, std::shared_ptr<NativeInputState>)> onEvent,
     doof::callback<void(std::shared_ptr<NativeGameSurface>, std::shared_ptr<NativeInputState>)> onRender,
     doof::callback<int32_t()> drainEvents
 ) {
-    return NativeGameApp::create(title)->run(std::move(onEvent), std::move(onRender), std::move(drainEvents));
+    return NativeGameApp::create(title)->run(continuousRendering, std::move(onEvent), std::move(onRender), std::move(drainEvents));
 }
 
 }  // namespace doof_game

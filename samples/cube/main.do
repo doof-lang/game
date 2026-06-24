@@ -1,5 +1,4 @@
-import { setInterval } from "std/event"
-import { Duration, Instant } from "std/time"
+import { Instant } from "std/time"
 
 import {
   Blend,
@@ -7,8 +6,6 @@ import {
   Clear,
   Color,
   Depth,
-  GameApp,
-  GameEventKind,
   GameSurface,
   Key,
   Point3,
@@ -105,7 +102,6 @@ function main(): int {
           .rotatedLocalBy(Rotation.x(angle * 0.62 * radiansToDegrees)),
       )
       drawSimpleModel(pass, cube)
-      app.requestRender()
     }
   }
 

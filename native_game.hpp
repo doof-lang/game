@@ -194,6 +194,7 @@ public:
 private:
     friend doof::Result<void, std::string> runNativeGameApp(
         const std::string& title,
+        bool continuousRendering,
         doof::callback<void(std::shared_ptr<NativeGameEvent>, std::shared_ptr<NativeInputState>)> onEvent,
         doof::callback<void(std::shared_ptr<NativeGameSurface>, std::shared_ptr<NativeInputState>)> onRender,
         doof::callback<int32_t()> drainEvents
@@ -212,6 +213,7 @@ public:
     std::shared_ptr<NativeInputState> input() const;
     double fps() const;
     doof::Result<void, std::string> run(
+        bool continuousRendering,
         doof::callback<void(std::shared_ptr<NativeGameEvent>, std::shared_ptr<NativeInputState>)> onEvent,
         doof::callback<void(std::shared_ptr<NativeGameSurface>, std::shared_ptr<NativeInputState>)> onRender,
         doof::callback<int32_t()> drainEvents
@@ -226,6 +228,7 @@ private:
 
 doof::Result<void, std::string> runNativeGameApp(
     const std::string& title,
+    bool continuousRendering,
     doof::callback<void(std::shared_ptr<NativeGameEvent>, std::shared_ptr<NativeInputState>)> onEvent,
     doof::callback<void(std::shared_ptr<NativeGameSurface>, std::shared_ptr<NativeInputState>)> onRender,
     doof::callback<int32_t()> drainEvents

@@ -41,7 +41,7 @@ import { ScreenPointer } from "./screen_pointer"
 import { Sound, loadSound as loadSoundFile } from "./sound"
 import { GameSurface } from "./surface"
 import { BitmapFont, loadBitmapFontForSurface } from "./text"
-import { ControllerAxis, ControllerButton, ControllerSlot, ControllerStick, GameEventKind, Key, MouseButton } from "./types"
+import { ControllerAxis, ControllerButton, ControllerSlot, ControllerStick, GameEventKind, GameRenderMode, Key, MouseButton } from "./types"
 
 function defaultGameEventHandler(event: GameEvent): void {}
 
@@ -49,6 +49,7 @@ function defaultGameRenderHandler(renderer: Renderer): void {}
 
 export class GameApp {
   readonly title: string
+  readonly renderMode: GameRenderMode
   private readonly native: NativeGameApp
   input: InputState
   surface: GameSurface
@@ -58,10 +59,11 @@ export class GameApp {
   private onEventHandler: (event: GameEvent): void
   private onRenderHandler: (renderer: Renderer): void
 
-  static constructor(title: string): GameApp {
+  static constructor(title: string, renderMode: GameRenderMode = GameRenderMode.Continuous): GameApp {
     native := NativeGameApp.create(title)
     return GameApp {
       title: title,
+      renderMode: renderMode,
       native: native,
       input: InputState(native.input()),
       surface: GameSurface(native.surface()),
@@ -184,6 +186,7 @@ export class GameApp {
     setMainEventWakeHandler((): void => requestGameAppWake())
 
     result := native.run(
+      this.renderMode == GameRenderMode.Continuous,
       (event: NativeGameEvent, input: NativeInputState): void => {
         this.input = InputState(input)
         gameEvent := GameEvent(event)
@@ -258,8 +261,8 @@ export class GameApp {
   }
 }
 
-export function initGameApp(title: string): GameApp {
-  return GameApp(title)
+export function initGameApp(title: string, renderMode: GameRenderMode = GameRenderMode.Continuous): GameApp {
+  return GameApp(title, renderMode)
 }
 
 function isBinaryInputEvent(event: GameEvent): bool {
