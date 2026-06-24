@@ -321,6 +321,9 @@ export class Atlas {
 export class Camera {
   readonly kind: CameraKind
   readonly viewProjection: Mat4
+  readonly perspectiveFovYRadians: double = 0.0
+  readonly perspectiveNear: double = 0.0
+  readonly perspectiveFar: double = 0.0
   transform: Transform = Transform.identity()
 
   static screen(): Camera {
@@ -345,10 +348,13 @@ export class Camera {
     }
   }
 
-  static perspective(fovYRadians: double, aspect: double, near: double, far: double): Camera {
+  static perspective(fovYRadians: double, near: double, far: double): Camera {
     return Camera {
       kind: CameraKind.Perspective,
-      viewProjection: Mat4.perspective(fovYRadians, aspect, near, far),
+      viewProjection: Mat4.identity,
+      perspectiveFovYRadians: fovYRadians,
+      perspectiveNear: near,
+      perspectiveFar: far,
     }
   }
 
@@ -356,6 +362,9 @@ export class Camera {
     return Camera {
       kind: kind,
       viewProjection: viewProjection.multiply(view),
+      perspectiveFovYRadians: perspectiveFovYRadians,
+      perspectiveNear: perspectiveNear,
+      perspectiveFar: perspectiveFar,
       transform: transform,
     }
   }
@@ -448,6 +457,11 @@ export class Camera {
         m30: 0.0, m31: 0.0, m32: 0.0, m33: 1.0,
       }
       return projection.multiply(cameraView)
+    }
+    if kind == CameraKind.Perspective {
+      aspect := surface.width() / surface.height()
+      projection := Mat4.perspective(perspectiveFovYRadians, aspect, perspectiveNear, perspectiveFar)
+      return projection.multiply(viewProjection).multiply(cameraView)
     }
     return viewProjection.multiply(cameraView)
   }

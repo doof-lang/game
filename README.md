@@ -204,7 +204,7 @@ version.
 ```doof
 screenCamera := Camera.screen()
 worldCamera := Camera.orthographic(-400.0, 400.0, -225.0, 225.0, -10.0, 10.0)
-projection := Camera.perspective(1.0471975512, 16.0 / 9.0, 0.1, 100.0)
+projection := Camera.perspective(1.0471975512, 0.1, 100.0)
 camera := projection.withPosition(Point3(0.0, 0.0, 6.0))
 ```
 
@@ -213,7 +213,8 @@ camera := projection.withPosition(Point3(0.0, 0.0, 6.0))
 at the bottom-right. `Camera.identity()` treats positions as clip space.
 `Camera.orthographic(...)` accepts explicit world bounds, and
 `Camera.perspective(...)` builds a right-handed perspective projection suitable
-for objects in front of the camera on negative Z. Cameras carry a world-space
+for objects in front of the camera on negative Z, deriving aspect from the
+render surface. Cameras carry a world-space
 `Transform`; use `withPosition(...)`, `movedLocalBy(...)`, `rotatedLocalY(...)`,
 and related helpers to place the camera. Use `withView(...)` when you need to
 combine a projection camera with an explicit view matrix.
@@ -236,7 +237,7 @@ mesh := builder.build(app.surface)
 
 renderer.pass(
   RenderPassDescriptor {
-    camera: Camera.perspective(1.0471975512, 16.0 / 9.0, 0.1, 100.0),
+    camera: Camera.perspective(1.0471975512, 0.1, 100.0),
     clear: Clear.colorDepth(Color.black(), 1.0),
     depth: Depth.readWrite(),
     blend: Blend.opaque(),

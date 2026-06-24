@@ -104,9 +104,8 @@ function main(): int {
       camera = camera.moveLocalBy(Vec3.forward.times(frameSeconds * 4.0))
     }
 
-    aspect := double(surface.pixelWidth()) / double(surface.pixelHeight())
     sceneCamera := Camera
-      .perspective(fovY, aspect, 0.1, 100.0)
+      .perspective(fovY, 0.1, 100.0)
       .withTransform(camera.transform)
 
     renderer.pass(

@@ -614,6 +614,12 @@ function compileGameAppSmoke(): Result<void, string> {
         surfaceHeight := passSurface.height()
         Assert.isTrue(surfaceWidth > 0.0)
         Assert.isTrue(surfaceHeight > 0.0)
+        perspectiveMatrix := Camera
+          .perspective(1.5707963267948966, 0.1, 100.0)
+          .withView(Mat4.scale(2.0, 3.0, 1.0))
+          .matrix(passSurface)
+        assertApprox(perspectiveMatrix.m00, (surfaceHeight / surfaceWidth) * 2.0)
+        assertApprox(perspectiveMatrix.m11, 3.0)
         encoderHandle := pass.metalRenderCommandEncoderHandle()
         deviceHandle := pass.metalDeviceHandle()
         blendCode := pass.nativeBlendModeCode()
@@ -736,7 +742,7 @@ export function testCameraHelpersBuildExpectedKinds(): void {
   Assert.equal(Camera.screen().kind, CameraKind.Screen)
   Assert.equal(Camera.identity().kind, CameraKind.Identity)
   Assert.equal(Camera.orthographic(-1.0, 1.0, -1.0, 1.0).kind, CameraKind.Orthographic)
-  Assert.equal(Camera.perspective(1.0, 1.0, 0.1, 100.0).kind, CameraKind.Perspective)
+  Assert.equal(Camera.perspective(1.0, 0.1, 100.0).kind, CameraKind.Perspective)
 }
 
 export function testMat4IdentityTranslationAndScale(): void {

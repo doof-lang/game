@@ -33,8 +33,7 @@ function main(): int {
       resources = createAsteroidShaderResources(surface)
     }
 
-    aspect := double(surface.pixelWidth()) / double(surface.pixelHeight())
-    camera := Camera.perspective(1.0471975512, aspect, 0.1, 80.0)
+    camera := Camera.perspective(1.0471975512, 0.1, 80.0)
       .withPosition(Point3(0.0, 0.4, 2.6))
       .rotateLocalY(cameraYaw)
 
