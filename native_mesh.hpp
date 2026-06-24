@@ -124,6 +124,55 @@ private:
     std::shared_ptr<Impl> impl_;
 };
 
+class NativeShaderBuffer {
+public:
+    static doof::Result<std::shared_ptr<NativeShaderBuffer>, std::string> create(
+        int64_t metalDeviceHandle,
+        const std::shared_ptr<std::vector<uint8_t>>& data
+    );
+    NativeShaderBuffer(void* device, void* buffer, int32_t byteLength);
+    ~NativeShaderBuffer();
+
+    int32_t byteLength() const;
+    int64_t metalBufferHandle() const;
+
+private:
+    struct Impl;
+    std::shared_ptr<Impl> impl_;
+};
+
+class NativeShaderPipeline {
+public:
+    static doof::Result<std::shared_ptr<NativeShaderPipeline>, std::string> create(
+        int64_t metalDeviceHandle,
+        const std::string& source,
+        const std::string& vertexFunction,
+        const std::string& fragmentFunction,
+        const std::shared_ptr<std::vector<int32_t>>& attributeIndices,
+        const std::shared_ptr<std::vector<int32_t>>& attributeBuffers,
+        const std::shared_ptr<std::vector<int32_t>>& attributeOffsets,
+        const std::shared_ptr<std::vector<int32_t>>& attributeFormats,
+        const std::shared_ptr<std::vector<int32_t>>& layoutBuffers,
+        const std::shared_ptr<std::vector<int32_t>>& layoutStrides,
+        const std::shared_ptr<std::vector<int32_t>>& layoutStepFunctions,
+        const std::shared_ptr<std::vector<int32_t>>& layoutStepRates
+    );
+    NativeShaderPipeline(
+        void* device,
+        void* library,
+        void* vertexDescriptor,
+        std::string vertexFunction,
+        std::string fragmentFunction
+    );
+    ~NativeShaderPipeline();
+
+    doof::Result<int64_t, std::string> metalPipelineHandle(int32_t blendMode, bool hasDepthAttachment);
+
+private:
+    struct Impl;
+    std::shared_ptr<Impl> impl_;
+};
+
 void drawNativeSimpleMesh(
     std::shared_ptr<NativeSimpleMesh> mesh,
     int64_t metalRenderCommandEncoderHandle,
@@ -254,6 +303,28 @@ void drawNativeSpaceDust(
     double m31,
     double m32,
     double m33
+);
+
+doof::Result<void, std::string> drawNativeShader(
+    std::shared_ptr<NativeShaderPipeline> pipeline,
+    const std::shared_ptr<std::vector<int32_t>>& vertexBufferIndices,
+    const std::shared_ptr<std::vector<int64_t>>& vertexBufferHandles,
+    const std::shared_ptr<std::vector<int32_t>>& vertexBufferOffsets,
+    const std::shared_ptr<std::vector<int32_t>>& vertexBytesIndices,
+    const std::shared_ptr<std::vector<int64_t>>& vertexBytesHandles,
+    const std::shared_ptr<std::vector<int32_t>>& vertexBytesOffsets,
+    const std::shared_ptr<std::vector<int32_t>>& fragmentBytesIndices,
+    const std::shared_ptr<std::vector<int64_t>>& fragmentBytesHandles,
+    const std::shared_ptr<std::vector<int32_t>>& fragmentBytesOffsets,
+    const std::shared_ptr<std::vector<int32_t>>& fragmentTextureIndices,
+    const std::shared_ptr<std::vector<int64_t>>& fragmentTextureHandles,
+    int64_t indexBufferHandle,
+    int32_t indexCount,
+    int32_t vertexCount,
+    int32_t instanceCount,
+    int64_t metalRenderCommandEncoderHandle,
+    int32_t blendMode,
+    bool hasDepthAttachment
 );
 
 }  // namespace doof_game

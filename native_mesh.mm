@@ -1,5 +1,6 @@
 #include "native_mesh_internal.hpp"
 
+#include <climits>
 #include <memory>
 #include <string>
 #include <vector>
@@ -8,6 +9,121 @@ namespace doof_game {
 namespace {
 
 using native_mesh::SimpleMeshVertex;
+
+NSString* nsString(const std::string& value) {
+    return [NSString stringWithUTF8String:value.c_str()];
+}
+
+std::string errorMessage(NSError* error, const std::string& fallback) {
+    if (error == nil || error.localizedDescription == nil) {
+        return fallback;
+    }
+    return std::string([error.localizedDescription UTF8String]);
+}
+
+bool sameSize3(
+    const std::shared_ptr<std::vector<int32_t>>& a,
+    const std::shared_ptr<std::vector<int64_t>>& b,
+    const std::shared_ptr<std::vector<int32_t>>& c
+) {
+    if (!a || !b || !c) {
+        return false;
+    }
+    return a->size() == b->size() && a->size() == c->size();
+}
+
+bool sameSize2(
+    const std::shared_ptr<std::vector<int32_t>>& a,
+    const std::shared_ptr<std::vector<int64_t>>& b
+) {
+    if (!a || !b) {
+        return false;
+    }
+    return a->size() == b->size();
+}
+
+MTLVertexFormat shaderVertexFormat(int32_t format) {
+    switch (format) {
+        case 1: return MTLVertexFormatFloat;
+        case 2: return MTLVertexFormatFloat2;
+        case 3: return MTLVertexFormatFloat3;
+        case 4: return MTLVertexFormatFloat4;
+        case 5: return MTLVertexFormatUInt;
+        case 6: return MTLVertexFormatUChar4Normalized;
+        default: return MTLVertexFormatInvalid;
+    }
+}
+
+MTLVertexStepFunction shaderVertexStepFunction(int32_t stepFunction) {
+    switch (stepFunction) {
+        case 1: return MTLVertexStepFunctionPerVertex;
+        case 2: return MTLVertexStepFunctionPerInstance;
+        default: return MTLVertexStepFunctionConstant;
+    }
+}
+
+doof::Result<void, std::string> bindBuffers(
+    id<MTLRenderCommandEncoder> encoder,
+    const std::shared_ptr<std::vector<int32_t>>& indices,
+    const std::shared_ptr<std::vector<int64_t>>& handles,
+    const std::shared_ptr<std::vector<int32_t>>& offsets,
+    bool fragment
+) {
+    if (!sameSize3(indices, handles, offsets)) {
+        return doof::Result<void, std::string>::failure("Shader buffer binding arrays must have matching lengths");
+    }
+
+    for (size_t i = 0; i < indices->size(); ++i) {
+        if ((*indices)[i] < 0 || (*offsets)[i] < 0) {
+            return doof::Result<void, std::string>::failure("Shader buffer binding index and offset must be non-negative");
+        }
+        id<MTLBuffer> buffer = native_mesh::bridgeMetalHandle<id<MTLBuffer>>((*handles)[i]);
+        if (buffer == nil) {
+            return doof::Result<void, std::string>::failure("Shader buffer binding has an invalid Metal buffer handle");
+        }
+        NSUInteger offset = static_cast<NSUInteger>((*offsets)[i]);
+        NSUInteger index = static_cast<NSUInteger>((*indices)[i]);
+        if (fragment) {
+            [encoder setFragmentBuffer:buffer offset:offset atIndex:index];
+        } else {
+            [encoder setVertexBuffer:buffer offset:offset atIndex:index];
+        }
+    }
+    return doof::Result<void, std::string>::success();
+}
+
+doof::Result<void, std::string> bindTextures(
+    id<MTLRenderCommandEncoder> encoder,
+    id<MTLDevice> device,
+    const std::shared_ptr<std::vector<int32_t>>& indices,
+    const std::shared_ptr<std::vector<int64_t>>& handles
+) {
+    if (!sameSize2(indices, handles)) {
+        return doof::Result<void, std::string>::failure("Shader texture binding arrays must have matching lengths");
+    }
+    if (indices->empty()) {
+        return doof::Result<void, std::string>::success();
+    }
+
+    id<MTLSamplerState> sampler = native_mesh::linearSampler(device, MTLSamplerAddressModeClampToEdge);
+    if (sampler == nil) {
+        return doof::Result<void, std::string>::failure("Failed to create shader texture sampler");
+    }
+
+    for (size_t i = 0; i < indices->size(); ++i) {
+        if ((*indices)[i] < 0) {
+            return doof::Result<void, std::string>::failure("Shader texture binding index must be non-negative");
+        }
+        id<MTLTexture> texture = native_mesh::bridgeMetalHandle<id<MTLTexture>>((*handles)[i]);
+        if (texture == nil) {
+            return doof::Result<void, std::string>::failure("Shader texture binding has an invalid Metal texture handle");
+        }
+        NSUInteger index = static_cast<NSUInteger>((*indices)[i]);
+        [encoder setFragmentTexture:texture atIndex:index];
+        [encoder setFragmentSamplerState:sampler atIndex:index];
+    }
+    return doof::Result<void, std::string>::success();
+}
 
 struct SimpleModelInstance {
     float row0[4];
@@ -265,6 +381,62 @@ struct NativeSimpleModelBatch::Impl {
     }
 };
 
+struct NativeShaderBuffer::Impl {
+    id<MTLDevice> device = nil;
+    id<MTLBuffer> buffer = nil;
+    int32_t byteLength = 0;
+
+    Impl(void* rawDevice, void* rawBuffer, int32_t byteLength)
+        : device((__bridge id<MTLDevice>)rawDevice),
+          buffer((__bridge id<MTLBuffer>)rawBuffer),
+          byteLength(byteLength) {
+        [device retain];
+        [buffer retain];
+    }
+
+    ~Impl() {
+        [buffer release];
+        [device release];
+    }
+};
+
+struct NativeShaderPipeline::Impl {
+    id<MTLDevice> device = nil;
+    id<MTLLibrary> library = nil;
+    MTLVertexDescriptor* vertexDescriptor = nil;
+    std::string vertexFunction;
+    std::string fragmentFunction;
+    id<MTLRenderPipelineState> pipelines[4] = {};
+    bool attempted[4] = {};
+    std::string errors[4];
+
+    Impl(
+        void* rawDevice,
+        void* rawLibrary,
+        void* rawVertexDescriptor,
+        std::string vertexFunction,
+        std::string fragmentFunction
+    )
+        : device((__bridge id<MTLDevice>)rawDevice),
+          library((__bridge id<MTLLibrary>)rawLibrary),
+          vertexDescriptor((__bridge MTLVertexDescriptor*)rawVertexDescriptor),
+          vertexFunction(std::move(vertexFunction)),
+          fragmentFunction(std::move(fragmentFunction)) {
+        [device retain];
+        [library retain];
+        [vertexDescriptor retain];
+    }
+
+    ~Impl() {
+        for (id<MTLRenderPipelineState> pipeline : pipelines) {
+            [pipeline release];
+        }
+        [vertexDescriptor release];
+        [library release];
+        [device release];
+    }
+};
+
 NativeSimpleMesh::NativeSimpleMesh(void* device, void* vertexBuffer, void* indexBuffer, int32_t vertexCount, int32_t indexCount)
     : impl_(std::make_shared<Impl>(device, vertexBuffer, indexBuffer, vertexCount, indexCount)) {}
 
@@ -492,6 +664,218 @@ int64_t NativeSimpleModelBatch::metalInstanceBufferHandle() const {
     return native_mesh::metalHandle(impl_->instanceBuffer);
 }
 
+doof::Result<std::shared_ptr<NativeShaderBuffer>, std::string> NativeShaderBuffer::create(
+    int64_t metalDeviceHandle,
+    const std::shared_ptr<std::vector<uint8_t>>& data
+) {
+    id<MTLDevice> device = native_mesh::bridgeMetalHandle<id<MTLDevice>>(metalDeviceHandle);
+    if (device == nil) {
+        return doof::Result<std::shared_ptr<NativeShaderBuffer>, std::string>::failure("Metal device handle is invalid");
+    }
+
+    if (!data || data->empty()) {
+        return doof::Result<std::shared_ptr<NativeShaderBuffer>, std::string>::failure("Shader buffer data must not be empty");
+    }
+
+    if (data->size() > static_cast<size_t>(INT32_MAX)) {
+        return doof::Result<std::shared_ptr<NativeShaderBuffer>, std::string>::failure("Shader buffer data is too large");
+    }
+
+    id<MTLBuffer> buffer = [device newBufferWithBytes:data->data()
+                                               length:data->size()
+                                              options:MTLResourceStorageModeShared];
+    if (buffer == nil) {
+        return doof::Result<std::shared_ptr<NativeShaderBuffer>, std::string>::failure("Failed to create shader buffer");
+    }
+
+    auto shaderBuffer = std::make_shared<NativeShaderBuffer>(
+        (__bridge void*)device,
+        (__bridge void*)buffer,
+        static_cast<int32_t>(data->size())
+    );
+    [buffer release];
+    return doof::Result<std::shared_ptr<NativeShaderBuffer>, std::string>::success(shaderBuffer);
+}
+
+NativeShaderBuffer::NativeShaderBuffer(void* device, void* buffer, int32_t byteLength)
+    : impl_(std::make_shared<Impl>(device, buffer, byteLength)) {}
+
+NativeShaderBuffer::~NativeShaderBuffer() = default;
+
+int32_t NativeShaderBuffer::byteLength() const {
+    return impl_->byteLength;
+}
+
+int64_t NativeShaderBuffer::metalBufferHandle() const {
+    return native_mesh::metalHandle(impl_->buffer);
+}
+
+doof::Result<std::shared_ptr<NativeShaderPipeline>, std::string> NativeShaderPipeline::create(
+    int64_t metalDeviceHandle,
+    const std::string& source,
+    const std::string& vertexFunction,
+    const std::string& fragmentFunction,
+    const std::shared_ptr<std::vector<int32_t>>& attributeIndices,
+    const std::shared_ptr<std::vector<int32_t>>& attributeBuffers,
+    const std::shared_ptr<std::vector<int32_t>>& attributeOffsets,
+    const std::shared_ptr<std::vector<int32_t>>& attributeFormats,
+    const std::shared_ptr<std::vector<int32_t>>& layoutBuffers,
+    const std::shared_ptr<std::vector<int32_t>>& layoutStrides,
+    const std::shared_ptr<std::vector<int32_t>>& layoutStepFunctions,
+    const std::shared_ptr<std::vector<int32_t>>& layoutStepRates
+) {
+    id<MTLDevice> device = native_mesh::bridgeMetalHandle<id<MTLDevice>>(metalDeviceHandle);
+    if (device == nil) {
+        return doof::Result<std::shared_ptr<NativeShaderPipeline>, std::string>::failure("Metal device handle is invalid");
+    }
+    if (source.empty()) {
+        return doof::Result<std::shared_ptr<NativeShaderPipeline>, std::string>::failure("Shader source must not be empty");
+    }
+    if (vertexFunction.empty()) {
+        return doof::Result<std::shared_ptr<NativeShaderPipeline>, std::string>::failure("Shader vertex function name must not be empty");
+    }
+    if (fragmentFunction.empty()) {
+        return doof::Result<std::shared_ptr<NativeShaderPipeline>, std::string>::failure("Shader fragment function name must not be empty");
+    }
+    if (!attributeIndices || !attributeBuffers || !attributeOffsets || !attributeFormats ||
+        attributeIndices->size() != attributeBuffers->size() ||
+        attributeIndices->size() != attributeOffsets->size() ||
+        attributeIndices->size() != attributeFormats->size()) {
+        return doof::Result<std::shared_ptr<NativeShaderPipeline>, std::string>::failure("Shader vertex attribute arrays must have matching lengths");
+    }
+    if (!layoutBuffers || !layoutStrides || !layoutStepFunctions || !layoutStepRates ||
+        layoutBuffers->size() != layoutStrides->size() ||
+        layoutBuffers->size() != layoutStepFunctions->size() ||
+        layoutBuffers->size() != layoutStepRates->size()) {
+        return doof::Result<std::shared_ptr<NativeShaderPipeline>, std::string>::failure("Shader vertex layout arrays must have matching lengths");
+    }
+
+    NSError* error = nil;
+    id<MTLLibrary> library = [device newLibraryWithSource:nsString(source) options:nil error:&error];
+    if (library == nil) {
+        return doof::Result<std::shared_ptr<NativeShaderPipeline>, std::string>::failure(errorMessage(error, "Failed to compile shader source"));
+    }
+
+    id<MTLFunction> vertex = [library newFunctionWithName:nsString(vertexFunction)];
+    if (vertex == nil) {
+        [library release];
+        return doof::Result<std::shared_ptr<NativeShaderPipeline>, std::string>::failure("Shader vertex function was not found: " + vertexFunction);
+    }
+    [vertex release];
+
+    id<MTLFunction> fragment = [library newFunctionWithName:nsString(fragmentFunction)];
+    if (fragment == nil) {
+        [library release];
+        return doof::Result<std::shared_ptr<NativeShaderPipeline>, std::string>::failure("Shader fragment function was not found: " + fragmentFunction);
+    }
+    [fragment release];
+
+    MTLVertexDescriptor* vertexDescriptor = [[MTLVertexDescriptor alloc] init];
+    for (size_t i = 0; i < layoutBuffers->size(); ++i) {
+        if ((*layoutBuffers)[i] < 0 || (*layoutStrides)[i] <= 0 || (*layoutStepRates)[i] <= 0) {
+            [vertexDescriptor release];
+            [library release];
+            return doof::Result<std::shared_ptr<NativeShaderPipeline>, std::string>::failure("Shader vertex layout buffer index, stride, and step rate must be positive");
+        }
+        MTLVertexStepFunction stepFunction = shaderVertexStepFunction((*layoutStepFunctions)[i]);
+        if (stepFunction == MTLVertexStepFunctionConstant) {
+            [vertexDescriptor release];
+            [library release];
+            return doof::Result<std::shared_ptr<NativeShaderPipeline>, std::string>::failure("Shader vertex layout step function is invalid");
+        }
+        vertexDescriptor.layouts[static_cast<NSUInteger>((*layoutBuffers)[i])].stride = static_cast<NSUInteger>((*layoutStrides)[i]);
+        vertexDescriptor.layouts[static_cast<NSUInteger>((*layoutBuffers)[i])].stepFunction = stepFunction;
+        vertexDescriptor.layouts[static_cast<NSUInteger>((*layoutBuffers)[i])].stepRate = static_cast<NSUInteger>((*layoutStepRates)[i]);
+    }
+
+    for (size_t i = 0; i < attributeIndices->size(); ++i) {
+        if ((*attributeIndices)[i] < 0 || (*attributeBuffers)[i] < 0 || (*attributeOffsets)[i] < 0) {
+            [vertexDescriptor release];
+            [library release];
+            return doof::Result<std::shared_ptr<NativeShaderPipeline>, std::string>::failure("Shader vertex attribute index, buffer, and offset must be non-negative");
+        }
+        MTLVertexFormat format = shaderVertexFormat((*attributeFormats)[i]);
+        if (format == MTLVertexFormatInvalid) {
+            [vertexDescriptor release];
+            [library release];
+            return doof::Result<std::shared_ptr<NativeShaderPipeline>, std::string>::failure("Shader vertex attribute format is invalid");
+        }
+        MTLVertexAttributeDescriptor* attribute = vertexDescriptor.attributes[static_cast<NSUInteger>((*attributeIndices)[i])];
+        attribute.format = format;
+        attribute.offset = static_cast<NSUInteger>((*attributeOffsets)[i]);
+        attribute.bufferIndex = static_cast<NSUInteger>((*attributeBuffers)[i]);
+    }
+
+    auto pipeline = std::make_shared<NativeShaderPipeline>(
+        (__bridge void*)device,
+        (__bridge void*)library,
+        (__bridge void*)vertexDescriptor,
+        vertexFunction,
+        fragmentFunction
+    );
+    [vertexDescriptor release];
+    [library release];
+    return doof::Result<std::shared_ptr<NativeShaderPipeline>, std::string>::success(pipeline);
+}
+
+NativeShaderPipeline::NativeShaderPipeline(
+    void* device,
+    void* library,
+    void* vertexDescriptor,
+    std::string vertexFunction,
+    std::string fragmentFunction
+) : impl_(std::make_shared<Impl>(device, library, vertexDescriptor, std::move(vertexFunction), std::move(fragmentFunction))) {}
+
+NativeShaderPipeline::~NativeShaderPipeline() = default;
+
+doof::Result<int64_t, std::string> NativeShaderPipeline::metalPipelineHandle(int32_t blendMode, bool hasDepthAttachment) {
+    if (impl_->device == nil || impl_->library == nil || impl_->vertexDescriptor == nil) {
+        return doof::Result<int64_t, std::string>::failure("Shader pipeline is invalid");
+    }
+
+    int32_t slot = (blendMode == 1 ? 2 : 0) + (hasDepthAttachment ? 1 : 0);
+    if (impl_->pipelines[slot] != nil) {
+        return doof::Result<int64_t, std::string>::success(native_mesh::metalHandle(impl_->pipelines[slot]));
+    }
+    if (impl_->attempted[slot]) {
+        return doof::Result<int64_t, std::string>::failure(impl_->errors[slot]);
+    }
+    impl_->attempted[slot] = true;
+
+    id<MTLFunction> vertex = [impl_->library newFunctionWithName:nsString(impl_->vertexFunction)];
+    id<MTLFunction> fragment = [impl_->library newFunctionWithName:nsString(impl_->fragmentFunction)];
+    if (vertex == nil || fragment == nil) {
+        [fragment release];
+        [vertex release];
+        impl_->errors[slot] = "Shader functions are no longer available";
+        return doof::Result<int64_t, std::string>::failure(impl_->errors[slot]);
+    }
+
+    MTLRenderPipelineDescriptor* descriptor = [[MTLRenderPipelineDescriptor alloc] init];
+    descriptor.vertexFunction = vertex;
+    descriptor.fragmentFunction = fragment;
+    descriptor.vertexDescriptor = impl_->vertexDescriptor;
+    descriptor.colorAttachments[0].pixelFormat = MTLPixelFormatBGRA8Unorm;
+    native_mesh::configureDepthAttachment(descriptor, hasDepthAttachment);
+    if (blendMode == 1) {
+        native_mesh::configureAlphaBlending(descriptor.colorAttachments[0]);
+    }
+
+    NSError* error = nil;
+    id<MTLRenderPipelineState> pipeline = [impl_->device newRenderPipelineStateWithDescriptor:descriptor error:&error];
+    [descriptor release];
+    [fragment release];
+    [vertex release];
+
+    if (pipeline == nil) {
+        impl_->errors[slot] = errorMessage(error, "Failed to create shader render pipeline");
+        return doof::Result<int64_t, std::string>::failure(impl_->errors[slot]);
+    }
+
+    impl_->pipelines[slot] = pipeline;
+    return doof::Result<int64_t, std::string>::success(native_mesh::metalHandle(pipeline));
+}
+
 void drawNativeSimpleMesh(
     std::shared_ptr<NativeSimpleMesh> mesh,
     int64_t metalRenderCommandEncoderHandle,
@@ -633,6 +1017,98 @@ void drawNativeSimpleModelBatch(
                 vertexStart:0
                 vertexCount:static_cast<NSUInteger>(mesh->indexCount())
               instanceCount:static_cast<NSUInteger>(batch->count())];
+}
+
+doof::Result<void, std::string> drawNativeShader(
+    std::shared_ptr<NativeShaderPipeline> pipeline,
+    const std::shared_ptr<std::vector<int32_t>>& vertexBufferIndices,
+    const std::shared_ptr<std::vector<int64_t>>& vertexBufferHandles,
+    const std::shared_ptr<std::vector<int32_t>>& vertexBufferOffsets,
+    const std::shared_ptr<std::vector<int32_t>>& vertexBytesIndices,
+    const std::shared_ptr<std::vector<int64_t>>& vertexBytesHandles,
+    const std::shared_ptr<std::vector<int32_t>>& vertexBytesOffsets,
+    const std::shared_ptr<std::vector<int32_t>>& fragmentBytesIndices,
+    const std::shared_ptr<std::vector<int64_t>>& fragmentBytesHandles,
+    const std::shared_ptr<std::vector<int32_t>>& fragmentBytesOffsets,
+    const std::shared_ptr<std::vector<int32_t>>& fragmentTextureIndices,
+    const std::shared_ptr<std::vector<int64_t>>& fragmentTextureHandles,
+    int64_t indexBufferHandle,
+    int32_t indexCount,
+    int32_t vertexCount,
+    int32_t instanceCount,
+    int64_t metalRenderCommandEncoderHandle,
+    int32_t blendMode,
+    bool hasDepthAttachment
+) {
+    if (!pipeline) {
+        return doof::Result<void, std::string>::failure("Shader pipeline is required");
+    }
+
+    id<MTLRenderCommandEncoder> encoder = native_mesh::bridgeMetalHandle<id<MTLRenderCommandEncoder>>(metalRenderCommandEncoderHandle);
+    if (encoder == nil) {
+        return doof::Result<void, std::string>::failure("Metal render command encoder handle is invalid");
+    }
+
+    auto pipelineHandle = pipeline->metalPipelineHandle(blendMode, hasDepthAttachment);
+    if (pipelineHandle.isFailure()) {
+        return doof::Result<void, std::string>::failure(pipelineHandle.error());
+    }
+    id<MTLRenderPipelineState> metalPipeline = native_mesh::bridgeMetalHandle<id<MTLRenderPipelineState>>(pipelineHandle.value());
+    if (metalPipeline == nil) {
+        return doof::Result<void, std::string>::failure("Shader pipeline handle is invalid");
+    }
+
+    auto boundVertexBuffers = bindBuffers(encoder, vertexBufferIndices, vertexBufferHandles, vertexBufferOffsets, false);
+    if (boundVertexBuffers.isFailure()) {
+        return boundVertexBuffers;
+    }
+
+    auto boundVertexBytes = bindBuffers(encoder, vertexBytesIndices, vertexBytesHandles, vertexBytesOffsets, false);
+    if (boundVertexBytes.isFailure()) {
+        return boundVertexBytes;
+    }
+
+    auto boundFragmentBytes = bindBuffers(encoder, fragmentBytesIndices, fragmentBytesHandles, fragmentBytesOffsets, true);
+    if (boundFragmentBytes.isFailure()) {
+        return boundFragmentBytes;
+    }
+
+    id<MTLDevice> device = metalPipeline.device;
+    auto boundTextures = bindTextures(encoder, device, fragmentTextureIndices, fragmentTextureHandles);
+    if (boundTextures.isFailure()) {
+        return boundTextures;
+    }
+
+    [encoder setRenderPipelineState:metalPipeline];
+
+    if (indexCount > 0) {
+        if (instanceCount <= 0) {
+            return doof::Result<void, std::string>::failure("Shader instance count must be positive");
+        }
+        id<MTLBuffer> indexBuffer = native_mesh::bridgeMetalHandle<id<MTLBuffer>>(indexBufferHandle);
+        if (indexBuffer == nil) {
+            return doof::Result<void, std::string>::failure("Shader index buffer handle is invalid");
+        }
+        [encoder drawIndexedPrimitives:MTLPrimitiveTypeTriangle
+                            indexCount:static_cast<NSUInteger>(indexCount)
+                             indexType:MTLIndexTypeUInt32
+                           indexBuffer:indexBuffer
+                     indexBufferOffset:0
+                         instanceCount:static_cast<NSUInteger>(instanceCount)];
+    } else {
+        if (vertexCount <= 0) {
+            return doof::Result<void, std::string>::failure("Shader vertex count must be positive for non-indexed draws");
+        }
+        if (instanceCount <= 0) {
+            return doof::Result<void, std::string>::failure("Shader instance count must be positive");
+        }
+        [encoder drawPrimitives:MTLPrimitiveTypeTriangle
+                    vertexStart:0
+                    vertexCount:static_cast<NSUInteger>(vertexCount)
+                  instanceCount:static_cast<NSUInteger>(instanceCount)];
+    }
+
+    return doof::Result<void, std::string>::success();
 }
 
 }  // namespace doof_game

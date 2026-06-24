@@ -468,6 +468,61 @@ instanced draw call. Instance handles update their batch slot through ergonomic
 transform, tint, and UV helpers. Removing an instance keeps the live slots packed,
 and later use of the removed handle is a programmer error.
 
+### Custom Shaders
+
+```doof
+import { BlobBuilder } from "std/blob"
+
+source := "#include <metal_stdlib>\n" +
+  "using namespace metal;\n" +
+  "struct VertexIn { float2 position [[attribute(0)]]; float4 color [[attribute(1)]]; };\n" +
+  "struct VertexOut { float4 position [[position]]; float4 color; };\n" +
+  "vertex VertexOut vertex_main(VertexIn in [[stage_in]]) { VertexOut out; out.position = float4(in.position, 0.0, 1.0); out.color = in.color; return out; }\n" +
+  "fragment float4 fragment_main(VertexOut in [[stage_in]]) { return in.color; }\n"
+
+pipeline := try! ShaderPipeline.create(
+  app.surface,
+  ShaderPipelineDescriptor {
+    source,
+    vertexFunction: "vertex_main",
+    fragmentFunction: "fragment_main",
+    attributes: [
+      ShaderVertexAttribute { attribute: 0, offset: 0, format: ShaderVertexFormat.Float2 },
+      ShaderVertexAttribute { attribute: 1, offset: 8, format: ShaderVertexFormat.Float4 },
+    ],
+    layouts: [ShaderVertexLayout { stride: 24 }],
+  },
+)
+
+vertices := BlobBuilder {}
+vertices.writeFloat(-0.6f); vertices.writeFloat(-0.6f); vertices.writeFloat(1.0f); vertices.writeFloat(0.0f); vertices.writeFloat(0.0f); vertices.writeFloat(1.0f)
+vertices.writeFloat(0.6f); vertices.writeFloat(-0.6f); vertices.writeFloat(0.0f); vertices.writeFloat(1.0f); vertices.writeFloat(0.0f); vertices.writeFloat(1.0f)
+vertices.writeFloat(0.0f); vertices.writeFloat(0.6f); vertices.writeFloat(0.0f); vertices.writeFloat(0.0f); vertices.writeFloat(1.0f); vertices.writeFloat(1.0f)
+vertexBuffer := try! ShaderBuffer.create(app.surface, vertices.build())
+```
+
+`ShaderPipeline` compiles Metal shader source from Doof and caches render
+pipeline variants for the active pass blend mode and depth attachment. Custom
+draws use explicit Metal-like numeric binding indices: vertex buffers,
+vertex-byte buffers, fragment-byte buffers, and fragment textures are bound to
+the indices requested by the shader. `drawShader(...)` renders triangles, either
+from a vertex count or from a `uint32` index buffer. Set
+`ShaderDraw.instanceCount` for instanced custom draws, and mark per-instance
+buffers with `ShaderVertexLayout { stepFunction: ShaderVertexStepFunction.PerInstance }`.
+The default layout step function is per-vertex, and the default draw instance
+count is `1`.
+
+For normal-mapped asteroids, keep the asteroid silhouette in real geometry and
+use a custom shader for surface detail. A typical vertex layout carries
+position, normal, UV, and tangent attributes; the fragment shader samples an
+albedo texture and a normal map, transforms the tangent-space normal into the
+mesh lighting space, and applies whatever lighting model the sample wants.
+This keeps `SimpleMesh` simple while leaving richer materials and completely
+custom vertex formats available through the shader path. The
+`samples/asteroids-shader` program shows indexed custom draws with one asteroid
+prototype vertex/index buffer pair and a per-instance buffer for placement,
+spin, color, and deformation seeds.
+
 ### Equirectangular Sky Maps
 
 ```doof

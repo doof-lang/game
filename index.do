@@ -34,6 +34,20 @@ export { SimpleModel, drawSimpleModel } from "./model"
 export { SimpleModelBatch, SimpleModelInstance, SimpleModelInstanceConfig, Vec2, drawSimpleModelBatch } from "./model_batch"
 export { ObjError, loadObjMeshSpec, parseObjMeshSpec } from "./obj"
 export { mouseButtonCode, mouseButtonFromCode } from "./mouse"
+export {
+  ShaderBuffer,
+  ShaderBufferBinding,
+  ShaderBytesBinding,
+  ShaderDraw,
+  ShaderPipeline,
+  ShaderPipelineDescriptor,
+  ShaderTextureBinding,
+  ShaderVertexAttribute,
+  ShaderVertexFormat,
+  ShaderVertexLayout,
+  ShaderVertexStepFunction,
+  drawShader,
+} from "./shader"
 export { createSphereMeshSpec } from "./sphere"
 export { SkyMap, drawEquirectangularSkyMap } from "./sky"
 export {

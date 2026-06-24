@@ -174,6 +174,29 @@ export import class NativeSpaceDust from "native_mesh.hpp" as doof_game::NativeS
   particleCount(): int
 }
 
+export import class NativeShaderBuffer from "native_mesh.hpp" as doof_game::NativeShaderBuffer {
+  static create(metalDeviceHandle: long, data: readonly byte[]): Result<NativeShaderBuffer, string>
+  byteLength(): int
+  metalBufferHandle(): long
+}
+
+export import class NativeShaderPipeline from "native_mesh.hpp" as doof_game::NativeShaderPipeline {
+  static create(
+    metalDeviceHandle: long,
+    source: string,
+    vertexFunction: string,
+    fragmentFunction: string,
+    attributeIndices: int[],
+    attributeBuffers: int[],
+    attributeOffsets: int[],
+    attributeFormats: int[],
+    layoutBuffers: int[],
+    layoutStrides: int[],
+    layoutStepFunctions: int[],
+    layoutStepRates: int[],
+  ): Result<NativeShaderPipeline, string>
+}
+
 export import function drawNativeSimpleMesh(
   mesh: NativeSimpleMesh,
   metalRenderCommandEncoderHandle: long,
@@ -249,6 +272,28 @@ export import function drawNativeSimpleModelBatch(
   m32: double,
   m33: double,
 ): void from "native_mesh.hpp" as doof_game::drawNativeSimpleModelBatch
+
+export import function drawNativeShader(
+  pipeline: NativeShaderPipeline,
+  vertexBufferIndices: int[],
+  vertexBufferHandles: long[],
+  vertexBufferOffsets: int[],
+  vertexBytesIndices: int[],
+  vertexBytesHandles: long[],
+  vertexBytesOffsets: int[],
+  fragmentBytesIndices: int[],
+  fragmentBytesHandles: long[],
+  fragmentBytesOffsets: int[],
+  fragmentTextureIndices: int[],
+  fragmentTextureHandles: long[],
+  indexBufferHandle: long,
+  indexCount: int,
+  vertexCount: int,
+  instanceCount: int,
+  metalRenderCommandEncoderHandle: long,
+  blendMode: int,
+  hasDepthAttachment: bool,
+): Result<void, string> from "native_mesh.hpp" as doof_game::drawNativeShader
 
 export import function drawNativeEquirectangularSkyMap(
   metalTextureHandle: long,

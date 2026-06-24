@@ -1,4 +1,5 @@
 import { Assert } from "std/assert"
+import { BlobBuilder } from "std/blob"
 import { setInterval } from "std/event"
 import { Image, PixelBytes } from "std/image"
 import { approxEqual } from "std/math"
@@ -44,7 +45,19 @@ import {
   Vec3,
   WindingMode,
   RenderPassDescriptor,
+  ShaderBuffer,
+  ShaderBufferBinding,
+  ShaderBytesBinding,
+  ShaderDraw,
+  ShaderPipeline,
+  ShaderPipelineDescriptor,
+  ShaderTextureBinding,
+  ShaderVertexAttribute,
+  ShaderVertexFormat,
+  ShaderVertexLayout,
+  ShaderVertexStepFunction,
   createSphereMeshSpec,
+  drawShader,
   drawSimpleModelBatch,
   drawSimpleModel,
   drawSimpleMesh,
@@ -224,6 +237,326 @@ function compileSimpleModelBatchSmoke(texture: Texture, surface: GameSurface, pa
   drawSimpleModelBatch(pass, batch)
 }
 
+function customShaderSource(): string {
+  return "#include <metal_stdlib>\n" +
+    "using namespace metal;\n" +
+    "struct VertexIn { float2 position [[attribute(0)]]; float4 color [[attribute(1)]]; };\n" +
+    "struct VertexOut { float4 position [[position]]; float4 color; };\n" +
+    "vertex VertexOut shader_vertex(VertexIn in [[stage_in]]) {\n" +
+    "  VertexOut out;\n" +
+    "  out.position = float4(in.position, 0.0, 1.0);\n" +
+    "  out.color = in.color;\n" +
+    "  return out;\n" +
+    "}\n" +
+    "fragment float4 shader_fragment(VertexOut in [[stage_in]], constant float4& tint [[buffer(0)]], texture2d<float> tex [[texture(0)]], sampler textureSampler [[sampler(0)]]) {\n" +
+    "  return in.color * tint * tex.sample(textureSampler, float2(0.5, 0.5));\n" +
+    "}\n"
+}
+
+function writeShaderVertex(builder: BlobBuilder, x: float, y: float, r: float, g: float, b: float, a: float): void {
+  builder.writeFloat(x)
+  builder.writeFloat(y)
+  builder.writeFloat(r)
+  builder.writeFloat(g)
+  builder.writeFloat(b)
+  builder.writeFloat(a)
+}
+
+function shaderVertexBytes(): readonly byte[] {
+  builder := BlobBuilder {}
+  writeShaderVertex(builder, -0.6f, -0.6f, 1.0f, 0.0f, 0.0f, 1.0f)
+  writeShaderVertex(builder, 0.6f, -0.6f, 0.0f, 1.0f, 0.0f, 1.0f)
+  writeShaderVertex(builder, 0.0f, 0.6f, 0.0f, 0.0f, 1.0f, 1.0f)
+  return builder.build()
+}
+
+function shaderIndexBytes(): readonly byte[] {
+  builder := BlobBuilder {}
+  builder.writeUnsignedInt(0L)
+  builder.writeUnsignedInt(1L)
+  builder.writeUnsignedInt(2L)
+  return builder.build()
+}
+
+function shaderTintBytes(): readonly byte[] {
+  builder := BlobBuilder {}
+  builder.writeFloat(1.0f)
+  builder.writeFloat(1.0f)
+  builder.writeFloat(1.0f)
+  builder.writeFloat(1.0f)
+  return builder.build()
+}
+
+function instancedShaderSource(): string {
+  return "#include <metal_stdlib>\n" +
+    "using namespace metal;\n" +
+    "struct VertexIn { float2 position [[attribute(0)]]; float4 color [[attribute(1)]]; float2 offset [[attribute(2)]]; float4 instanceColor [[attribute(3)]]; };\n" +
+    "struct VertexOut { float4 position [[position]]; float4 color; };\n" +
+    "vertex VertexOut shader_vertex(VertexIn in [[stage_in]]) {\n" +
+    "  VertexOut out;\n" +
+    "  out.position = float4(in.position + in.offset, 0.0, 1.0);\n" +
+    "  out.color = in.color * in.instanceColor;\n" +
+    "  return out;\n" +
+    "}\n" +
+    "fragment float4 shader_fragment(VertexOut in [[stage_in]]) {\n" +
+    "  return in.color;\n" +
+    "}\n"
+}
+
+function createShaderPipeline(surface: GameSurface): ShaderPipeline {
+  return try! ShaderPipeline.create(
+    surface,
+    ShaderPipelineDescriptor {
+      source: customShaderSource(),
+      vertexFunction: "shader_vertex",
+      fragmentFunction: "shader_fragment",
+      attributes: [
+        ShaderVertexAttribute {
+          attribute: 0,
+          buffer: 0,
+          offset: 0,
+          format: ShaderVertexFormat.Float2,
+        },
+        ShaderVertexAttribute {
+          attribute: 1,
+          buffer: 0,
+          offset: 8,
+          format: ShaderVertexFormat.Float4,
+        },
+      ],
+      layouts: [
+        ShaderVertexLayout {
+          buffer: 0,
+          stride: 24,
+        },
+      ],
+    },
+  )
+}
+
+function shaderInstanceBytes(): readonly byte[] {
+  builder := BlobBuilder {}
+  builder.writeFloat(-0.2f); builder.writeFloat(0.0f)
+  builder.writeFloat(1.0f); builder.writeFloat(0.7f); builder.writeFloat(0.7f); builder.writeFloat(1.0f)
+  builder.writeFloat(0.2f); builder.writeFloat(0.0f)
+  builder.writeFloat(0.7f); builder.writeFloat(0.7f); builder.writeFloat(1.0f); builder.writeFloat(1.0f)
+  return builder.build()
+}
+
+function createInstancedShaderPipeline(surface: GameSurface): ShaderPipeline {
+  return try! ShaderPipeline.create(
+    surface,
+    ShaderPipelineDescriptor {
+      source: instancedShaderSource(),
+      vertexFunction: "shader_vertex",
+      fragmentFunction: "shader_fragment",
+      attributes: [
+        ShaderVertexAttribute {
+          attribute: 0,
+          buffer: 0,
+          offset: 0,
+          format: ShaderVertexFormat.Float2,
+        },
+        ShaderVertexAttribute {
+          attribute: 1,
+          buffer: 0,
+          offset: 8,
+          format: ShaderVertexFormat.Float4,
+        },
+        ShaderVertexAttribute {
+          attribute: 2,
+          buffer: 1,
+          offset: 0,
+          format: ShaderVertexFormat.Float2,
+        },
+        ShaderVertexAttribute {
+          attribute: 3,
+          buffer: 1,
+          offset: 8,
+          format: ShaderVertexFormat.Float4,
+        },
+      ],
+      layouts: [
+        ShaderVertexLayout {
+          buffer: 0,
+          stride: 24,
+        },
+        ShaderVertexLayout {
+          buffer: 1,
+          stride: 24,
+          stepFunction: ShaderVertexStepFunction.PerInstance,
+        },
+      ],
+    },
+  )
+}
+
+function assertShaderPipelineFailure(result: Result<ShaderPipeline, string>): void {
+  case result {
+    s: Success -> Assert.isTrue(false, "expected shader pipeline creation to fail")
+    f: Failure -> Assert.isTrue(f.error.length > 0)
+  }
+}
+
+function assertShaderDrawFailure(result: Result<void, string>): void {
+  case result {
+    s: Success -> Assert.isTrue(false, "expected shader draw to fail")
+    f: Failure -> Assert.isTrue(f.error.length > 0)
+  }
+}
+
+function compileShaderSmoke(texture: Texture, surface: GameSurface, pass: RenderPass): void {
+  pipeline := createShaderPipeline(surface)
+  vertexBuffer := try! ShaderBuffer.create(surface, shaderVertexBytes())
+  instanceBuffer := try! ShaderBuffer.create(surface, shaderInstanceBytes())
+  indexBuffer := try! ShaderBuffer.create(surface, shaderIndexBytes())
+  tint := try! ShaderBytesBinding.create(surface, 0, shaderTintBytes())
+
+  try! drawShader(
+    pass,
+    ShaderDraw {
+      pipeline,
+      vertexBuffers: [
+        ShaderBufferBinding {
+          index: 0,
+          buffer: vertexBuffer,
+        },
+      ],
+      vertexCount: 3,
+      fragmentBytes: [tint],
+      fragmentTextures: [
+        ShaderTextureBinding {
+          index: 0,
+          texture,
+        },
+      ],
+    },
+  )
+
+  try! drawShader(
+    pass,
+    ShaderDraw {
+      pipeline,
+      vertexBuffers: [
+        ShaderBufferBinding {
+          index: 0,
+          buffer: vertexBuffer,
+        },
+      ],
+      indexBuffer,
+      indexCount: 3,
+      fragmentBytes: [tint],
+      fragmentTextures: [
+        ShaderTextureBinding {
+          index: 0,
+          texture,
+        },
+      ],
+    },
+  )
+
+  instancedPipeline := createInstancedShaderPipeline(surface)
+  try! drawShader(
+    pass,
+    ShaderDraw {
+      pipeline: instancedPipeline,
+      vertexBuffers: [
+        ShaderBufferBinding {
+          index: 0,
+          buffer: vertexBuffer,
+        },
+        ShaderBufferBinding {
+          index: 1,
+          buffer: instanceBuffer,
+        },
+      ],
+      vertexCount: 3,
+      instanceCount: 2,
+    },
+  )
+
+  emptyPipeline := ShaderPipeline.create(
+    surface,
+    ShaderPipelineDescriptor {
+      source: "",
+      vertexFunction: "shader_vertex",
+      fragmentFunction: "shader_fragment",
+      attributes: [],
+      layouts: [],
+    },
+  )
+  assertShaderPipelineFailure(emptyPipeline)
+
+  missingFunction := ShaderPipeline.create(
+    surface,
+    ShaderPipelineDescriptor {
+      source: customShaderSource(),
+      vertexFunction: "",
+      fragmentFunction: "shader_fragment",
+      attributes: [],
+      layouts: [ShaderVertexLayout { stride: 24 }],
+    },
+  )
+  assertShaderPipelineFailure(missingFunction)
+
+  invalidLayout := ShaderPipeline.create(
+    surface,
+    ShaderPipelineDescriptor {
+      source: customShaderSource(),
+      vertexFunction: "shader_vertex",
+      fragmentFunction: "shader_fragment",
+      attributes: [],
+      layouts: [ShaderVertexLayout { stride: 0 }],
+    },
+  )
+  assertShaderPipelineFailure(invalidLayout)
+
+  invalidStepRate := ShaderPipeline.create(
+    surface,
+    ShaderPipelineDescriptor {
+      source: customShaderSource(),
+      vertexFunction: "shader_vertex",
+      fragmentFunction: "shader_fragment",
+      attributes: [],
+      layouts: [ShaderVertexLayout { stride: 24, stepRate: 0 }],
+    },
+  )
+  assertShaderPipelineFailure(invalidStepRate)
+
+  badIndexBuffer := try! ShaderBuffer.create(surface, [0, 1, 2])
+  badIndexDraw := drawShader(
+    pass,
+    ShaderDraw {
+      pipeline,
+      vertexBuffers: [
+        ShaderBufferBinding {
+          index: 0,
+          buffer: vertexBuffer,
+        },
+      ],
+      indexBuffer: badIndexBuffer,
+      indexCount: 1,
+    },
+  )
+  assertShaderDrawFailure(badIndexDraw)
+
+  badInstanceDraw := drawShader(
+    pass,
+    ShaderDraw {
+      pipeline,
+      vertexBuffers: [
+        ShaderBufferBinding {
+          index: 0,
+          buffer: vertexBuffer,
+        },
+      ],
+      vertexCount: 3,
+      instanceCount: 0,
+    },
+  )
+  assertShaderDrawFailure(badInstanceDraw)
+}
+
 function compileGameAppSmoke(): Result<void, string> {
   app := initGameApp{ title: "Doof Game Smoke" }
   inMemoryPixels := PixelBytes(1, 1, [255, 255, 255, 255])
@@ -294,6 +627,9 @@ function compileGameAppSmoke(): Result<void, string> {
         Assert.isTrue(approxEqual(projected.z, matrixProjected.z))
         Assert.isTrue(approxEqual(projected.w, matrixProjected.w))
         compileMeshSmoke(passSurface, pass)
+        compileTexturedSimpleMeshSmoke(inMemoryTexture, passSurface, pass)
+        compileSimpleModelBatchSmoke(inMemoryTexture, passSurface, pass)
+        compileShaderSmoke(inMemoryTexture, passSurface, pass)
       },
     )
     renderer.pass(

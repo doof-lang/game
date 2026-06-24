@@ -1,0 +1,8 @@
+{
+  "name": "std-game-asteroids-shader-sample",
+  "version": "0.1.0",
+  "license": "ISC",
+  "resources": ["shaders"],
+  "dependencies": {
+  }
+}
