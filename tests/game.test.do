@@ -745,6 +745,24 @@ export function testCameraHelpersBuildExpectedKinds(): void {
   Assert.equal(Camera.perspective(1.0, 0.1, 100.0).kind, CameraKind.Perspective)
 }
 
+export function testCameraLookAtPointsForwardAtTarget(): void {
+  camera := Camera
+    .perspective(1.0, 0.1, 100.0)
+    .withPosition(Point3(2.0, 3.0, 4.0))
+    .lookAt(Point3(2.0, 3.0, -6.0))
+
+  assertVec3Approx(camera.transform.rotation.apply(Vec3.forward), Vec3.forward)
+  Assert.equal(camera.transform.position.z, 4.0)
+
+  angled := Camera
+    .identity()
+    .withPosition(Point3(0.0, 0.0, 0.0))
+    .lookAt(Point3(-2.0, 0.0, -2.0))
+  expected := Vec3.toNormalized(-2.0, 0.0, -2.0)
+
+  assertVec3Approx(angled.transform.rotation.apply(Vec3.forward), expected)
+}
+
 export function testMat4IdentityTranslationAndScale(): void {
   point := Point3(1.0, 2.0, 3.0)
   moved := Mat4.translation(4.0, 5.0, 6.0).transformPoint(point)

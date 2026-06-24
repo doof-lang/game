@@ -216,8 +216,8 @@ at the bottom-right. `Camera.identity()` treats positions as clip space.
 for objects in front of the camera on negative Z, deriving aspect from the
 render surface. Cameras carry a world-space
 `Transform`; use `withPosition(...)`, `movedLocalBy(...)`, `rotatedLocalY(...)`,
-and related helpers to place the camera. Use `withView(...)` when you need to
-combine a projection camera with an explicit view matrix.
+`lookAt(...)`, and related helpers to place the camera. Use `withView(...)` when
+you need to combine a projection camera with an explicit view matrix.
 
 `Mat4` includes `identity()`, `translation(...)`, `scale(...)`,
 `rotationX(...)`, `rotationY(...)`, `rotationZ(...)`, `orthographic(...)`,

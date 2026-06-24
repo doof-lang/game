@@ -384,6 +384,13 @@ export class Camera {
     return this
   }
 
+  lookAt(target: Point3, up: Vec3 | null = null): Camera {
+    direction := Vec3.fromPoint(target).minus(Vec3.fromPoint(transform.position))
+    resolvedUp := if up == null then Vec3.up else up!
+    transform = transform.withRotation(Rotation.lookAt{ direction: direction, up: resolvedUp })
+    return this
+  }
+
   withScale(scale: Vec3): Camera {
     transform = transform.withScale(scale)
   }
