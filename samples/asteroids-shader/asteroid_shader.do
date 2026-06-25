@@ -1,7 +1,6 @@
 import { BlobBuilder } from "std/blob"
-import { readText } from "std/fs"
+import { readTextResource } from "std/fs"
 import { floor, sin } from "std/math"
-import { join, resourcesDirectory } from "std/path"
 import {
   GameSurface,
   Mat4,
@@ -129,8 +128,7 @@ function uniformsBytes(viewProjection: Mat4, time: double): readonly byte[] {
 }
 
 function asteroidShaderSource(): string {
-  resources := try! resourcesDirectory()
-  return try! readText(join([resources, ASTEROID_SHADER_PATH]))
+  return try! readTextResource(ASTEROID_SHADER_PATH)
 }
 
 export function createAsteroidShaderResources(surface: GameSurface): AsteroidShaderResources {
