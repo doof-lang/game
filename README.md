@@ -17,6 +17,12 @@ attach the same Metal-backed surface to the generated UIKit app shell; single
 touch input is reported through the existing mouse event and mouse button APIs.
 Hardware keyboard events are not exposed on iOS yet.
 
+## Documentation
+
+- [Guide and API reference](docs/API.md) maps the app host, rendering, assets, input, UI, sound, platform targets, samples, and source modules.
+- Tests can be run with `doof test game`.
+- [Samples](samples/) show complete programs built with this module.
+
 ## Usage
 
 ```doof
@@ -722,7 +728,10 @@ starting a pinch.
 
 ## Notes
 
-- V1 is macOS-only.
+- macOS is the primary host.
+- Doof's `ios-app` target is supported with a Metal-backed UIKit surface.
+- On iOS, single-touch input is reported through the mouse and screen pointer
+  APIs; hardware keyboard events are not exposed yet.
 - The surface is explicitly Metal-backed.
 - `std/game` depends on `std/event` for host-loop integration.
 
