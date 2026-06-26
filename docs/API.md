@@ -467,10 +467,25 @@ card := batch.add{
 | `createIcosphereMeshSpec{ radius = 1.0, subdivisions = 2, color = Color.white }` | Create an icosphere with evenly distributed triangles. |
 | `parseObjMeshSpec(text, source = "input", color = Color.white)` | Parse Wavefront OBJ text into a `SimpleMeshSpec`. |
 | `loadObjMeshSpec(path, color = Color.white)` | Load and parse a Wavefront OBJ file. |
+| `parseGlb(data, source = "input")` | Parse an embedded GLB v2 file into a `GltfAsset`. |
+| `loadGlb(path)` | Load and parse an embedded GLB v2 file. |
+| `glbAssetToSimpleMeshSpecs(asset, color = Color.white)` | Extract supported static triangle primitives into `GltfSimpleMeshSpec[]`. |
 
 The OBJ parser supports `v`, `vt`, `vn`, and polygonal `f` records, including
 negative relative face indices. Polygons are triangulated with a fan. Missing
 UVs use `(0, 0)`, and missing normals use generated face normals.
+
+The GLB loader supports embedded GLB v2 files. `GltfAsset` preserves the parsed
+JSON root, BIN chunk, buffers, buffer views, accessors, meshes, nodes, scenes,
+samplers, images, textures, materials, animations, skin counts, and warnings.
+Material records include common PBR factors and texture links. Animation
+records include sampler input/output accessors, interpolation, and channel
+targets, but they are not evaluated at render time yet. The `SimpleMeshSpec`
+conversion path supports static triangle primitives with float `POSITION`,
+optional float `NORMAL`, optional float `TEXCOORD_0`, optional float `COLOR_0`,
+and optional unsigned byte/short/int indices. Unsupported future-facing features
+such as skins, external buffers, sparse accessors, morph targets, and
+non-triangle primitives are reported through warnings where possible.
 
 ## Textures And Atlases
 

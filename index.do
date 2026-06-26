@@ -33,6 +33,31 @@ export { SimpleMesh, SimpleMeshBuilder, SimpleMeshSpec, drawSimpleMesh, drawText
 export { SimpleModel, drawSimpleModel } from "./model"
 export { SimpleModelBatch, SimpleModelInstance, SimpleModelInstanceConfig, Vec2, drawSimpleModelBatch } from "./model_batch"
 export { ObjError, loadObjMeshSpec, parseObjMeshSpec } from "./obj"
+export {
+  GltfAccessor,
+  GltfAnimation,
+  GltfAnimationChannel,
+  GltfAnimationSampler,
+  GltfAnimationTarget,
+  GltfAsset,
+  GltfBuffer,
+  GltfBufferView,
+  GltfError,
+  GltfImage,
+  GltfMaterial,
+  GltfMesh,
+  GltfNode,
+  GltfPrimitive,
+  GltfSampler,
+  GltfScene,
+  GltfSimpleMeshSpec,
+  GltfTexture,
+  GltfTextureInfo,
+  GltfWarning,
+  glbAssetToSimpleMeshSpecs,
+  loadGlb,
+  parseGlb,
+} from "./gltf"
 export { mouseButtonCode, mouseButtonFromCode } from "./mouse"
 export {
   ShaderBuffer,
