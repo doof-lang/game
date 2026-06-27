@@ -494,6 +494,38 @@ and later use of the removed handle is a programmer error. Pass
 `SimpleMeshLighting` as the optional final draw argument to use the same
 configurable built-in lighting for every instance in the batch.
 
+### Screen-Space Particles
+
+```doof
+import { Blend, Camera, Depth, Fireworks, RenderPassDescriptor } from "std/game"
+
+fireworks := Fireworks(app.surface)
+fireworks.start(app.surface.width(), app.surface.height())
+
+app.onRender((renderer): void => {
+  active := fireworks.update(1.0 / 60.0)
+  renderer.pass(
+    RenderPassDescriptor {
+      camera: Camera.screen(),
+      depth: Depth.disabled(),
+      blend: Blend.alpha(),
+    },
+    (pass): void => {
+      fireworks.draw(pass)
+    },
+  )
+  if active {
+    app.requestRender()
+  }
+})
+```
+
+`ParticleLayer(surface, ParticleLayerConfig { capacity })` provides the reusable
+screen-space particle core. Call `emit(ParticleConfig { ... })` for bursts,
+`update(deltaTime)` to advance simulation, `draw(pass)` to render, and
+`clear()` to stop the effect. `Fireworks(surface, FireworksConfig {})` is a
+staggered celebration preset with bursts, sparkles, and a closing finale.
+
 ### Custom Shaders
 
 ```doof

@@ -33,6 +33,8 @@ export { SimpleMesh, SimpleMeshBuilder, SimpleMeshLighting, SimpleMeshSpec, draw
 export { SimpleModel, drawSimpleModel } from "./model"
 export { SimpleModelBatch, SimpleModelInstance, SimpleModelInstanceConfig, Vec2, drawSimpleModelBatch } from "./model_batch"
 export { ObjError, loadObjMeshSpec, parseObjMeshSpec } from "./obj"
+export { Fireworks, FireworksConfig } from "./fireworks"
+export { ParticleConfig, ParticleLayer, ParticleLayerConfig } from "./particles"
 export {
   GltfAccessor,
   GltfAnimation,

@@ -466,6 +466,59 @@ card := batch.add{
 
 `Vec2` provides `zero`, `one`, and `xy(x, y)`.
 
+### Screen-Space Particles
+
+`ParticleLayer(surface, ParticleLayerConfig { capacity })` manages a reusable
+screen-space particle batch. Emit particles with `emit(ParticleConfig { ... })`,
+advance them with `update(deltaTime)`, draw them with `draw(pass)`, and use
+`isActive()` or `activeCount()` to decide whether requested-mode apps should
+schedule another frame.
+
+```doof
+particles := ParticleLayer(app.surface, ParticleLayerConfig { capacity: 128 })
+particles.emit(
+  ParticleConfig {
+    count: 48,
+    x: 320.0,
+    y: 180.0,
+    minSpeed: 60.0,
+    maxSpeed: 180.0,
+    accelerationY: 180.0,
+    lifetime: 1.2,
+    size: 6.0,
+    color: Color(1.0, 0.75, 0.25, 1.0),
+  },
+)
+```
+
+`ParticleConfig` includes position, optional position jitter, speed and angle
+ranges, acceleration, lifetime, size, color, fade, seed, and count. Emission is
+deterministic for a given seed.
+
+`Fireworks(surface, FireworksConfig {})` builds on `ParticleLayer` for
+celebration effects with staggered bursts, sparkles, and a closing finale. Call
+`start(width, height)`, then `update(deltaTime)` and `draw(pass)` from
+`onRender`.
+
+```doof
+fireworks := Fireworks(app.surface)
+
+app.onRender((renderer): void => {
+  active := fireworks.update(1.0 / 60.0)
+  renderer.pass(
+    RenderPassDescriptor {
+      camera: Camera.screen(),
+      depth: Depth.disabled(),
+      blend: Blend.alpha(),
+    },
+    (pass): void => fireworks.draw(pass),
+  )
+  if active {
+    app.requestRender()
+  }
+})
+```
+
 ## Geometry And Assets
 
 | API | Description |

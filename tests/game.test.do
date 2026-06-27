@@ -30,6 +30,9 @@ import {
   Mat4,
   Mat3,
   MouseButton,
+  ParticleConfig,
+  ParticleLayer,
+  ParticleLayerConfig,
   Point,
   Point3,
   Rect,
@@ -256,6 +259,24 @@ function compileSimpleModelBatchSmoke(texture: Texture, surface: GameSurface, pa
       direction: Point3(0.0, 1.0, 0.5),
     },
   )
+}
+
+function compileParticleLayerSmoke(surface: GameSurface, pass: RenderPass): void {
+  particles := ParticleLayer(surface, ParticleLayerConfig { capacity: 8 })
+  particles.emit(
+    ParticleConfig {
+      count: 3,
+      x: 40.0,
+      y: 50.0,
+      minSpeed: 12.0,
+      maxSpeed: 24.0,
+      lifetime: 1.0,
+      size: 5.0,
+      color: Color(1.0, 0.8, 0.2, 1.0),
+    },
+  )
+  particles.update(0.016)
+  particles.draw(pass)
 }
 
 function customShaderSource(): string {
@@ -659,6 +680,7 @@ function compileGameAppSmoke(): Result<void, string> {
         compileMeshSmoke(passSurface, pass)
         compileTexturedSimpleMeshSmoke(inMemoryTexture, passSurface, pass)
         compileSimpleModelBatchSmoke(inMemoryTexture, passSurface, pass)
+        compileParticleLayerSmoke(passSurface, pass)
         compileShaderSmoke(inMemoryTexture, passSurface, pass)
       },
     )
