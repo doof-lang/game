@@ -6,7 +6,7 @@ import {
 import { GameSurface } from "./surface"
 import { Rotation, Transform, Vec3 } from "./transform"
 import { Image, PixelAlphaMode, PixelBytes } from "std/image"
-import { cos, sin, tan } from "std/math"
+import { abs, cos, sin, tan } from "std/math"
 
 export enum CameraKind {
   Screen,
@@ -281,6 +281,46 @@ export class Mat4 {
     }
   }
 
+  inverse(): Mat4 {
+    b00 := m00 * m11 - m01 * m10
+    b01 := m00 * m12 - m02 * m10
+    b02 := m00 * m13 - m03 * m10
+    b03 := m01 * m12 - m02 * m11
+    b04 := m01 * m13 - m03 * m11
+    b05 := m02 * m13 - m03 * m12
+    b06 := m20 * m31 - m21 * m30
+    b07 := m20 * m32 - m22 * m30
+    b08 := m20 * m33 - m23 * m30
+    b09 := m21 * m32 - m22 * m31
+    b10 := m21 * m33 - m23 * m31
+    b11 := m22 * m33 - m23 * m32
+
+    det := b00 * b11 - b01 * b10 + b02 * b09 + b03 * b08 - b04 * b07 + b05 * b06
+    if abs(det) < 0.000001 {
+      return Mat4.identity
+    }
+    invDet := 1.0 / det
+
+    return Mat4 {
+      m00: (m11 * b11 - m12 * b10 + m13 * b09) * invDet,
+      m01: (-m01 * b11 + m02 * b10 - m03 * b09) * invDet,
+      m02: (m31 * b05 - m32 * b04 + m33 * b03) * invDet,
+      m03: (-m21 * b05 + m22 * b04 - m23 * b03) * invDet,
+      m10: (-m10 * b11 + m12 * b08 - m13 * b07) * invDet,
+      m11: (m00 * b11 - m02 * b08 + m03 * b07) * invDet,
+      m12: (-m30 * b05 + m32 * b02 - m33 * b01) * invDet,
+      m13: (m20 * b05 - m22 * b02 + m23 * b01) * invDet,
+      m20: (m10 * b10 - m11 * b08 + m13 * b06) * invDet,
+      m21: (-m00 * b10 + m01 * b08 - m03 * b06) * invDet,
+      m22: (m30 * b04 - m31 * b02 + m33 * b00) * invDet,
+      m23: (-m20 * b04 + m21 * b02 - m23 * b00) * invDet,
+      m30: (-m10 * b09 + m11 * b07 - m12 * b06) * invDet,
+      m31: (m00 * b09 - m01 * b07 + m02 * b06) * invDet,
+      m32: (-m30 * b03 + m31 * b01 - m32 * b00) * invDet,
+      m33: (m20 * b03 - m21 * b01 + m22 * b00) * invDet,
+    }
+  }
+
   transformPoint(point: Point3): ClipPoint {
     return ClipPoint {
       x: m00 * point.x + m01 * point.y + m02 * point.z + m03,
@@ -288,6 +328,14 @@ export class Mat4 {
       z: m20 * point.x + m21 * point.y + m22 * point.z + m23,
       w: m30 * point.x + m31 * point.y + m32 * point.z + m33,
     }
+  }
+
+  projectPoint(point: Point3): Point3 {
+    clip := transformPoint(point)
+    if abs(clip.w) < 0.000001 {
+      return Point3(clip.x, clip.y, clip.z)
+    }
+    return Point3(clip.x / clip.w, clip.y / clip.w, clip.z / clip.w)
   }
 }
 

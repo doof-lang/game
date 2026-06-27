@@ -838,6 +838,29 @@ export function testMat4PerspectiveProducesPerspectiveDivideW(): void {
   Assert.equal(projected.w, 5.0)
 }
 
+export function testMat4InverseRestoresTransformedPoint(): void {
+  matrix := Mat4
+    .translation(3.0, -2.0, 5.0)
+    .multiply(Mat4.rotationY(0.35))
+    .multiply(Mat4.scale(2.0, 3.0, 4.0))
+  point := Point3(7.0, 11.0, -13.0)
+  transformed := matrix.projectPoint(point)
+  restored := matrix.inverse().projectPoint(transformed)
+  identity := matrix.multiply(matrix.inverse())
+  identityPoint := identity.projectPoint(point)
+
+  assertPoint3Approx(restored, point)
+  assertPoint3Approx(identityPoint, point)
+}
+
+export function testMat4ProjectPointDividesByClipW(): void {
+  matrix := Mat4.perspective(1.5707963267948966, 1.0, 1.0, 10.0)
+  projected := matrix.projectPoint(Point3(2.0, 4.0, -5.0))
+
+  Assert.isTrue(approxEqual(projected.x, 0.4))
+  Assert.isTrue(approxEqual(projected.y, 0.8))
+}
+
 export function testVec3Helpers(): void {
   value := Vec3.xyz(3.0, 4.0, 0.0)
   unit := value.normalized()
