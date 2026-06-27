@@ -95,6 +95,7 @@ function printMeshes(asset: GltfAsset): void {
 
 function printAnimation(animation: GltfAnimation, index: int): void {
   println("  [" + string(index) + "] " + nameOr(animation.name, "unnamed") +
+    " duration=" + string(animation.duration) +
     " samplers=" + string(animation.samplers.length) +
     " channels=" + string(animation.channels.length))
   for channelIndex of 0..<animation.channels.length {

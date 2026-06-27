@@ -93,7 +93,7 @@ function main(): int {
     now := Instant.now()
     elapsed := lastFrameAt.durationUntil(now)
     lastFrameAt = now
-    let frameSeconds = double(elapsed.toNanos()) / 1000000000.0
+    let frameSeconds = elapsed.toSeconds()
     if frameSeconds > 0.1 {
       frameSeconds = 0.016
     }

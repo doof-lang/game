@@ -19,7 +19,7 @@ id<MTLSamplerState> linearSampler(id<MTLDevice> device, MTLSamplerAddressMode sA
     descriptor.minFilter = MTLSamplerMinMagFilterLinear;
     descriptor.magFilter = MTLSamplerMinMagFilterLinear;
     descriptor.sAddressMode = sAddressMode;
-    descriptor.tAddressMode = MTLSamplerAddressModeClampToEdge;
+    descriptor.tAddressMode = sAddressMode;
     *sampler = [device newSamplerStateWithDescriptor:descriptor];
     [descriptor release];
     return *sampler;

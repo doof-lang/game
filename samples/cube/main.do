@@ -90,7 +90,7 @@ function main(): int {
     now := Instant.now()
     elapsed := lastFrameAt.durationUntil(now)
     lastFrameAt = now
-    angle += double(elapsed.toNanos()) / 1000000000.0
+    angle += elapsed.toSeconds()
     radiansToDegrees := 57.2957795131
 
     renderer.pass(renderPassDescriptor) {

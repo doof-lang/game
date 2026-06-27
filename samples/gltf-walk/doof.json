@@ -1,0 +1,8 @@
+{
+  "name": "std-game-gltf-walk-sample",
+  "version": "0.1.0",
+  "license": "ISC",
+  "resources": ["models"],
+  "dependencies": {
+  }
+}

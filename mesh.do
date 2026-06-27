@@ -18,6 +18,12 @@ export class SimpleMeshSpec {
   indexCount(): int => indices.length
 }
 
+export class SimpleMeshLighting {
+  ambient: double = 0.25
+  directional: double = 0.75
+  direction: Point3 = Point3(0.35, 0.60, 0.72)
+}
+
 export class SimpleMesh {
   private readonly native: NativeSimpleMesh
 
@@ -162,6 +168,7 @@ export function drawSimpleMesh(
     m20: 0.0, m21: 0.0, m22: 1.0, m23: 0.0,
     m30: 0.0, m31: 0.0, m32: 0.0, m33: 1.0,
   },
+  lighting: SimpleMeshLighting = SimpleMeshLighting {},
 ): void {
   mvp := pass.camera().matrix(pass.surface()).multiply(model)
   drawNativeSimpleMesh(
@@ -186,6 +193,11 @@ export function drawSimpleMesh(
     mvp.m31,
     mvp.m32,
     mvp.m33,
+    lighting.ambient,
+    lighting.directional,
+    lighting.direction.x,
+    lighting.direction.y,
+    lighting.direction.z,
   )
 }
 
@@ -199,6 +211,7 @@ export function drawTexturedSimpleMesh(
     m20: 0.0, m21: 0.0, m22: 1.0, m23: 0.0,
     m30: 0.0, m31: 0.0, m32: 0.0, m33: 1.0,
   },
+  lighting: SimpleMeshLighting = SimpleMeshLighting {},
 ): void {
   mvp := pass.camera().matrix(pass.surface()).multiply(model)
   drawNativeTexturedSimpleMesh(
@@ -224,5 +237,10 @@ export function drawTexturedSimpleMesh(
     mvp.m31,
     mvp.m32,
     mvp.m33,
+    lighting.ambient,
+    lighting.directional,
+    lighting.direction.x,
+    lighting.direction.y,
+    lighting.direction.z,
   )
 }

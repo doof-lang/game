@@ -3,7 +3,7 @@ import { writeBlob } from "std/fs"
 import { join, tempDirectory } from "std/path"
 import { Assert } from "std/assert"
 
-import { Color, glbAssetToSimpleMeshSpecs, loadGlb, parseGlb } from "../index"
+import { Color, Point3, Vec3, glbAssetToSimpleMeshSpecs, loadGlb, parseGlb } from "../index"
 
 const GLB_MAGIC = 1179937895
 const GLB_JSON = 1313821514
@@ -14,6 +14,27 @@ function isFailure<T, E>(result: Result<T, E>): bool {
     _: Success -> false,
     _: Failure -> true,
   }
+}
+
+function approxEqual(actual: double, expected: double): bool {
+  delta := if actual > expected then actual - expected else expected - actual
+  return delta < 0.00001
+}
+
+function assertApprox(actual: double, expected: double, message: string | null = null): void {
+  Assert.isTrue(approxEqual(actual, expected), message)
+}
+
+function assertVec3Approx(actual: Vec3, expected: Vec3, message: string | null = null): void {
+  assertApprox(actual.x, expected.x, message)
+  assertApprox(actual.y, expected.y, message)
+  assertApprox(actual.z, expected.z, message)
+}
+
+function assertPoint3Approx(actual: Point3, expected: Point3, message: string | null = null): void {
+  assertApprox(actual.x, expected.x, message)
+  assertApprox(actual.y, expected.y, message)
+  assertApprox(actual.z, expected.z, message)
 }
 
 function paddedText(text: string): readonly byte[] {
@@ -147,6 +168,107 @@ function richTriangleJson(bufferLength: int): string {
     "}"
 }
 
+function animationBin(): readonly byte[] {
+  builder := BlobBuilder()
+  // input times
+  builder.writeFloat(0.0f)
+  builder.writeFloat(1.0f)
+  // translation output
+  builder.writeFloat(0.0f)
+  builder.writeFloat(0.0f)
+  builder.writeFloat(0.0f)
+  builder.writeFloat(10.0f)
+  builder.writeFloat(0.0f)
+  builder.writeFloat(0.0f)
+  // rotation output: identity to 180 degrees around Y
+  builder.writeFloat(0.0f)
+  builder.writeFloat(0.0f)
+  builder.writeFloat(0.0f)
+  builder.writeFloat(1.0f)
+  builder.writeFloat(0.0f)
+  builder.writeFloat(1.0f)
+  builder.writeFloat(0.0f)
+  builder.writeFloat(0.0f)
+  // scale output
+  builder.writeFloat(1.0f)
+  builder.writeFloat(1.0f)
+  builder.writeFloat(1.0f)
+  builder.writeFloat(2.0f)
+  builder.writeFloat(3.0f)
+  builder.writeFloat(4.0f)
+  // weights output, two weights per keyframe
+  builder.writeFloat(0.1f)
+  builder.writeFloat(0.2f)
+  builder.writeFloat(0.9f)
+  builder.writeFloat(0.4f)
+  return builder.build()
+}
+
+function animationJson(bufferLength: int, interpolation: string = "LINEAR", targetPath: string = "translation", outputAccessor: int = 1, sparseOutput: bool = false): string {
+  sparse := if sparseOutput then ",\"sparse\":{\"count\":0}" else ""
+  return "{" +
+    "\"asset\":{\"version\":\"2.0\"}," +
+    "\"buffers\":[{\"byteLength\":" + string(bufferLength) + "}]," +
+    "\"bufferViews\":[" +
+      "{\"buffer\":0,\"byteOffset\":0,\"byteLength\":8}," +
+      "{\"buffer\":0,\"byteOffset\":8,\"byteLength\":24}," +
+      "{\"buffer\":0,\"byteOffset\":32,\"byteLength\":32}," +
+      "{\"buffer\":0,\"byteOffset\":64,\"byteLength\":24}," +
+      "{\"buffer\":0,\"byteOffset\":88,\"byteLength\":16}" +
+    "]," +
+    "\"accessors\":[" +
+      "{\"bufferView\":0,\"componentType\":5126,\"count\":2,\"type\":\"SCALAR\"}," +
+      "{\"bufferView\":1,\"componentType\":5126,\"count\":2,\"type\":\"VEC3\"" + sparse + "}," +
+      "{\"bufferView\":2,\"componentType\":5126,\"count\":2,\"type\":\"VEC4\"}," +
+      "{\"bufferView\":3,\"componentType\":5126,\"count\":2,\"type\":\"VEC3\"}," +
+      "{\"bufferView\":4,\"componentType\":5126,\"count\":4,\"type\":\"SCALAR\"}" +
+    "]," +
+    "\"nodes\":[" +
+      "{\"name\":\"Root\",\"translation\":[1,2,3],\"children\":[1]}," +
+      "{\"name\":\"Animated\",\"translation\":[0,1,0],\"rotation\":[0,0,0,1],\"scale\":[1,1,1],\"weights\":[0.1,0.2]}" +
+    "]," +
+    "\"scenes\":[{\"nodes\":[0]}]," +
+    "\"animations\":[{\"name\":\"Move\",\"samplers\":[{\"input\":0,\"output\":" + string(outputAccessor) + ",\"interpolation\":\"" + interpolation + "\"}],\"channels\":[{\"sampler\":0,\"target\":{\"node\":1,\"path\":\"" + targetPath + "\"}}]}]" +
+    "}"
+}
+
+function fullAnimationJson(bufferLength: int): string {
+  return "{" +
+    "\"asset\":{\"version\":\"2.0\"}," +
+    "\"buffers\":[{\"byteLength\":" + string(bufferLength) + "}]," +
+    "\"bufferViews\":[" +
+      "{\"buffer\":0,\"byteOffset\":0,\"byteLength\":8}," +
+      "{\"buffer\":0,\"byteOffset\":8,\"byteLength\":24}," +
+      "{\"buffer\":0,\"byteOffset\":32,\"byteLength\":32}," +
+      "{\"buffer\":0,\"byteOffset\":64,\"byteLength\":24}," +
+      "{\"buffer\":0,\"byteOffset\":88,\"byteLength\":16}" +
+    "]," +
+    "\"accessors\":[" +
+      "{\"bufferView\":0,\"componentType\":5126,\"count\":2,\"type\":\"SCALAR\"}," +
+      "{\"bufferView\":1,\"componentType\":5126,\"count\":2,\"type\":\"VEC3\"}," +
+      "{\"bufferView\":2,\"componentType\":5126,\"count\":2,\"type\":\"VEC4\"}," +
+      "{\"bufferView\":3,\"componentType\":5126,\"count\":2,\"type\":\"VEC3\"}," +
+      "{\"bufferView\":4,\"componentType\":5126,\"count\":4,\"type\":\"SCALAR\"}" +
+    "]," +
+    "\"nodes\":[" +
+      "{\"name\":\"Root\",\"translation\":[1,2,3],\"children\":[1]}," +
+      "{\"name\":\"Animated\",\"translation\":[0,1,0],\"rotation\":[0,0,0,1],\"scale\":[1,1,1],\"weights\":[0.1,0.2]}" +
+    "]," +
+    "\"scenes\":[{\"nodes\":[0]}]," +
+    "\"animations\":[{\"name\":\"Move\",\"samplers\":[" +
+      "{\"input\":0,\"output\":1,\"interpolation\":\"LINEAR\"}," +
+      "{\"input\":0,\"output\":2,\"interpolation\":\"LINEAR\"}," +
+      "{\"input\":0,\"output\":3,\"interpolation\":\"STEP\"}," +
+      "{\"input\":0,\"output\":4,\"interpolation\":\"LINEAR\"}" +
+    "],\"channels\":[" +
+      "{\"sampler\":0,\"target\":{\"node\":1,\"path\":\"translation\"}}," +
+      "{\"sampler\":1,\"target\":{\"node\":1,\"path\":\"rotation\"}}," +
+      "{\"sampler\":2,\"target\":{\"node\":1,\"path\":\"scale\"}}," +
+      "{\"sampler\":3,\"target\":{\"node\":1,\"path\":\"weights\"}}" +
+    "]}]" +
+    "}"
+}
+
 export function testParseGlbConvertsMinimalTriangleAndComputesNormals(): void {
   bin := trianglePositionBin()
   asset := try! parseGlb(buildGlb(minimalTriangleJson(bin.length), bin), "triangle.glb")
@@ -243,6 +365,63 @@ export function testLoadGlbReadsFile(): void {
 
   Assert.equal(specs.length, 1)
   Assert.equal(specs[0].spec.vertexCount(), 3)
+}
+
+export function testGltfPoseSamplesAnimationChannelsAndResolvesWorldTransforms(): void {
+  bin := animationBin()
+  asset := try! parseGlb(buildGlb(fullAnimationJson(bin.length), bin), "animated.glb")
+  pose := asset.createPose()
+  animation := try! asset.getAnimation()
+
+  Assert.equal(animation.name!, "Move")
+  Assert.equal(animation.duration, 1.0)
+  Assert.equal(pose.local.length, 2)
+  assertPoint3Approx(pose.local[0].position, Point3(1.0, 2.0, 3.0))
+  assertPoint3Approx(pose.local[1].position, Point3(0.0, 1.0, 0.0))
+  Assert.equal(pose.weights[1].length, 2)
+  assertApprox(pose.weights[1][0], 0.1)
+  assertApprox(pose.weights[1][1], 0.2)
+
+  try! pose.applyLooping(animation, 0.5,)
+  assertPoint3Approx(pose.local[1].position, Point3(5.0, 0.0, 0.0))
+  assertApprox(pose.local[1].rotation.qy, 0.70710678)
+  assertApprox(pose.local[1].rotation.qw, 0.70710678)
+  assertVec3Approx(pose.local[1].scale, Vec3.one, "STEP scale should hold the first keyframe")
+  assertApprox(pose.weights[1][0], 0.5)
+  assertApprox(pose.weights[1][1], 0.3)
+
+  try! pose.resolveWorldTransforms()
+  resolved := pose.world[1].transformPoint(Point3(0.0, 0.0, 0.0))
+  assertApprox(resolved.x, 6.0)
+  assertApprox(resolved.y, 2.0)
+  assertApprox(resolved.z, 3.0)
+
+  pose.reset()
+  try! pose.applyLooping(animation, 1.25)
+  assertPoint3Approx(pose.local[1].position, Point3(2.5, 0.0, 0.0), "time should loop past duration")
+
+  pose.reset()
+  try! pose.applyLooping(animation, -0.25)
+  assertPoint3Approx(pose.local[1].position, Point3(7.5, 0.0, 0.0), "negative time should loop from the end")
+}
+
+export function testGltfAnimationSamplingFailsFastForUnsupportedData(): void {
+  bin := animationBin()
+
+  cubic := try! parseGlb(buildGlb(animationJson(bin.length, "CUBICSPLINE"), bin), "cubic.glb")
+  Assert.isTrue(isFailure(cubic.createPose().applyLooping((try! cubic.getAnimation()), 0.5)), "expected CUBICSPLINE to fail")
+
+  badPath := try! parseGlb(buildGlb(animationJson(bin.length, "LINEAR", "color"), bin), "bad-path.glb")
+  Assert.isTrue(isFailure(badPath.createPose().applyLooping((try! badPath.getAnimation()), 0.5)), "expected unknown target path to fail")
+
+  badOutput := try! parseGlb(buildGlb(animationJson(bin.length, "LINEAR", "translation", 0), bin), "bad-output.glb")
+  Assert.isTrue(isFailure(badOutput.createPose().applyLooping((try! badOutput.getAnimation()), 0.5)), "expected bad output accessor format to fail")
+
+  sparse := try! parseGlb(buildGlb(animationJson(bin.length, "LINEAR", "translation", 1, true), bin), "sparse.glb")
+  Assert.isTrue(isFailure(sparse.createPose().applyLooping((try! sparse.getAnimation()), 0.5)), "expected sparse animation accessor to fail")
+
+  other := try! parseGlb(buildGlb(animationJson(bin.length), bin), "other.glb")
+  Assert.isTrue(isFailure(other.createPose().applyLooping((try! sparse.getAnimation()), 0.5)), "expected animation/pose asset mismatch to fail")
 }
 
 export function testParseGlbRejectsMalformedContainers(): void {

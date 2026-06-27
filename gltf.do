@@ -1,10 +1,11 @@
 import { BlobReader, Endian } from "std/blob"
-import { readBlob } from "std/fs"
+import { readBlob, readBlobResource } from "std/fs"
 import { parseJsonValue } from "std/json"
-import { sqrt } from "std/math"
+import { floor, sqrt } from "std/math"
 
 import { SimpleMeshSpec } from "./mesh"
-import { Color, Point, Point3 } from "./render"
+import { Color, Mat4, Point, Point3 } from "./render"
+import { Rotation, Transform, Vec3 } from "./transform"
 
 const GLB_MAGIC = 1179937895
 const GLB_VERSION = 2
@@ -68,6 +69,11 @@ export class GltfNode {
   name: string | null = null
   mesh: int = -1
   children: int[] = []
+  translation: Point3 = Point3(0.0, 0.0, 0.0)
+  rotation: Rotation = Rotation { qx: 0.0, qy: 0.0, qz: 0.0, qw: 1.0 }
+  scale: Vec3 = Vec3 { x: 1.0, y: 1.0, z: 1.0 }
+  matrix: Mat4 | null = null
+  weights: double[] = []
 }
 
 export class GltfScene {
@@ -139,6 +145,7 @@ export class GltfAnimation {
   name: string | null = null
   samplers: GltfAnimationSampler[] = []
   channels: GltfAnimationChannel[] = []
+  duration: double = 0.0
 }
 
 export class GltfAsset {
@@ -159,6 +166,67 @@ export class GltfAsset {
   animationsCount: int = 0
   skinsCount: int = 0
   warnings: GltfWarning[] = []
+
+  createPose(): GltfPose {
+    return GltfPose(this)
+  }
+
+  getAnimation(index: int = 0): Result<GltfAnimation, GltfError> {
+    if index < 0 || index >= animations.length {
+      return Failure(gltfError("animation", "$.animations", `Animation index ${index} is out of range`))
+    }
+    return Success(animations[index])
+  }
+
+  findAnimation(name: string): Result<GltfAnimation, GltfError> {
+    for animation of animations {
+      if animation.name == name {
+        return Success(animation)
+      }
+    }
+    return Failure(gltfError("animation", "$.animations", `Animation '${name}' was not found`))
+  }
+}
+
+export class GltfPose {
+  asset: GltfAsset
+  local: Transform[] = []
+  world: Mat4[] = []
+  weights: double[][] = []
+
+  static constructor(asset: GltfAsset): GltfPose {
+    pose := GltfPose { asset }
+    pose.reset()
+    return pose
+  }
+
+  reset(): void {
+    local = []
+    world = []
+    weights = []
+    for node of asset.nodes {
+      local.push(Transform {
+        position: node.translation,
+        rotation: node.rotation,
+        scale: node.scale,
+      })
+      world.push(Mat4.identity)
+      nodeWeights: double[] := []
+      for weight of node.weights {
+        nodeWeights.push(weight)
+      }
+      weights.push(nodeWeights)
+    }
+  }
+
+  resolveWorldTransforms(): Result<void, GltfError> {
+    return resolvePoseWorldTransforms(this)
+  }
+
+  applyLooping(animation: GltfAnimation, time: double): Result<void, GltfError> {
+    return applyAnimation(animation, time, this)
+  }
+
 }
 
 export class GltfSimpleMeshSpec {
@@ -293,6 +361,55 @@ function jsonDoubleArrayField(object: JsonObject, name: string, path: string): R
   return Success(result)
 }
 
+function parsePoint3Field(object: JsonObject, name: string, defaultValue: Point3, path: string): Result<Point3, GltfError> {
+  if jsonField(object, name) == null {
+    return Success(defaultValue)
+  }
+  try values := jsonDoubleArrayField(object, name, path)
+  if values.length != 3 {
+    return Failure(gltfError("json", path + "." + name, "Expected three numeric components"))
+  }
+  return Success(Point3(values[0], values[1], values[2]))
+}
+
+function parseVec3Field(object: JsonObject, name: string, defaultValue: Vec3, path: string): Result<Vec3, GltfError> {
+  if jsonField(object, name) == null {
+    return Success(defaultValue)
+  }
+  try values := jsonDoubleArrayField(object, name, path)
+  if values.length != 3 {
+    return Failure(gltfError("json", path + "." + name, "Expected three numeric components"))
+  }
+  return Success(Vec3.xyz(values[0], values[1], values[2]))
+}
+
+function parseRotationField(object: JsonObject, name: string, defaultValue: Rotation, path: string): Result<Rotation, GltfError> {
+  if jsonField(object, name) == null {
+    return Success(defaultValue)
+  }
+  try values := jsonDoubleArrayField(object, name, path)
+  if values.length != 4 {
+    return Failure(gltfError("json", path + "." + name, "Expected four quaternion components"))
+  }
+  return Success(Rotation { qx: values[0], qy: values[1], qz: values[2], qw: values[3] }.normalized())
+}
+
+function parseMat4Field(object: JsonObject, name: string, path: string): Result<Mat4 | null, GltfError> {
+  if jsonField(object, name) == null {
+    return Success(null)
+  }
+  try values := jsonDoubleArrayField(object, name, path)
+  if values.length != 16 {
+    return Failure(gltfError("json", path + "." + name, "Expected sixteen matrix components"))
+  }
+  return Success(Mat4 {
+    m00: values[0], m01: values[4], m02: values[8], m03: values[12],
+    m10: values[1], m11: values[5], m12: values[9], m13: values[13],
+    m20: values[2], m21: values[6], m22: values[10], m23: values[14],
+    m30: values[3], m31: values[7], m32: values[11], m33: values[15],
+  })
+}
+
 function parseBuffers(root: JsonObject, warnings: GltfWarning[]): Result<GltfBuffer[], GltfError> {
   result: GltfBuffer[] := []
   try maybeBuffers := jsonArrayField(root, "buffers", "$")
@@ -308,7 +425,7 @@ function parseBuffers(root: JsonObject, warnings: GltfWarning[]): Result<GltfBuf
     }
     try uri := jsonStringField(object, "uri", path)
     if uri != null {
-      warnings.push(gltfWarning("json", path + ".uri", "External glTF buffers are not loaded by GLB v1"))
+      warnings.push(gltfWarning("json", path + ".uri", "External glTF buffers are not loaded"))
     }
     try byteLength := jsonIntField(object, "byteLength", 0, path)
     result.push(GltfBuffer {
@@ -460,7 +577,21 @@ function parseNodes(root: JsonObject): Result<GltfNode[], GltfError> {
     try name := jsonStringField(object, "name", path)
     try mesh := jsonIntField(object, "mesh", -1, path)
     try children := jsonIntArrayField(object, "children", path)
-    result.push(GltfNode { name, mesh, children })
+    try translation := parsePoint3Field(object, "translation", Point3(0.0, 0.0, 0.0), path)
+    try rotation := parseRotationField(object, "rotation", Rotation.identity, path)
+    try scale := parseVec3Field(object, "scale", Vec3.one, path)
+    try matrix := parseMat4Field(object, "matrix", path)
+    try weights := jsonDoubleArrayField(object, "weights", path)
+    result.push(GltfNode {
+      name,
+      mesh,
+      children,
+      translation,
+      rotation,
+      scale,
+      matrix,
+      weights,
+    })
   }
   return Success(result)
 }
@@ -526,7 +657,7 @@ function parseImages(root: JsonObject, warnings: GltfWarning[]): Result<GltfImag
     try mimeType := jsonStringField(object, "mimeType", path)
     try bufferView := jsonIntField(object, "bufferView", -1, path)
     if uri != null {
-      warnings.push(gltfWarning("json", path + ".uri", "External glTF images are recorded but not decoded by GLB v1"))
+      warnings.push(gltfWarning("json", path + ".uri", "External glTF images are recorded but not decoded"))
     }
     result.push(GltfImage { name, uri, mimeType, bufferView })
   }
@@ -895,6 +1026,290 @@ function readIndex(asset: GltfAsset, accessorIndex: int, elementIndex: int, path
   return readIndexAt(asset.binChunk, accessor.componentType, base + elementIndex * stride, path)
 }
 
+function readScalarFloat(asset: GltfAsset, accessorIndex: int, elementIndex: int, path: string): Result<double, GltfError> {
+  return readFloatComponent(asset, accessorIndex, elementIndex, 0, path)
+}
+
+function animationInAsset(animation: GltfAnimation, asset: GltfAsset): bool {
+  for candidate of asset.animations {
+    if candidate == animation {
+      return true
+    }
+  }
+  return false
+}
+
+function validateAnimationFloatAccessor(asset: GltfAsset, accessorIndex: int, expectedType: string, path: string): Result<GltfAccessor, GltfError> {
+  if accessorIndex < 0 || accessorIndex >= asset.accessors.length {
+    return Failure(gltfError("animation", path, "Animation accessor index is out of range"))
+  }
+  accessor := asset.accessors[accessorIndex]
+  if accessor.componentType != GLTF_COMPONENT_FLOAT || accessor.typeName != expectedType {
+    return Failure(gltfError("animation", path, `Animation accessor must be ${expectedType} float data`))
+  }
+  if accessor.sparse {
+    return Failure(gltfError("animation", path, "Sparse animation accessors are not supported"))
+  }
+  if accessor.bufferView < 0 || accessor.bufferView >= asset.bufferViews.length {
+    return Failure(gltfError("animation", path, "Animation accessor bufferView is missing or out of range"))
+  }
+  return Success(accessor)
+}
+
+function wrappedAnimationTime(time: double, duration: double): double {
+  if duration <= EPSILON {
+    return 0.0
+  }
+  wrapped := time - floor(time / duration) * duration
+  if wrapped < 0.0 {
+    return wrapped + duration
+  }
+  return wrapped
+}
+
+class GltfSampleSpan {
+  first: int = 0
+  second: int = 0
+  amount: double = 0.0
+}
+
+function animationSampleSpan(asset: GltfAsset, inputAccessor: int, time: double, interpolation: string, path: string): Result<GltfSampleSpan, GltfError> {
+  try accessor := validateAnimationFloatAccessor(asset, inputAccessor, "SCALAR", path + ".input")
+  if accessor.count <= 0 {
+    return Failure(gltfError("animation", path + ".input", "Animation sampler input accessor is empty"))
+  }
+
+  if accessor.count == 1 {
+    return Success(GltfSampleSpan { first: 0, second: 0, amount: 0.0 })
+  }
+
+  try firstTime := readScalarFloat(asset, inputAccessor, 0, path + ".input[0]")
+  if time <= firstTime {
+    return Success(GltfSampleSpan { first: 0, second: 0, amount: 0.0 })
+  }
+
+  for index of 0..<(accessor.count - 1) {
+    try t0 := readScalarFloat(asset, inputAccessor, index, `${path}.input[${index}]`)
+    try t1 := readScalarFloat(asset, inputAccessor, index + 1, `${path}.input[${index + 1}]`)
+    if time >= t0 && time < t1 {
+      if interpolation == "STEP" {
+        return Success(GltfSampleSpan { first: index, second: index, amount: 0.0 })
+      }
+      if interpolation == "LINEAR" {
+        if t1 <= t0 {
+          return Success(GltfSampleSpan { first: index, second: index, amount: 0.0 })
+        }
+        return Success(GltfSampleSpan { first: index, second: index + 1, amount: (time - t0) / (t1 - t0) })
+      }
+      return Failure(gltfError("animation", path + ".interpolation", "Unsupported animation interpolation '" + interpolation + "'"))
+    }
+  }
+
+  last := accessor.count - 1
+  return Success(GltfSampleSpan { first: last, second: last, amount: 0.0 })
+}
+
+function lerpDouble(a: double, b: double, amount: double): double {
+  return a + (b - a) * amount
+}
+
+function lerpPoint3(a: Point3, b: Point3, amount: double): Point3 {
+  return Point3(
+    lerpDouble(a.x, b.x, amount),
+    lerpDouble(a.y, b.y, amount),
+    lerpDouble(a.z, b.z, amount),
+  )
+}
+
+function lerpVec3(a: Vec3, b: Vec3, amount: double): Vec3 {
+  return Vec3.xyz(
+    lerpDouble(a.x, b.x, amount),
+    lerpDouble(a.y, b.y, amount),
+    lerpDouble(a.z, b.z, amount),
+  )
+}
+
+function readAnimationPoint3(asset: GltfAsset, accessorIndex: int, elementIndex: int, path: string): Result<Point3, GltfError> {
+  validateAnimationFloatAccessor(asset, accessorIndex, "VEC3", path) else error {
+    return Failure(error)
+  }
+  return readPoint3(asset, accessorIndex, elementIndex, path)
+}
+
+function readAnimationVec3(asset: GltfAsset, accessorIndex: int, elementIndex: int, path: string): Result<Vec3, GltfError> {
+  try point := readAnimationPoint3(asset, accessorIndex, elementIndex, path)
+  return Success(Vec3.xyz(point.x, point.y, point.z))
+}
+
+function readAnimationRotation(asset: GltfAsset, accessorIndex: int, elementIndex: int, path: string): Result<Rotation, GltfError> {
+  validateAnimationFloatAccessor(asset, accessorIndex, "VEC4", path) else error {
+    return Failure(error)
+  }
+  try x := readFloatComponent(asset, accessorIndex, elementIndex, 0, path)
+  try y := readFloatComponent(asset, accessorIndex, elementIndex, 1, path)
+  try z := readFloatComponent(asset, accessorIndex, elementIndex, 2, path)
+  try w := readFloatComponent(asset, accessorIndex, elementIndex, 3, path)
+  return Success(Rotation { qx: x, qy: y, qz: z, qw: w }.normalized())
+}
+
+function applyAnimationChannel(asset: GltfAsset, sampler: GltfAnimationSampler, channel: GltfAnimationChannel, time: double, pose: GltfPose, path: string): Result<void, GltfError> {
+  if sampler.interpolation != "STEP" && sampler.interpolation != "LINEAR" {
+    return Failure(gltfError("animation", path + ".sampler.interpolation", "Unsupported animation interpolation '" + sampler.interpolation + "'"))
+  }
+  if channel.target.node < 0 || channel.target.node >= asset.nodes.length {
+    return Failure(gltfError("animation", path + ".target.node", "Animation target node is out of range"))
+  }
+  if channel.target.node >= pose.local.length || channel.target.node >= pose.weights.length {
+    return Failure(gltfError("animation", path + ".target.node", "Pose does not contain the target node"))
+  }
+
+  try span := animationSampleSpan(asset, sampler.input, time, sampler.interpolation, path + ".sampler")
+  nodeIndex := channel.target.node
+  targetPath := channel.target.path
+
+  if targetPath == "translation" {
+    try first := readAnimationPoint3(asset, sampler.output, span.first, path + ".sampler.output")
+    try second := readAnimationPoint3(asset, sampler.output, span.second, path + ".sampler.output")
+    pose.local[nodeIndex] = pose.local[nodeIndex].withPosition(lerpPoint3(first, second, span.amount))
+    return Success()
+  }
+
+  if targetPath == "rotation" {
+    try first := readAnimationRotation(asset, sampler.output, span.first, path + ".sampler.output")
+    try second := readAnimationRotation(asset, sampler.output, span.second, path + ".sampler.output")
+    pose.local[nodeIndex] = pose.local[nodeIndex].withRotation(Rotation.slerp(first, second, span.amount))
+    return Success()
+  }
+
+  if targetPath == "scale" {
+    try first := readAnimationVec3(asset, sampler.output, span.first, path + ".sampler.output")
+    try second := readAnimationVec3(asset, sampler.output, span.second, path + ".sampler.output")
+    pose.local[nodeIndex] = pose.local[nodeIndex].withScale(lerpVec3(first, second, span.amount))
+    return Success()
+  }
+
+  if targetPath == "weights" {
+    try output := validateAnimationFloatAccessor(asset, sampler.output, "SCALAR", path + ".sampler.output")
+    try input := validateAnimationFloatAccessor(asset, sampler.input, "SCALAR", path + ".sampler.input")
+    if input.count <= 0 || output.count % input.count != 0 {
+      return Failure(gltfError("animation", path + ".sampler.output", "Weight output count must be a multiple of input keyframes"))
+    }
+    weightCount := output.count \ input.count
+    sampledWeights: double[] := []
+    for weightIndex of 0..<weightCount {
+      try first := readScalarFloat(asset, sampler.output, span.first * weightCount + weightIndex, path + ".sampler.output")
+      try second := readScalarFloat(asset, sampler.output, span.second * weightCount + weightIndex, path + ".sampler.output")
+      sampledWeights.push(lerpDouble(first, second, span.amount))
+    }
+    pose.weights[nodeIndex] = sampledWeights
+    return Success()
+  }
+
+  return Failure(gltfError("animation", path + ".target.path", "Unsupported animation target path '" + targetPath + "'"))
+}
+
+function applyAnimation(animation: GltfAnimation, time: double, pose: GltfPose): Result<void, GltfError> {
+  asset := pose.asset
+  if !animationInAsset(animation, asset) {
+    return Failure(gltfError("animation", "$.animations", "Animation does not belong to the pose asset"))
+  }
+
+  sampleTime := wrappedAnimationTime(time, animation.duration)
+  for channelIndex of 0..<animation.channels.length {
+    channel := animation.channels[channelIndex]
+    if channel.sampler < 0 || channel.sampler >= animation.samplers.length {
+      return Failure(gltfError("animation", `$.animations.channels[${channelIndex}].sampler`, "Animation channel sampler is out of range"))
+    }
+    sampler := animation.samplers[channel.sampler]
+    try applyAnimationChannel(asset, sampler, channel, sampleTime, pose, `$.animations.channels[${channelIndex}]`)
+  }
+  return Success()
+}
+
+function resolvePoseNode(pose: GltfPose, nodeIndex: int, parent: Mat4): Result<void, GltfError> {
+  if nodeIndex < 0 || nodeIndex >= pose.asset.nodes.length {
+    return Failure(gltfError("animation", `$.nodes[${nodeIndex}]`, "Node index is out of range"))
+  }
+  node := pose.asset.nodes[nodeIndex]
+  if node.matrix != null {
+    return Failure(gltfError("animation", `$.nodes[${nodeIndex}].matrix`, "Matrix-authored nodes cannot be resolved by GltfPose v1"))
+  }
+  if nodeIndex >= pose.local.length || nodeIndex >= pose.world.length {
+    return Failure(gltfError("animation", `$.nodes[${nodeIndex}]`, "Pose is missing node transforms"))
+  }
+
+  world := parent.multiply(pose.local[nodeIndex].toMat4())
+  pose.world[nodeIndex] = world
+  for child of node.children {
+    try resolvePoseNode(pose, child, world)
+  }
+  return Success()
+}
+
+function resolvePoseWorldTransforms(pose: GltfPose): Result<void, GltfError> {
+  childNode: int[] := []
+  while childNode.length < pose.asset.nodes.length {
+    childNode.push(0)
+  }
+
+  for node of pose.asset.nodes {
+    for child of node.children {
+      if child < 0 || child >= pose.asset.nodes.length {
+        return Failure(gltfError("animation", "$.nodes.children", "Node child index is out of range"))
+      }
+      childNode[child] = 1
+    }
+  }
+
+  let resolvedAny = false
+  for scene of pose.asset.scenes {
+    for root of scene.nodes {
+      try resolvePoseNode(pose, root, Mat4.identity)
+      resolvedAny = true
+    }
+  }
+
+  if !resolvedAny {
+    for nodeIndex of 0..<pose.asset.nodes.length {
+      if childNode[nodeIndex] == 0 {
+        try resolvePoseNode(pose, nodeIndex, Mat4.identity)
+      }
+    }
+  }
+
+  return Success()
+}
+
+function computeAnimationDuration(asset: GltfAsset, animation: GltfAnimation): double {
+  let duration = 0.0
+  for sampler of animation.samplers {
+    if sampler.input >= 0 && sampler.input < asset.accessors.length {
+      accessor := asset.accessors[sampler.input]
+      if accessor.componentType == GLTF_COMPONENT_FLOAT && accessor.typeName == "SCALAR" && !accessor.sparse && accessor.count > 0 && accessor.bufferView >= 0 && accessor.bufferView < asset.bufferViews.length {
+        lastTime := readScalarFloat(asset, sampler.input, accessor.count - 1, "$.animations.sampler.input") else {
+          continue
+        }
+        if lastTime > duration {
+          duration = lastTime
+        }
+      }
+    }
+  }
+  return duration
+}
+
+function attachAnimationDurations(asset: GltfAsset): void {
+  for animationIndex of 0..<asset.animations.length {
+    animation := asset.animations[animationIndex]
+    asset.animations[animationIndex] = GltfAnimation {
+      name: animation.name,
+      samplers: animation.samplers,
+      channels: animation.channels,
+      duration: computeAnimationDuration(asset, animation),
+    }
+  }
+}
+
 function point3Minus(a: Point3, b: Point3): Point3 {
   return Point3(a.x - b.x, a.y - b.y, a.z - b.z)
 }
@@ -1060,9 +1475,6 @@ function buildAsset(source: string, root: JsonObject, binChunk: readonly byte[],
   try animationsCount := arrayLength(root, "animations")
   try skinsCount := arrayLength(root, "skins")
 
-  if animationsCount > 0 {
-    warnings.push(gltfWarning("json", "$.animations", "Animations are preserved as metadata but are not evaluated by GLB v1"))
-  }
   if skinsCount > 0 {
     warnings.push(gltfWarning("json", "$.skins", "Skins are preserved as metadata but are not converted to SimpleMeshSpec"))
   }
@@ -1071,7 +1483,7 @@ function buildAsset(source: string, root: JsonObject, binChunk: readonly byte[],
     return Failure(gltfError("binary", "$.buffers[0].byteLength", "GLB BIN chunk is shorter than the declared buffer"))
   }
 
-  return Success(GltfAsset {
+  asset := GltfAsset {
     source,
     json: root,
     binChunk,
@@ -1089,7 +1501,9 @@ function buildAsset(source: string, root: JsonObject, binChunk: readonly byte[],
     animationsCount,
     skinsCount,
     warnings,
-  })
+  }
+  attachAnimationDurations(asset)
+  return Success(asset)
 }
 
 export function parseGlb(data: readonly byte[], source: string = "input"): Result<GltfAsset, GltfError> {
@@ -1170,6 +1584,13 @@ export function parseGlb(data: readonly byte[], source: string = "input"): Resul
   }
 
   return buildAsset(source, root, binChunk, warnings)
+}
+
+export function loadGlbResource(path: string): Result<GltfAsset, GltfError> {
+  data := readBlobResource(path) else error {
+    return Failure(gltfError("read", path, `${path}: failed to read GLB resource: ${error}`))
+  }
+  return parseGlb(data, path)
 }
 
 export function loadGlb(path: string): Result<GltfAsset, GltfError> {

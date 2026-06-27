@@ -26,7 +26,7 @@ function main(): int {
 
   app.onRender() {
     now := Instant.now()
-    time := double(start.durationUntil(now).toNanos()) / 1000000000.0
+    time := start.durationUntil(now).toSeconds()
     cameraYaw = sin(time * 0.22) * 6.0
     surface := app.surface
     if resources == null {

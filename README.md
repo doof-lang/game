@@ -260,9 +260,12 @@ Vertices carry position, color, UV, and normal data. Triangles are emitted in
 the order you provide; pass them counter-clockwise when viewed from the front to
 match the default winding. `quad(...)` emits two counter-clockwise triangles for
 the points `a`, `b`, `c`, `d`. `drawSimpleMesh(...)` uses one indexed Metal draw
-for the whole mesh with simple built-in directional lighting, while
+for the whole mesh with simple built-in lighting, while
 `drawTexturedSimpleMesh(...)` samples a `Texture` using the mesh UVs before
-applying the same lighting.
+applying the same lighting. Pass `SimpleMeshLighting { ambient, directional,
+direction }` as the optional final argument to control the built-in light; the
+defaults are ambient `0.25`, directional `0.75`, and direction
+`Point3(0.35, 0.60, 0.72)`.
 
 ### Bitmap Font Text
 
@@ -409,6 +412,22 @@ records, including negative relative face indices. Polygons are triangulated
 with a fan, and missing UVs or normals fall back to `(0, 0)` and generated face
 normals.
 
+### GLB Assets
+
+```doof
+asset := try! loadGlb("models/character.glb")
+pose := asset.createPose()
+animation := try! asset.getAnimation()
+try! animation.apply(timeSeconds, pose)
+try! pose.resolveWorldTransforms()
+```
+
+`loadGlb(path)` and `parseGlb(data, source)` parse embedded GLB v2 files.
+`glbAssetToSimpleMeshSpecs(asset)` extracts supported static triangle
+primitives. `GltfAsset` also preserves nodes, materials, textures, scenes, and
+animations. `GltfPose` is bound to its source asset and samples `STEP` or
+`LINEAR` translation, rotation, scale, and morph weight animation channels.
+
 ### Textures And Atlases
 
 ```doof
@@ -471,7 +490,9 @@ unnecessary `Image` conversion and pixel snapshot.
 texture, then `drawSimpleModelBatch(...)` draws the live instances with one Metal
 instanced draw call. Instance handles update their batch slot through ergonomic
 transform, tint, and UV helpers. Removing an instance keeps the live slots packed,
-and later use of the removed handle is a programmer error.
+and later use of the removed handle is a programmer error. Pass
+`SimpleMeshLighting` as the optional final draw argument to use the same
+configurable built-in lighting for every instance in the batch.
 
 ### Custom Shaders
 

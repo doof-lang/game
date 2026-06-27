@@ -1,5 +1,5 @@
 import { NativeSimpleModelBatch, drawNativeSimpleModelBatch } from "./native"
-import { SimpleMesh } from "./mesh"
+import { SimpleMesh, SimpleMeshLighting } from "./mesh"
 import { Color, Point3, RenderPass, Texture } from "./render"
 import { GameSurface } from "./surface"
 import { Rotation, Transform, Vec3 } from "./transform"
@@ -313,7 +313,11 @@ export class SimpleModelInstance {
   }
 }
 
-export function drawSimpleModelBatch(pass: RenderPass, batch: SimpleModelBatch): void {
+export function drawSimpleModelBatch(
+  pass: RenderPass,
+  batch: SimpleModelBatch,
+  lighting: SimpleMeshLighting = SimpleMeshLighting {},
+): void {
   if batch.count() == 0 {
     return
   }
@@ -345,5 +349,10 @@ export function drawSimpleModelBatch(pass: RenderPass, batch: SimpleModelBatch):
     mvp.m31,
     mvp.m32,
     mvp.m33,
+    lighting.ambient,
+    lighting.directional,
+    lighting.direction.x,
+    lighting.direction.y,
+    lighting.direction.z,
   )
 }

@@ -194,7 +194,12 @@ void drawNativeSimpleMesh(
     double m30,
     double m31,
     double m32,
-    double m33
+    double m33,
+    double ambientLight,
+    double directionalLight,
+    double lightDirectionX,
+    double lightDirectionY,
+    double lightDirectionZ
 );
 
 void drawNativeTexturedSimpleMesh(
@@ -219,7 +224,12 @@ void drawNativeTexturedSimpleMesh(
     double m30,
     double m31,
     double m32,
-    double m33
+    double m33,
+    double ambientLight,
+    double directionalLight,
+    double lightDirectionX,
+    double lightDirectionY,
+    double lightDirectionZ
 );
 
 void drawNativeSimpleModelBatch(
@@ -246,7 +256,12 @@ void drawNativeSimpleModelBatch(
     double m30,
     double m31,
     double m32,
-    double m33
+    double m33,
+    double ambientLight,
+    double directionalLight,
+    double lightDirectionX,
+    double lightDirectionY,
+    double lightDirectionZ
 );
 
 void drawNativeEquirectangularSkyMap(

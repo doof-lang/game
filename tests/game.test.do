@@ -39,6 +39,7 @@ import {
   SimpleModel,
   SimpleModelBatch,
   SimpleMeshBuilder,
+  SimpleMeshLighting,
   Texture,
   Transform,
   UiLayer,
@@ -155,14 +156,19 @@ function compileMeshSmoke(surface: GameSurface, pass: RenderPass): void {
   }
 
   mesh := builder.build(surface)
-  drawSimpleMesh(pass, mesh, Mat4.identity)
+  lighting := SimpleMeshLighting {
+    ambient: 0.35,
+    directional: 0.65,
+    direction: Point3(-0.2, 0.8, 0.4),
+  }
+  drawSimpleMesh(pass, mesh, Mat4.identity, lighting)
 
   model := SimpleModel(mesh)
   model
     .moveWorldBy(Vec3.xyz(1.0, 2.0, 3.0))
     .rotateLocalY(45.0)
     .scaleBy(0.5)
-  drawSimpleModel(pass, model)
+  drawSimpleModel(pass, model, lighting)
 }
 
 function compileTexturedSimpleMeshSmoke(texture: Texture, surface: GameSurface, pass: RenderPass): void {
@@ -180,8 +186,13 @@ function compileTexturedSimpleMeshSmoke(texture: Texture, surface: GameSurface, 
   }
 
   mesh := builder.build(surface)
-  drawTexturedSimpleMesh(pass, mesh, texture, Mat4.identity)
-  drawSimpleModel(pass, SimpleModel(mesh, texture))
+  lighting := SimpleMeshLighting {
+    ambient: 0.45,
+    directional: 0.55,
+    direction: Point3(0.3, 0.6, 0.7),
+  }
+  drawTexturedSimpleMesh(pass, mesh, texture, Mat4.identity, lighting)
+  drawSimpleModel(pass, SimpleModel(mesh, texture), lighting)
 }
 
 function compileUiLayerSmoke(font: BitmapFont, texture: Texture, surface: GameSurface, pass: RenderPass): void {
@@ -236,7 +247,15 @@ function compileSimpleModelBatchSmoke(texture: Texture, surface: GameSurface, pa
 
   Assert.equal(batch.count(), 1)
   Assert.isFalse(second.isLive())
-  drawSimpleModelBatch(pass, batch)
+  drawSimpleModelBatch(
+    pass,
+    batch,
+    SimpleMeshLighting {
+      ambient: 0.3,
+      directional: 0.7,
+      direction: Point3(0.0, 1.0, 0.5),
+    },
+  )
 }
 
 function customShaderSource(): string {

@@ -29,7 +29,7 @@ export {
   synthSound,
 } from "./sound_synth"
 export { SfxrSoundConfig, SoundWave } from "./sound_synth_types"
-export { SimpleMesh, SimpleMeshBuilder, SimpleMeshSpec, drawSimpleMesh, drawTexturedSimpleMesh } from "./mesh"
+export { SimpleMesh, SimpleMeshBuilder, SimpleMeshLighting, SimpleMeshSpec, drawSimpleMesh, drawTexturedSimpleMesh } from "./mesh"
 export { SimpleModel, drawSimpleModel } from "./model"
 export { SimpleModelBatch, SimpleModelInstance, SimpleModelInstanceConfig, Vec2, drawSimpleModelBatch } from "./model_batch"
 export { ObjError, loadObjMeshSpec, parseObjMeshSpec } from "./obj"
@@ -47,6 +47,7 @@ export {
   GltfMaterial,
   GltfMesh,
   GltfNode,
+  GltfPose,
   GltfPrimitive,
   GltfSampler,
   GltfScene,
@@ -56,6 +57,7 @@ export {
   GltfWarning,
   glbAssetToSimpleMeshSpecs,
   loadGlb,
+  loadGlbResource,
   parseGlb,
 } from "./gltf"
 export { mouseButtonCode, mouseButtonFromCode } from "./mouse"

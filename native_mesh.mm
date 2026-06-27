@@ -135,6 +135,34 @@ struct SimpleModelInstance {
     float uv[4];
 };
 
+struct SimpleMeshLightingUniforms {
+    float direction[4];
+    float levels[4];
+};
+
+SimpleMeshLightingUniforms makeSimpleMeshLightingUniforms(
+    double ambientLight,
+    double directionalLight,
+    double lightDirectionX,
+    double lightDirectionY,
+    double lightDirectionZ
+) {
+    return SimpleMeshLightingUniforms {
+        {
+            static_cast<float>(lightDirectionX),
+            static_cast<float>(lightDirectionY),
+            static_cast<float>(lightDirectionZ),
+            0.0f,
+        },
+        {
+            static_cast<float>(ambientLight),
+            static_cast<float>(directionalLight),
+            0.0f,
+            0.0f,
+        },
+    };
+}
+
 id<MTLRenderPipelineState> simpleMeshPipeline(id<MTLDevice> device, int32_t blendMode, bool hasDepthAttachment, bool textured) {
     if (device == nil) {
         return nil;
@@ -157,6 +185,7 @@ id<MTLRenderPipelineState> simpleMeshPipeline(id<MTLDevice> device, int32_t blen
         @"using namespace metal;\n"
         @"struct VertexIn { packed_float4 position; packed_float4 color; packed_float2 uv; packed_float4 normal; };\n"
         @"struct Uniforms { float4 row0; float4 row1; float4 row2; float4 row3; };\n"
+        @"struct Lighting { float4 direction; float4 levels; };\n"
         @"struct VertexOut { float4 position [[position]]; float4 color; float2 uv; float3 normal; };\n"
         @"vertex VertexOut doof_game_simple_mesh_vertex(const device VertexIn* vertices [[buffer(0)]], constant Uniforms& uniforms [[buffer(1)]], const device uint* indices [[buffer(2)]], uint vertexId [[vertex_id]]) {\n"
         @"  VertexIn meshVertex = vertices[indices[vertexId]];\n"
@@ -168,18 +197,24 @@ id<MTLRenderPipelineState> simpleMeshPipeline(id<MTLDevice> device, int32_t blen
         @"  out.normal = meshVertex.normal.xyz;\n"
         @"  return out;\n"
         @"}\n"
-        @"float4 doof_game_apply_simple_mesh_light(float4 base, float3 normal) {\n"
+        @"float3 doof_game_simple_mesh_light_direction(constant Lighting& lighting) {\n"
+        @"  float len = length(lighting.direction.xyz);\n"
+        @"  if (len < 0.0001) { return normalize(float3(0.35, 0.60, 0.72)); }\n"
+        @"  return lighting.direction.xyz / len;\n"
+        @"}\n"
+        @"float4 doof_game_apply_simple_mesh_light(float4 base, float3 normal, constant Lighting& lighting) {\n"
         @"  float len = max(length(normal), 0.0001);\n"
         @"  float3 n = normal / len;\n"
-        @"  float3 light = normalize(float3(0.35, 0.60, 0.72));\n"
-        @"  float amount = 0.25 + 0.75 * max(dot(n, light), 0.0);\n"
+        @"  float ambient = max(lighting.levels.x, 0.0);\n"
+        @"  float directional = max(lighting.levels.y, 0.0);\n"
+        @"  float amount = ambient + directional * max(dot(n, doof_game_simple_mesh_light_direction(lighting)), 0.0);\n"
         @"  return float4(base.rgb * amount, base.a);\n"
         @"}\n"
-        @"fragment float4 doof_game_simple_mesh_fragment(VertexOut in [[stage_in]]) {\n"
-        @"  return doof_game_apply_simple_mesh_light(in.color, in.normal);\n"
+        @"fragment float4 doof_game_simple_mesh_fragment(VertexOut in [[stage_in]], constant Lighting& lighting [[buffer(0)]]) {\n"
+        @"  return doof_game_apply_simple_mesh_light(in.color, in.normal, lighting);\n"
         @"}\n"
-        @"fragment float4 doof_game_textured_simple_mesh_fragment(VertexOut in [[stage_in]], texture2d<float> tex [[texture(0)]], sampler textureSampler [[sampler(0)]]) {\n"
-        @"  return doof_game_apply_simple_mesh_light(tex.sample(textureSampler, in.uv) * in.color, in.normal);\n"
+        @"fragment float4 doof_game_textured_simple_mesh_fragment(VertexOut in [[stage_in]], constant Lighting& lighting [[buffer(0)]], texture2d<float> tex [[texture(0)]], sampler textureSampler [[sampler(0)]]) {\n"
+        @"  return doof_game_apply_simple_mesh_light(tex.sample(textureSampler, in.uv) * in.color, in.normal, lighting);\n"
         @"}\n";
 
     NSError* error = nil;
@@ -229,6 +264,7 @@ id<MTLRenderPipelineState> simpleModelBatchPipeline(id<MTLDevice> device, int32_
         @"struct VertexIn { packed_float4 position; packed_float4 color; packed_float2 uv; packed_float4 normal; };\n"
         @"struct Instance { float4 row0; float4 row1; float4 row2; float4 row3; float4 tint; float4 effects; float4 uv; };\n"
         @"struct Uniforms { float4 row0; float4 row1; float4 row2; float4 row3; };\n"
+        @"struct Lighting { float4 direction; float4 levels; };\n"
         @"struct VertexOut { float4 position [[position]]; float4 color; float2 uv; float3 normal; float whiteBlend; };\n"
         @"vertex VertexOut doof_game_simple_model_batch_vertex(const device VertexIn* vertices [[buffer(0)]], constant Uniforms& uniforms [[buffer(1)]], const device uint* indices [[buffer(2)]], const device Instance* instances [[buffer(3)]], uint vertexId [[vertex_id]], uint instanceId [[instance_id]]) {\n"
         @"  VertexIn meshVertex = vertices[indices[vertexId]];\n"
@@ -243,20 +279,26 @@ id<MTLRenderPipelineState> simpleModelBatchPipeline(id<MTLDevice> device, int32_
         @"  out.whiteBlend = inst.effects.x;\n"
         @"  return out;\n"
         @"}\n"
-        @"float4 doof_game_apply_simple_model_batch_light(float4 base, float3 normal) {\n"
+        @"float3 doof_game_simple_model_batch_light_direction(constant Lighting& lighting) {\n"
+        @"  float len = length(lighting.direction.xyz);\n"
+        @"  if (len < 0.0001) { return normalize(float3(0.35, 0.60, 0.72)); }\n"
+        @"  return lighting.direction.xyz / len;\n"
+        @"}\n"
+        @"float4 doof_game_apply_simple_model_batch_light(float4 base, float3 normal, constant Lighting& lighting) {\n"
         @"  float len = max(length(normal), 0.0001);\n"
         @"  float3 n = normal / len;\n"
-        @"  float3 light = normalize(float3(0.35, 0.60, 0.72));\n"
-        @"  float amount = 0.25 + 0.75 * max(dot(n, light), 0.0);\n"
+        @"  float ambient = max(lighting.levels.x, 0.0);\n"
+        @"  float directional = max(lighting.levels.y, 0.0);\n"
+        @"  float amount = ambient + directional * max(dot(n, doof_game_simple_model_batch_light_direction(lighting)), 0.0);\n"
         @"  return float4(base.rgb * amount, base.a);\n"
         @"}\n"
-        @"fragment float4 doof_game_simple_model_batch_fragment(VertexOut in [[stage_in]]) {\n"
-        @"  return doof_game_apply_simple_model_batch_light(in.color, in.normal);\n"
+        @"fragment float4 doof_game_simple_model_batch_fragment(VertexOut in [[stage_in]], constant Lighting& lighting [[buffer(0)]]) {\n"
+        @"  return doof_game_apply_simple_model_batch_light(in.color, in.normal, lighting);\n"
         @"}\n"
-        @"fragment float4 doof_game_textured_simple_model_batch_fragment(VertexOut in [[stage_in]], texture2d<float> tex [[texture(0)]], sampler textureSampler [[sampler(0)]]) {\n"
+        @"fragment float4 doof_game_textured_simple_model_batch_fragment(VertexOut in [[stage_in]], constant Lighting& lighting [[buffer(0)]], texture2d<float> tex [[texture(0)]], sampler textureSampler [[sampler(0)]]) {\n"
         @"  float4 sampled = tex.sample(textureSampler, in.uv) * in.color;\n"
         @"  sampled.rgb = mix(sampled.rgb, float3(1.0), clamp(in.whiteBlend, 0.0, 1.0));\n"
-        @"  return doof_game_apply_simple_model_batch_light(sampled, in.normal);\n"
+        @"  return doof_game_apply_simple_model_batch_light(sampled, in.normal, lighting);\n"
         @"}\n";
 
     NSError* error = nil;
@@ -291,7 +333,8 @@ void drawSimpleMeshInternal(
     int64_t metalDeviceHandle,
     int32_t blendMode,
     bool hasDepthAttachment,
-    const native_mesh::MatrixUniforms& uniforms
+    const native_mesh::MatrixUniforms& uniforms,
+    const SimpleMeshLightingUniforms& lighting
 ) {
     if (!mesh || mesh->indexCount() <= 0) {
         return;
@@ -312,7 +355,7 @@ void drawSimpleMeshInternal(
     }
 
     if (textured) {
-        id<MTLSamplerState> sampler = native_mesh::linearSampler(device, MTLSamplerAddressModeClampToEdge);
+        id<MTLSamplerState> sampler = native_mesh::linearSampler(device, MTLSamplerAddressModeRepeat);
         if (texture == nil || sampler == nil) {
             return;
         }
@@ -324,6 +367,7 @@ void drawSimpleMeshInternal(
     [encoder setVertexBuffer:vertexBuffer offset:0 atIndex:0];
     [encoder setVertexBytes:&uniforms length:sizeof(uniforms) atIndex:1];
     [encoder setVertexBuffer:indexBuffer offset:0 atIndex:2];
+    [encoder setFragmentBytes:&lighting length:sizeof(lighting) atIndex:0];
     [encoder drawPrimitives:MTLPrimitiveTypeTriangle
                 vertexStart:0
                 vertexCount:static_cast<NSUInteger>(mesh->indexCount())];
@@ -897,7 +941,12 @@ void drawNativeSimpleMesh(
     double m30,
     double m31,
     double m32,
-    double m33
+    double m33,
+    double ambientLight,
+    double directionalLight,
+    double lightDirectionX,
+    double lightDirectionY,
+    double lightDirectionZ
 ) {
     drawSimpleMeshInternal(
         mesh,
@@ -907,7 +956,8 @@ void drawNativeSimpleMesh(
         metalDeviceHandle,
         blendMode,
         hasDepthAttachment,
-        native_mesh::makeMatrixUniforms(m00, m01, m02, m03, m10, m11, m12, m13, m20, m21, m22, m23, m30, m31, m32, m33)
+        native_mesh::makeMatrixUniforms(m00, m01, m02, m03, m10, m11, m12, m13, m20, m21, m22, m23, m30, m31, m32, m33),
+        makeSimpleMeshLightingUniforms(ambientLight, directionalLight, lightDirectionX, lightDirectionY, lightDirectionZ)
     );
 }
 
@@ -933,7 +983,12 @@ void drawNativeTexturedSimpleMesh(
     double m30,
     double m31,
     double m32,
-    double m33
+    double m33,
+    double ambientLight,
+    double directionalLight,
+    double lightDirectionX,
+    double lightDirectionY,
+    double lightDirectionZ
 ) {
     drawSimpleMeshInternal(
         mesh,
@@ -943,7 +998,8 @@ void drawNativeTexturedSimpleMesh(
         metalDeviceHandle,
         blendMode,
         hasDepthAttachment,
-        native_mesh::makeMatrixUniforms(m00, m01, m02, m03, m10, m11, m12, m13, m20, m21, m22, m23, m30, m31, m32, m33)
+        native_mesh::makeMatrixUniforms(m00, m01, m02, m03, m10, m11, m12, m13, m20, m21, m22, m23, m30, m31, m32, m33),
+        makeSimpleMeshLightingUniforms(ambientLight, directionalLight, lightDirectionX, lightDirectionY, lightDirectionZ)
     );
 }
 
@@ -971,7 +1027,12 @@ void drawNativeSimpleModelBatch(
     double m30,
     double m31,
     double m32,
-    double m33
+    double m33,
+    double ambientLight,
+    double directionalLight,
+    double lightDirectionX,
+    double lightDirectionY,
+    double lightDirectionZ
 ) {
     if (!mesh || !batch || mesh->indexCount() <= 0 || batch->count() <= 0) {
         return;
@@ -993,7 +1054,7 @@ void drawNativeSimpleModelBatch(
     }
 
     if (textured) {
-        id<MTLSamplerState> sampler = native_mesh::linearSampler(device, MTLSamplerAddressModeClampToEdge);
+        id<MTLSamplerState> sampler = native_mesh::linearSampler(device, MTLSamplerAddressModeRepeat);
         if (texture == nil || sampler == nil) {
             return;
         }
@@ -1007,12 +1068,20 @@ void drawNativeSimpleModelBatch(
         m20, m21, m22, m23,
         m30, m31, m32, m33
     );
+    SimpleMeshLightingUniforms lighting = makeSimpleMeshLightingUniforms(
+        ambientLight,
+        directionalLight,
+        lightDirectionX,
+        lightDirectionY,
+        lightDirectionZ
+    );
 
     [encoder setRenderPipelineState:pipeline];
     [encoder setVertexBuffer:vertexBuffer offset:0 atIndex:0];
     [encoder setVertexBytes:&uniforms length:sizeof(uniforms) atIndex:1];
     [encoder setVertexBuffer:indexBuffer offset:0 atIndex:2];
     [encoder setVertexBuffer:instanceBuffer offset:0 atIndex:3];
+    [encoder setFragmentBytes:&lighting length:sizeof(lighting) atIndex:0];
     [encoder drawPrimitives:MTLPrimitiveTypeTriangle
                 vertexStart:0
                 vertexCount:static_cast<NSUInteger>(mesh->indexCount())

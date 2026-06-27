@@ -42,6 +42,7 @@ import { Sound, loadSound as loadSoundFile } from "./sound"
 import { GameSurface } from "./surface"
 import { BitmapFont, loadBitmapFontForSurface } from "./text"
 import { ControllerAxis, ControllerButton, ControllerSlot, ControllerStick, GameEventKind, GameRenderMode, Key, MouseButton } from "./types"
+import { resourcePath } from "std/path"
 
 function defaultGameEventHandler(event: GameEvent): void {}
 
@@ -136,6 +137,11 @@ export class GameApp {
 
   loadTexture(path: string): Result<Texture, string> {
     return loadTextureForSurface(this.surface, path)
+  }
+
+  loadTextureResource(path: string): Result<Texture, string> {
+    try resolvedPath := resourcePath(path)
+    return loadTextureForSurface(this.surface, resolvedPath)
   }
 
   createTexture(image: Image): Result<Texture, string> {

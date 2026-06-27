@@ -220,6 +220,11 @@ export import function drawNativeSimpleMesh(
   m31: double,
   m32: double,
   m33: double,
+  ambientLight: double,
+  directionalLight: double,
+  lightDirectionX: double,
+  lightDirectionY: double,
+  lightDirectionZ: double,
 ): void from "native_mesh.hpp" as doof_game::drawNativeSimpleMesh
 
 export import function drawNativeTexturedSimpleMesh(
@@ -245,6 +250,11 @@ export import function drawNativeTexturedSimpleMesh(
   m31: double,
   m32: double,
   m33: double,
+  ambientLight: double,
+  directionalLight: double,
+  lightDirectionX: double,
+  lightDirectionY: double,
+  lightDirectionZ: double,
 ): void from "native_mesh.hpp" as doof_game::drawNativeTexturedSimpleMesh
 
 export import function drawNativeSimpleModelBatch(
@@ -272,6 +282,11 @@ export import function drawNativeSimpleModelBatch(
   m31: double,
   m32: double,
   m33: double,
+  ambientLight: double,
+  directionalLight: double,
+  lightDirectionX: double,
+  lightDirectionY: double,
+  lightDirectionZ: double,
 ): void from "native_mesh.hpp" as doof_game::drawNativeSimpleModelBatch
 
 export import function drawNativeShader(

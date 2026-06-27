@@ -1,4 +1,4 @@
-import { SimpleMesh, drawSimpleMesh, drawTexturedSimpleMesh } from "./mesh"
+import { SimpleMesh, SimpleMeshLighting, drawSimpleMesh, drawTexturedSimpleMesh } from "./mesh"
 import { Point3, RenderPass, Texture } from "./render"
 import { Rotation, Transform, Vec3 } from "./transform"
 
@@ -97,11 +97,15 @@ export class SimpleModel {
   }
 }
 
-export function drawSimpleModel(pass: RenderPass, model: SimpleModel): void {
+export function drawSimpleModel(
+  pass: RenderPass,
+  model: SimpleModel,
+  lighting: SimpleMeshLighting = SimpleMeshLighting {},
+): void {
   if model.texture != null {
-    drawTexturedSimpleMesh(pass, model.mesh, model.texture!, model.transform.toMat4())
+    drawTexturedSimpleMesh(pass, model.mesh, model.texture!, model.transform.toMat4(), lighting)
     return
   }
 
-  drawSimpleMesh(pass, model.mesh, model.transform.toMat4())
+  drawSimpleMesh(pass, model.mesh, model.transform.toMat4(), lighting)
 }
