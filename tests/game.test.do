@@ -40,6 +40,7 @@ import {
   Rect,
   RenderPass,
   Rotation,
+  Scene,
   SkyMap,
   SimpleModel,
   SimpleModelBatch,
@@ -261,6 +262,11 @@ function compileSimpleModelBatchSmoke(texture: Texture, surface: GameSurface, pa
       direction: Point3(0.0, 1.0, 0.5),
     },
   )
+
+  scene := Scene {}
+  scene.addSimpleModel(SimpleModel(mesh))
+  scene.addSimpleModelBatch(batch)
+  scene.draw(pass)
 }
 
 function compileParticleLayerSmoke(surface: GameSurface, pass: RenderPass): void {
