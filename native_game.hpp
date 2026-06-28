@@ -206,7 +206,12 @@ private:
 
 class NativeGameApp {
 public:
-    static std::shared_ptr<NativeGameApp> create(const std::string& title);
+    static std::shared_ptr<NativeGameApp> create(
+        const std::string& title,
+        bool windowed,
+        int32_t windowWidth,
+        int32_t windowHeight
+    );
     ~NativeGameApp();
 
     std::shared_ptr<NativeGameSurface> surface() const;
@@ -220,7 +225,7 @@ public:
     );
 
 private:
-    explicit NativeGameApp(const std::string& title);
+    NativeGameApp(const std::string& title, bool windowed, int32_t windowWidth, int32_t windowHeight);
 
     struct Impl;
     std::shared_ptr<Impl> impl_;
@@ -228,6 +233,9 @@ private:
 
 doof::Result<void, std::string> runNativeGameApp(
     const std::string& title,
+    bool windowed,
+    int32_t windowWidth,
+    int32_t windowHeight,
     bool continuousRendering,
     doof::callback<void(std::shared_ptr<NativeGameEvent>, std::shared_ptr<NativeInputState>)> onEvent,
     doof::callback<void(std::shared_ptr<NativeGameSurface>, std::shared_ptr<NativeInputState>)> onRender,

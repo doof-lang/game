@@ -119,11 +119,22 @@ function main(): int {
 ```doof
 app := initGameApp{ title: "Game" }
 tools := initGameApp{ title: "Tools", renderMode: GameRenderMode.Requested }
+windowed := initGameApp{
+  title: "Board Game",
+  renderMode: GameRenderMode.Requested,
+  options: GameAppOptions {
+    windowMode: GameWindowMode.Windowed,
+    windowWidth: 1280,
+    windowHeight: 900,
+  },
+}
 ```
 
 Creates a `GameApp`. The default render mode is
 `GameRenderMode.Continuous`. In requested mode, call `app.requestRender()` after
-state changes.
+state changes. The macOS host defaults to full-screen. Use
+`GameWindowMode.Windowed` with `windowWidth` and `windowHeight` to create a
+normal resizable window.
 
 ### `GameApp`
 
@@ -131,6 +142,7 @@ state changes.
 | --- | --- |
 | `title: string` | Native app title. |
 | `renderMode: GameRenderMode` | Continuous or requested rendering. |
+| `options: GameAppOptions` | Host options such as macOS window mode and requested window size. |
 | `input: InputState` | Current queryable input state. Updated before event and render callbacks. |
 | `surface: GameSurface` | Current Metal-backed surface. Updated before render callbacks. |
 

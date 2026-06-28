@@ -107,6 +107,15 @@ function main(): int {
 ```doof
 app := initGameApp{ title: "Game" }
 requestedApp := initGameApp{ title: "Tools", renderMode: GameRenderMode.Requested }
+windowedApp := initGameApp{
+  title: "Board Game",
+  renderMode: GameRenderMode.Requested,
+  options: GameAppOptions {
+    windowMode: GameWindowMode.Windowed,
+    windowWidth: 1280,
+    windowHeight: 900,
+  },
+}
 
 app.onEvent((event: GameEvent): void => {})
 app.onRender((renderer: Renderer): void => {})
@@ -114,8 +123,10 @@ app.onRender((renderer: Renderer): void => {})
 result := app.run()
 ```
 
-Creates a full-screen macOS app host. Register event and render callbacks, set
-up any `std/event` timers or channels, then call `run()`. By default,
+Creates a macOS app host. It defaults to full-screen; pass
+`GameAppOptions { windowMode: GameWindowMode.Windowed, ... }` to use a normal
+resizable window. Register event and render callbacks, set up any `std/event`
+timers or channels, then call `run()`. By default,
 `GameRenderMode.Continuous` calls `onRender` on each display tick, which is the
 right mode for animated games and simulations.
 

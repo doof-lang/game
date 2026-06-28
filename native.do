@@ -45,7 +45,7 @@ export import class NativeInputState from "native_game.hpp" as doof_game::Native
 }
 
 export import class NativeGameApp from "native_game.hpp" as doof_game::NativeGameApp {
-  static create(title: string): NativeGameApp
+  static create(title: string, windowed: bool, windowWidth: int, windowHeight: int): NativeGameApp
   surface(): NativeGameSurface
   input(): NativeInputState
   fps(): double
@@ -369,6 +369,9 @@ export import function drawNativeSpaceDust(
 
 export import function runNativeGameApp(
   title: string,
+  windowed: bool,
+  windowWidth: int,
+  windowHeight: int,
   continuousRendering: bool,
   onEvent: (event: NativeGameEvent, input: NativeInputState): void,
   onRender: (surface: NativeGameSurface, input: NativeInputState): void,

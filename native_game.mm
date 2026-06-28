@@ -890,6 +890,9 @@ struct NativeInputState::Impl {
 
 struct NativeGameApp::Impl {
     std::string title;
+    bool windowed = false;
+    int32_t windowWidth = 1280;
+    int32_t windowHeight = 720;
     std::shared_ptr<NativeInputState> input;
     std::shared_ptr<NativeGameSurface> surface;
     std::string initializationError;
@@ -897,8 +900,11 @@ struct NativeGameApp::Impl {
     NSScreen* screen = nil;
     CGDirectDisplayID displayID = kCGNullDirectDisplay;
 
-    explicit Impl(std::string title)
+    Impl(std::string title, bool windowed, int32_t windowWidth, int32_t windowHeight)
         : title(std::move(title)),
+          windowed(windowed),
+          windowWidth(std::max(windowWidth, 1)),
+          windowHeight(std::max(windowHeight, 1)),
           input(std::make_shared<NativeInputState>()) {
         screen = [targetLaunchScreen() retain];
         displayID = directDisplayIdForScreen(screen);
@@ -2285,12 +2291,17 @@ void NativeInputState::addMagnificationDelta(double delta) {
     impl_->magnificationDelta += delta;
 }
 
-std::shared_ptr<NativeGameApp> NativeGameApp::create(const std::string& title) {
-    return std::shared_ptr<NativeGameApp>(new NativeGameApp(title));
+std::shared_ptr<NativeGameApp> NativeGameApp::create(
+    const std::string& title,
+    bool windowed,
+    int32_t windowWidth,
+    int32_t windowHeight
+) {
+    return std::shared_ptr<NativeGameApp>(new NativeGameApp(title, windowed, windowWidth, windowHeight));
 }
 
-NativeGameApp::NativeGameApp(const std::string& title)
-    : impl_(std::make_shared<Impl>(title)) {}
+NativeGameApp::NativeGameApp(const std::string& title, bool windowed, int32_t windowWidth, int32_t windowHeight)
+    : impl_(std::make_shared<Impl>(title, windowed, windowWidth, windowHeight)) {}
 
 NativeGameApp::~NativeGameApp() = default;
 
@@ -2386,15 +2397,30 @@ doof::Result<void, std::string> NativeGameApp::run(
 
         NSScreen* screen = impl_->screen != nil ? impl_->screen : targetLaunchScreen();
         NSRect frame = [screen frame];
+        NSRect visibleFrame = [screen visibleFrame];
         NSRect contentFrame = NSMakeRect(0.0, 0.0, NSWidth(frame), NSHeight(frame));
+        NSWindowStyleMask styleMask = NSWindowStyleMaskBorderless;
+        if (impl_->windowed) {
+            CGFloat width = std::min<CGFloat>(CGFloat(impl_->windowWidth), std::max<CGFloat>(NSWidth(visibleFrame), 1.0));
+            CGFloat height = std::min<CGFloat>(CGFloat(impl_->windowHeight), std::max<CGFloat>(NSHeight(visibleFrame), 1.0));
+            contentFrame = NSMakeRect(
+                NSMidX(visibleFrame) - width * 0.5,
+                NSMidY(visibleFrame) - height * 0.5,
+                width,
+                height
+            );
+            styleMask = NSWindowStyleMaskTitled | NSWindowStyleMaskClosable | NSWindowStyleMaskMiniaturizable | NSWindowStyleMaskResizable;
+        }
         DoofGameWindow* window = [[DoofGameWindow alloc] initWithContentRect:contentFrame
-                                                                   styleMask:NSWindowStyleMaskBorderless
+                                                                   styleMask:styleMask
                                                                      backing:NSBackingStoreBuffered
                                                                        defer:NO
                                                                       screen:screen];
         [window setTitle:[NSString stringWithUTF8String:impl_->title.c_str()]];
-        [window setLevel:NSMainMenuWindowLevel + 1];
-        [window setCollectionBehavior:NSWindowCollectionBehaviorMoveToActiveSpace | NSWindowCollectionBehaviorFullScreenAuxiliary];
+        if (!impl_->windowed) {
+            [window setLevel:NSMainMenuWindowLevel + 1];
+            [window setCollectionBehavior:NSWindowCollectionBehaviorMoveToActiveSpace | NSWindowCollectionBehaviorFullScreenAuxiliary];
+        }
         [window setOpaque:YES];
         [window setBackgroundColor:[NSColor blackColor]];
         [window setReleasedWhenClosed:NO];
@@ -2402,7 +2428,7 @@ doof::Result<void, std::string> NativeGameApp::run(
         [window setAcceptsMouseMovedEvents:YES];
 
         DoofGameView* view = [[DoofGameView alloc] initWithState:state.get()
-                                                           frame:NSMakeRect(0.0, 0.0, NSWidth(frame), NSHeight(frame))];
+                                                           frame:NSMakeRect(0.0, 0.0, NSWidth(contentFrame), NSHeight(contentFrame))];
         [window setContentView:view];
         [window makeFirstResponder:view];
 
@@ -2459,12 +2485,16 @@ doof::Result<void, std::string> NativeGameApp::run(
 
 doof::Result<void, std::string> runNativeGameApp(
     const std::string& title,
+    bool windowed,
+    int32_t windowWidth,
+    int32_t windowHeight,
     bool continuousRendering,
     doof::callback<void(std::shared_ptr<NativeGameEvent>, std::shared_ptr<NativeInputState>)> onEvent,
     doof::callback<void(std::shared_ptr<NativeGameSurface>, std::shared_ptr<NativeInputState>)> onRender,
     doof::callback<int32_t()> drainEvents
 ) {
-    return NativeGameApp::create(title)->run(continuousRendering, std::move(onEvent), std::move(onRender), std::move(drainEvents));
+    return NativeGameApp::create(title, windowed, windowWidth, windowHeight)
+        ->run(continuousRendering, std::move(onEvent), std::move(onRender), std::move(drainEvents));
 }
 
 }  // namespace doof_game

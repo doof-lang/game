@@ -1,4 +1,4 @@
-export { GameApp, initGameApp } from "./app"
+export { GameApp, GameAppOptions, GameWindowMode, initGameApp } from "./app"
 export {
   controllerAxisCode,
   controllerAxisFromCode,

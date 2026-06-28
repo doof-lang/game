@@ -51,6 +51,7 @@ function defaultGameRenderHandler(renderer: Renderer): void {}
 export class GameApp {
   readonly title: string
   readonly renderMode: GameRenderMode
+  readonly options: GameAppOptions
   private readonly native: NativeGameApp
   input: InputState
   surface: GameSurface
@@ -60,11 +61,16 @@ export class GameApp {
   private onEventHandler: (event: GameEvent): void
   private onRenderHandler: (renderer: Renderer): void
 
-  static constructor(title: string, renderMode: GameRenderMode = GameRenderMode.Continuous): GameApp {
-    native := NativeGameApp.create(title)
+  static constructor(
+    title: string,
+    renderMode: GameRenderMode = GameRenderMode.Continuous,
+    options: GameAppOptions = GameAppOptions {},
+  ): GameApp {
+    native := NativeGameApp.create(title, options.windowMode == GameWindowMode.Windowed, options.windowWidth, options.windowHeight)
     return GameApp {
       title: title,
       renderMode: renderMode,
+      options: options,
       native: native,
       input: InputState(native.input()),
       surface: GameSurface(native.surface()),
@@ -267,8 +273,23 @@ export class GameApp {
   }
 }
 
-export function initGameApp(title: string, renderMode: GameRenderMode = GameRenderMode.Continuous): GameApp {
-  return GameApp(title, renderMode)
+export enum GameWindowMode {
+  FullScreen,
+  Windowed,
+}
+
+export class GameAppOptions {
+  readonly windowMode: GameWindowMode = GameWindowMode.FullScreen
+  readonly windowWidth: int = 1280
+  readonly windowHeight: int = 720
+}
+
+export function initGameApp(
+  title: string,
+  renderMode: GameRenderMode = GameRenderMode.Continuous,
+  options: GameAppOptions = GameAppOptions {},
+): GameApp {
+  return GameApp(title, renderMode, options)
 }
 
 function isBinaryInputEvent(event: GameEvent): bool {

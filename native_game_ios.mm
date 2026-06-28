@@ -589,13 +589,19 @@ struct NativeInputState::Impl {
 
 struct NativeGameApp::Impl {
     std::string title;
+    bool windowed = false;
+    int32_t windowWidth = 1280;
+    int32_t windowHeight = 720;
     std::shared_ptr<NativeInputState> input;
     std::shared_ptr<NativeGameSurface> surface;
     std::string initializationError;
     std::atomic<double> framesPerSecond = 0.0;
 
-    explicit Impl(std::string title)
+    Impl(std::string title, bool windowed, int32_t windowWidth, int32_t windowHeight)
         : title(std::move(title)),
+          windowed(windowed),
+          windowWidth(std::max(windowWidth, 1)),
+          windowHeight(std::max(windowHeight, 1)),
           input(std::make_shared<NativeInputState>()) {
         __block id<MTLDevice> device = nil;
         __block id<MTLCommandQueue> commandQueue = nil;
@@ -2355,12 +2361,17 @@ void NativeInputState::addMagnificationDelta(double delta) {
     impl_->magnificationDelta += delta;
 }
 
-std::shared_ptr<NativeGameApp> NativeGameApp::create(const std::string& title) {
-    return std::shared_ptr<NativeGameApp>(new NativeGameApp(title));
+std::shared_ptr<NativeGameApp> NativeGameApp::create(
+    const std::string& title,
+    bool windowed,
+    int32_t windowWidth,
+    int32_t windowHeight
+) {
+    return std::shared_ptr<NativeGameApp>(new NativeGameApp(title, windowed, windowWidth, windowHeight));
 }
 
-NativeGameApp::NativeGameApp(const std::string& title)
-    : impl_(std::make_shared<Impl>(title)) {}
+NativeGameApp::NativeGameApp(const std::string& title, bool windowed, int32_t windowWidth, int32_t windowHeight)
+    : impl_(std::make_shared<Impl>(title, windowed, windowWidth, windowHeight)) {}
 
 NativeGameApp::~NativeGameApp() = default;
 
@@ -2469,12 +2480,16 @@ doof::Result<void, std::string> NativeGameApp::run(
 
 doof::Result<void, std::string> runNativeGameApp(
     const std::string& title,
+    bool windowed,
+    int32_t windowWidth,
+    int32_t windowHeight,
     bool continuousRendering,
     doof::callback<void(std::shared_ptr<NativeGameEvent>, std::shared_ptr<NativeInputState>)> onEvent,
     doof::callback<void(std::shared_ptr<NativeGameSurface>, std::shared_ptr<NativeInputState>)> onRender,
     doof::callback<int32_t()> drainEvents
 ) {
-    return NativeGameApp::create(title)->run(continuousRendering, std::move(onEvent), std::move(onRender), std::move(drainEvents));
+    return NativeGameApp::create(title, windowed, windowWidth, windowHeight)
+        ->run(continuousRendering, std::move(onEvent), std::move(onRender), std::move(drainEvents));
 }
 
 }  // namespace doof_game

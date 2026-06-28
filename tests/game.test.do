@@ -22,9 +22,11 @@ import {
   CullMode,
   Depth,
   DepthMode,
+  GameAppOptions,
   GameApp,
   GameEventKind,
   GameRenderMode,
+  GameWindowMode,
   GameSurface,
   Key,
   Mat4,
@@ -604,6 +606,17 @@ function compileGameAppSmoke(): Result<void, string> {
   Assert.equal(app.renderMode, GameRenderMode.Continuous)
   requestedApp := initGameApp{ title: "Doof Game Requested Smoke", renderMode: GameRenderMode.Requested }
   Assert.equal(requestedApp.renderMode, GameRenderMode.Requested)
+  windowedApp := initGameApp{
+    title: "Doof Game Windowed Smoke",
+    options: GameAppOptions {
+      windowMode: GameWindowMode.Windowed,
+      windowWidth: 800,
+      windowHeight: 600,
+    },
+  }
+  Assert.equal(windowedApp.options.windowMode, GameWindowMode.Windowed)
+  Assert.equal(windowedApp.options.windowWidth, 800)
+  Assert.equal(windowedApp.options.windowHeight, 600)
   inMemoryPixels := PixelBytes(1, 1, [255, 255, 255, 255])
   inMemoryImage := try! Image.fromPixelBytes(inMemoryPixels)
   inMemoryTexture := try! app.createTexture(inMemoryImage)
