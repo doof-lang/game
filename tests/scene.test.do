@@ -1,4 +1,5 @@
 mock import for "../scene" {
+  "./event" => "./scene_event.mock",
   "./model" => "./scene_model.mock",
   "./model_batch" => "./scene_model_batch.mock",
   "./render" => "./scene_render.mock"
@@ -8,6 +9,7 @@ import { Assert } from "std/assert"
 import { approxEqual } from "std/math"
 
 import { Scene, SceneNode, SceneTick, SceneUpdate } from "../scene"
+import { GameEvent } from "./scene_event.mock"
 import { SimpleModel } from "./scene_model.mock"
 
 function assertApprox(actual: double, expected: double, message: string | null = null): void {
@@ -119,6 +121,98 @@ export function testSceneUpdateCallbacksRunInInsertionOrder(): void {
   Assert.equal(order[0], 1)
   Assert.equal(order[1], 2)
   Assert.equal(order[2], 3)
+}
+
+export function testSceneEventCallbacksReceiveForwardedEvent(): void {
+  scene := Scene {}
+  event := GameEvent { label: "pressed" }
+  let receivedLabel = ""
+  let ignoredNodeUpdateCount = 0
+
+  scene.addSimpleModel{
+    model: SimpleModel(),
+    onUpdate: (update: SceneUpdate): void => {
+      ignoredNodeUpdateCount += 1
+    },
+  }
+  scene.addSimpleModel{
+    model: SimpleModel(),
+    onEvent: (forwarded: GameEvent): void => {
+      receivedLabel = forwarded.label
+    },
+  }
+
+  scene.handleEvent(event)
+
+  Assert.equal(receivedLabel, "pressed")
+  Assert.equal(ignoredNodeUpdateCount, 0)
+}
+
+export function testSceneEventCallbacksRunInInsertionOrder(): void {
+  scene := Scene {}
+  order: int[] := []
+
+  scene.addSimpleModel{ model: SimpleModel(), onEvent: (event: GameEvent): void => order.push(1) }
+  scene.addSimpleModel{ model: SimpleModel(), onEvent: (event: GameEvent): void => order.push(2) }
+  scene.addSimpleModel{ model: SimpleModel(), onEvent: (event: GameEvent): void => order.push(3) }
+
+  scene.handleEvent(GameEvent {})
+
+  Assert.equal(order.length, 3)
+  Assert.equal(order[0], 1)
+  Assert.equal(order[1], 2)
+  Assert.equal(order[2], 3)
+}
+
+export function testSceneEventMutationDuringCallbacksUsesSnapshotSemantics(): void {
+  scene := Scene {}
+  let lateEvents = 0
+  let first: SceneNode | null = null
+
+  first = scene.addSimpleModel{
+    model: SimpleModel(),
+    onEvent: (event: GameEvent): void => {
+      scene.addSimpleModel{
+        model: SimpleModel(),
+        onEvent: (lateEvent: GameEvent): void => {
+          lateEvents += 1
+        },
+      }
+      first!.remove()
+    },
+  }
+
+  scene.handleEvent(GameEvent {})
+  Assert.equal(lateEvents, 0)
+
+  scene.handleEvent(GameEvent {})
+  Assert.equal(lateEvents, 1)
+}
+
+export function testSceneEventRemovalDuringCallbackSuppressesLaterCallbacks(): void {
+  scene := Scene {}
+  let firstEvents = 0
+  let secondEvents = 0
+  let second: SceneNode | null = null
+
+  scene.addSimpleModel{
+    model: SimpleModel(),
+    onEvent: (event: GameEvent): void => {
+      firstEvents += 1
+      second!.remove()
+    },
+  }
+  second = scene.addSimpleModel{
+    model: SimpleModel(),
+    onEvent: (event: GameEvent): void => {
+      secondEvents += 1
+    },
+  }
+
+  scene.handleEvent(GameEvent {})
+
+  Assert.equal(firstEvents, 1)
+  Assert.equal(secondEvents, 0)
 }
 
 export function testSceneRemoveIsIdempotent(): void {

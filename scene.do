@@ -1,9 +1,11 @@
 import { SimpleModel, drawSimpleModel } from "./model"
 import { SimpleModelBatch, drawSimpleModelBatch } from "./model_batch"
 import { RenderPass } from "./render"
+import { GameEvent } from "./event"
 
 export type SceneTickHandler = (tick: SceneTick): void
 export type SceneUpdateHandler = (update: SceneUpdate): void
+export type SceneEventHandler = (event: GameEvent): void
 
 enum SceneNodeKind {
   SimpleModel,
@@ -27,6 +29,7 @@ export class SceneNode {
   readonly name: string | null
   onTick: SceneTickHandler | null = null
   onUpdate: SceneUpdateHandler | null = null
+  onEvent: SceneEventHandler | null = null
 
   private readonly kind: SceneNodeKind
   private model: SimpleModel | null = null
@@ -72,11 +75,13 @@ export class Scene {
     name: string | null = null,
     onTick: SceneTickHandler | null = null,
     onUpdate: SceneUpdateHandler | null = null,
+    onEvent: SceneEventHandler | null = null,
   ): SceneNode {
     node := SceneNode {
       name,
       onTick,
       onUpdate,
+      onEvent,
       kind: SceneNodeKind.SimpleModel,
       model,
     }
@@ -89,11 +94,13 @@ export class Scene {
     name: string | null = null,
     onTick: SceneTickHandler | null = null,
     onUpdate: SceneUpdateHandler | null = null,
+    onEvent: SceneEventHandler | null = null,
   ): SceneNode {
     node := SceneNode {
       name,
       onTick,
       onUpdate,
+      onEvent,
       kind: SceneNodeKind.SimpleModelBatch,
       batch,
     }
@@ -136,6 +143,19 @@ export class Scene {
       if !node.isRemoved() {
         handler := node.onUpdate as SceneUpdateHandler else { continue }
         handler.call(updateEvent)
+      }
+    }
+
+    compactRemovedNodes()
+  }
+
+  handleEvent(event: GameEvent): void {
+    snapshotLength := nodes.length
+    for index of 0..<snapshotLength {
+      node := nodes[index]
+      if !node.isRemoved() {
+        handler := node.onEvent as SceneEventHandler else { continue }
+        handler.call(event)
       }
     }
 
