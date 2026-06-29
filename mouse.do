@@ -1,9 +1,9 @@
 import { MouseButton } from "./types"
 
-const MOUSE_LEFT = 0
-const MOUSE_RIGHT = 1
-const MOUSE_MIDDLE = 2
-const MOUSE_OTHER = 3
+readonly MOUSE_LEFT = 0
+readonly MOUSE_RIGHT = 1
+readonly MOUSE_MIDDLE = 2
+readonly MOUSE_OTHER = 3
 
 export function mouseButtonCode(button: MouseButton): int {
   return case button {

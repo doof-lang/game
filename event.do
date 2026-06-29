@@ -4,19 +4,19 @@ import { keyFromCode } from "./keys"
 import { mouseButtonFromCode } from "./mouse"
 import { ControllerSlot, GameEventKind, Key, MouseButton } from "./types"
 
-const KIND_CLOSE_REQUESTED = 0
-const KIND_RESIZED = 1
-const KIND_KEY_DOWN = 2
-const KIND_KEY_UP = 3
-const KIND_MOUSE_DOWN = 4
-const KIND_MOUSE_UP = 5
-const KIND_MOUSE_MOVE = 6
-const KIND_SCROLL = 7
-const KIND_DOUBLE_TAP = 8
-const KIND_MAGNIFY = 9
-const KIND_PAN = 10
-const KIND_CONTROLLER_CONNECTED = 11
-const KIND_CONTROLLER_DISCONNECTED = 12
+readonly KIND_CLOSE_REQUESTED = 0
+readonly KIND_RESIZED = 1
+readonly KIND_KEY_DOWN = 2
+readonly KIND_KEY_UP = 3
+readonly KIND_MOUSE_DOWN = 4
+readonly KIND_MOUSE_UP = 5
+readonly KIND_MOUSE_MOVE = 6
+readonly KIND_SCROLL = 7
+readonly KIND_DOUBLE_TAP = 8
+readonly KIND_MAGNIFY = 9
+readonly KIND_PAN = 10
+readonly KIND_CONTROLLER_CONNECTED = 11
+readonly KIND_CONTROLLER_DISCONNECTED = 12
 
 export class ControllerEvent {
   private readonly native: NativeGameEvent

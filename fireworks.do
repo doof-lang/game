@@ -3,7 +3,7 @@ import { Color, RenderPass } from "./render"
 import { GameSurface } from "./surface"
 import { ParticleConfig, ParticleLayer, ParticleLayerConfig } from "./particles"
 
-const TAU_VALUE = 6.283185307179586
+readonly TAU_VALUE = 6.283185307179586
 
 function maxDouble(a: double, b: double): double {
   return if a > b then a else b
