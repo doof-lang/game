@@ -1,22 +1,23 @@
 import { BlobReader, Endian } from "std/blob"
-import { readBlob, readBlobResource } from "std/fs"
+import { readBlob, readBlobResource, readText, readTextResource } from "std/fs"
 import { parseJsonValue } from "std/json"
 import { floor, sqrt } from "std/math"
+import { dirname, join } from "std/path"
 
 import { SimpleMeshSpec } from "./mesh"
 import { Color, Mat4, Point, Point3 } from "./render"
 import { Rotation, Transform, Vec3 } from "./transform"
 
-const GLB_MAGIC = 1179937895
-const GLB_VERSION = 2
-const GLB_CHUNK_JSON = 1313821514
-const GLB_CHUNK_BIN = 5130562
-const GLTF_MODE_TRIANGLES = 4
-const GLTF_COMPONENT_UNSIGNED_BYTE = 5121
-const GLTF_COMPONENT_UNSIGNED_SHORT = 5123
-const GLTF_COMPONENT_UNSIGNED_INT = 5125
-const GLTF_COMPONENT_FLOAT = 5126
-const EPSILON = 0.000001
+readonly GLB_MAGIC = 1179937895
+readonly GLB_VERSION = 2
+readonly GLB_CHUNK_JSON = 1313821514
+readonly GLB_CHUNK_BIN = 5130562
+readonly GLTF_MODE_TRIANGLES = 4
+readonly GLTF_COMPONENT_UNSIGNED_BYTE = 5121
+readonly GLTF_COMPONENT_UNSIGNED_SHORT = 5123
+readonly GLTF_COMPONENT_UNSIGNED_INT = 5125
+readonly GLTF_COMPONENT_FLOAT = 5126
+readonly EPSILON = 0.000001
 
 export class GltfError {
   stage: string = ""
@@ -424,9 +425,6 @@ function parseBuffers(root: JsonObject, warnings: GltfWarning[]): Result<GltfBuf
       return Failure(gltfError("json", path, "Expected buffer object"))
     }
     try uri := jsonStringField(object, "uri", path)
-    if uri != null {
-      warnings.push(gltfWarning("json", path + ".uri", "External glTF buffers are not loaded"))
-    }
     try byteLength := jsonIntField(object, "byteLength", 0, path)
     result.push(GltfBuffer {
       byteLength,
@@ -1506,6 +1504,56 @@ function buildAsset(source: string, root: JsonObject, binChunk: readonly byte[],
   return Success(asset)
 }
 
+function parseGltfJsonRoot(text: string, source: string): Result<JsonObject, GltfError> {
+  json := parseJsonValue(text) else error {
+    return Failure(gltfError("json", source, "Invalid glTF JSON: " + error))
+  }
+  root := json as JsonObject else {
+    return Failure(gltfError("json", source, "glTF JSON root must be an object"))
+  }
+  return Success(root)
+}
+
+function validateSingleGltfBuffer(root: JsonObject): Result<void, GltfError> {
+  try buffers := parseBuffers(root, [])
+  if buffers.length > 1 {
+    return Failure(gltfError("json", "$.buffers", "glTF loader supports at most one external buffer"))
+  }
+
+  try bufferViews := parseBufferViews(root)
+  for index of 0..<bufferViews.length {
+    if bufferViews[index].buffer != 0 {
+      return Failure(gltfError("json", `$.bufferViews[${index}].buffer`, "glTF loader supports only buffer index 0"))
+    }
+  }
+
+  return Success()
+}
+
+function gltfBufferUri(root: JsonObject): Result<string | null, GltfError> {
+  try buffers := parseBuffers(root, [])
+  if buffers.length == 0 {
+    return Success(null)
+  }
+  if buffers.length > 1 {
+    return Failure(gltfError("json", "$.buffers", "glTF loader supports at most one external buffer"))
+  }
+  return Success(buffers[0].uri)
+}
+
+function validateLocalGltfBufferUri(uri: string, path: string): Result<void, GltfError> {
+  if uri.startsWith("data:") || uri.contains("://") {
+    return Failure(gltfError("read", path, "glTF loader supports only local .bin buffer URIs"))
+  }
+  return Success()
+}
+
+function parseGltfWithResolvedRoot(root: JsonObject, source: string, bin: readonly byte[]): Result<GltfAsset, GltfError> {
+  try validateSingleGltfBuffer(root)
+  warnings: GltfWarning[] := []
+  return buildAsset(source, root, bin, warnings)
+}
+
 export function parseGlb(data: readonly byte[], source: string = "input"): Result<GltfAsset, GltfError> {
   if data.length < 12 {
     return Failure(gltfError("binary", source, "GLB data is shorter than the 12-byte header"))
@@ -1584,6 +1632,51 @@ export function parseGlb(data: readonly byte[], source: string = "input"): Resul
   }
 
   return buildAsset(source, root, binChunk, warnings)
+}
+
+export function parseGltf(text: string, source: string = "input", bin: readonly byte[] = []): Result<GltfAsset, GltfError> {
+  try root := parseGltfJsonRoot(text, source)
+  return parseGltfWithResolvedRoot(root, source, bin)
+}
+
+export function loadGltfResource(path: string): Result<GltfAsset, GltfError> {
+  text := readTextResource(path) else error {
+    return Failure(gltfError("read", path, `${path}: failed to read glTF resource: ${error}`))
+  }
+  try root := parseGltfJsonRoot(text, path)
+  try uri := gltfBufferUri(root)
+
+  let bin: readonly byte[] = []
+  if uri != null {
+    try validateLocalGltfBufferUri(uri!, path)
+    binPath := join([dirname(path), uri!])
+    loadedBin := readBlobResource(binPath) else error {
+      return Failure(gltfError("read", binPath, `${binPath}: failed to read glTF buffer resource: ${error}`))
+    }
+    bin = loadedBin
+  }
+
+  return parseGltfWithResolvedRoot(root, path, bin)
+}
+
+export function loadGltf(path: string): Result<GltfAsset, GltfError> {
+  text := readText(path) else error {
+    return Failure(gltfError("read", path, `${path}: failed to read glTF file: ${error}`))
+  }
+  try root := parseGltfJsonRoot(text, path)
+  try uri := gltfBufferUri(root)
+
+  let bin: readonly byte[] = []
+  if uri != null {
+    try validateLocalGltfBufferUri(uri!, path)
+    binPath := join([dirname(path), uri!])
+    loadedBin := readBlob(binPath) else error {
+      return Failure(gltfError("read", binPath, `${binPath}: failed to read glTF buffer file: ${error}`))
+    }
+    bin = loadedBin
+  }
+
+  return parseGltfWithResolvedRoot(root, path, bin)
 }
 
 export function loadGlbResource(path: string): Result<GltfAsset, GltfError> {

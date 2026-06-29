@@ -541,6 +541,8 @@ app.onRender((renderer): void => {
 | `loadObjMeshSpec(path, color = Color.white)` | Load and parse a Wavefront OBJ file. |
 | `parseGlb(data, source = "input")` | Parse an embedded GLB v2 file into a `GltfAsset`. |
 | `loadGlb(path)` | Load and parse an embedded GLB v2 file. |
+| `parseGltf(text, source = "input", bin = [])` | Parse a glTF JSON document with optional supplied binary buffer data. |
+| `loadGltf(path)` | Load a `.gltf` file and its single local `.bin` buffer. |
 | `GltfAsset.createPose()` | Create an asset-bound `GltfPose` initialized from node defaults. |
 | `GltfAnimation.apply(time, pose)` | Sample node TRS and morph weights into a pose. |
 | `glbAssetToSimpleMeshSpecs(asset, color = Color.white)` | Extract supported static triangle primitives into `GltfSimpleMeshSpec[]`. |
@@ -549,9 +551,10 @@ The OBJ parser supports `v`, `vt`, `vn`, and polygonal `f` records, including
 negative relative face indices. Polygons are triangulated with a fan. Missing
 UVs use `(0, 0)`, and missing normals use generated face normals.
 
-The GLB loader supports embedded GLB v2 files. `GltfAsset` preserves the parsed
-JSON root, BIN chunk, buffers, buffer views, accessors, meshes, nodes, scenes,
-samplers, images, textures, materials, animations, skin counts, and warnings.
+The glTF loader supports embedded GLB v2 files and `.gltf` JSON files that
+reference a single local `.bin` buffer. `GltfAsset` preserves the parsed JSON
+root, resolved BIN data, buffers, buffer views, accessors, meshes, nodes,
+scenes, samplers, images, textures, materials, animations, skin counts, and warnings.
 Material records include common PBR factors and texture links. Animation
 records include sampler input/output accessors, interpolation, channel targets,
 and computed duration. `GltfPose` samples `STEP` and `LINEAR` translation,
@@ -560,8 +563,8 @@ world matrices. The `SimpleMeshSpec`
 conversion path supports static triangle primitives with float `POSITION`,
 optional float `NORMAL`, optional float `TEXCOORD_0`, optional float `COLOR_0`,
 and optional unsigned byte/short/int indices. Unsupported future-facing features
-such as skins, external buffers, sparse accessors, and non-triangle primitives
-are reported through warnings where possible.
+such as skins, multiple buffers, data URI buffers, sparse accessors, and
+non-triangle primitives are reported through warnings or errors where possible.
 
 ## Textures And Atlases
 

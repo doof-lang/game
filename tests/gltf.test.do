@@ -1,9 +1,9 @@
 import { BlobBuilder } from "std/blob"
-import { writeBlob } from "std/fs"
+import { writeBlob, writeText } from "std/fs"
 import { join, tempDirectory } from "std/path"
 import { Assert } from "std/assert"
 
-import { Color, Point3, Vec3, glbAssetToSimpleMeshSpecs, loadGlb, parseGlb } from "../index"
+import { Color, Point3, Vec3, glbAssetToSimpleMeshSpecs, loadGlb, loadGltf, parseGlb, parseGltf } from "../index"
 
 const GLB_MAGIC = 1179937895
 const GLB_JSON = 1313821514
@@ -94,6 +94,16 @@ function minimalTriangleJson(bufferLength: int): string {
   return "{" +
     "\"asset\":{\"version\":\"2.0\"}," +
     "\"buffers\":[{\"byteLength\":" + string(bufferLength) + "}]," +
+    "\"bufferViews\":[{\"buffer\":0,\"byteOffset\":0,\"byteLength\":36}]," +
+    "\"accessors\":[{\"bufferView\":0,\"componentType\":5126,\"count\":3,\"type\":\"VEC3\"}]," +
+    "\"meshes\":[{\"name\":\"Triangle\",\"primitives\":[{\"attributes\":{\"POSITION\":0}}]}]" +
+    "}"
+}
+
+function minimalTriangleGltfJson(bufferLength: int, uri: string): string {
+  return "{" +
+    "\"asset\":{\"version\":\"2.0\"}," +
+    "\"buffers\":[{\"byteLength\":" + string(bufferLength) + ",\"uri\":\"" + uri + "\"}]," +
     "\"bufferViews\":[{\"buffer\":0,\"byteOffset\":0,\"byteLength\":36}]," +
     "\"accessors\":[{\"bufferView\":0,\"componentType\":5126,\"count\":3,\"type\":\"VEC3\"}]," +
     "\"meshes\":[{\"name\":\"Triangle\",\"primitives\":[{\"attributes\":{\"POSITION\":0}}]}]" +
@@ -365,6 +375,74 @@ export function testLoadGlbReadsFile(): void {
 
   Assert.equal(specs.length, 1)
   Assert.equal(specs[0].spec.vertexCount(), 3)
+}
+
+export function testParseGltfWithSuppliedBinConvertsTriangle(): void {
+  bin := trianglePositionBin()
+  asset := try! parseGltf(minimalTriangleJson(bin.length), "triangle.gltf", bin)
+  specs := try! glbAssetToSimpleMeshSpecs(asset)
+
+  Assert.equal(specs.length, 1)
+  Assert.equal(specs[0].name!, "Triangle")
+  Assert.equal(specs[0].spec.vertexCount(), 3)
+  Assert.equal(specs[0].spec.positions[1].x, 1.0)
+}
+
+export function testLoadGltfReadsAssociatedBinFile(): void {
+  bin := trianglePositionBin()
+  root := tempDirectory()
+  gltfPath := join([root, "doof-game-gltf-test.gltf"])
+  binPath := join([root, "doof-game-gltf-test.bin"])
+  try! writeBlob(binPath, bin)
+  try! writeText(gltfPath, minimalTriangleGltfJson(bin.length, "doof-game-gltf-test.bin"))
+
+  asset := try! loadGltf(gltfPath)
+  specs := try! glbAssetToSimpleMeshSpecs(asset)
+
+  Assert.equal(specs.length, 1)
+  Assert.equal(specs[0].spec.vertexCount(), 3)
+}
+
+export function testLoadGltfRejectsMissingBinFile(): void {
+  bin := trianglePositionBin()
+  path := join([tempDirectory(), "doof-game-gltf-missing-bin.gltf"])
+  try! writeText(path, minimalTriangleGltfJson(bin.length, "missing.bin"))
+
+  Assert.isTrue(isFailure(loadGltf(path)), "expected missing .bin to fail")
+}
+
+export function testParseGltfRejectsUnsupportedBufferLayouts(): void {
+  bin := trianglePositionBin()
+  multipleBuffersJson := "{" +
+    "\"asset\":{\"version\":\"2.0\"}," +
+    "\"buffers\":[" +
+      "{\"byteLength\":" + string(bin.length) + ",\"uri\":\"a.bin\"}," +
+      "{\"byteLength\":" + string(bin.length) + ",\"uri\":\"b.bin\"}" +
+    "]," +
+    "\"bufferViews\":[{\"buffer\":0,\"byteOffset\":0,\"byteLength\":36}]" +
+    "}"
+  Assert.isTrue(isFailure(parseGltf(multipleBuffersJson, "multiple.gltf", bin)), "expected multiple buffers to fail")
+
+  nonZeroBufferJson := "{" +
+    "\"asset\":{\"version\":\"2.0\"}," +
+    "\"buffers\":[{\"byteLength\":" + string(bin.length) + ",\"uri\":\"triangle.bin\"}]," +
+    "\"bufferViews\":[{\"buffer\":1,\"byteOffset\":0,\"byteLength\":36}]" +
+    "}"
+  Assert.isTrue(isFailure(parseGltf(nonZeroBufferJson, "non-zero-buffer.gltf", bin)), "expected bufferView.buffer != 0 to fail")
+
+  overrunJson := minimalTriangleJson(bin.length + 1)
+  Assert.isTrue(isFailure(parseGltf(overrunJson, "overrun.gltf", bin)), "expected short bin to fail")
+}
+
+export function testLoadGltfRejectsUnsupportedBufferUri(): void {
+  bin := trianglePositionBin()
+  dataUriPath := join([tempDirectory(), "doof-game-gltf-data-uri.gltf"])
+  try! writeText(dataUriPath, minimalTriangleGltfJson(bin.length, "data:application/octet-stream;base64,AAAA"))
+  Assert.isTrue(isFailure(loadGltf(dataUriPath)), "expected data URI buffer to fail")
+
+  remoteUriPath := join([tempDirectory(), "doof-game-gltf-remote-uri.gltf"])
+  try! writeText(remoteUriPath, minimalTriangleGltfJson(bin.length, "https://example.test/triangle.bin"))
+  Assert.isTrue(isFailure(loadGltf(remoteUriPath)), "expected remote URI buffer to fail")
 }
 
 export function testGltfPoseSamplesAnimationChannelsAndResolvesWorldTransforms(): void {

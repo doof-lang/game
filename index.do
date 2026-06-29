@@ -61,7 +61,10 @@ export {
   glbAssetToSimpleMeshSpecs,
   loadGlb,
   loadGlbResource,
+  loadGltf,
+  loadGltfResource,
   parseGlb,
+  parseGltf,
 } from "./gltf"
 export { mouseButtonCode, mouseButtonFromCode } from "./mouse"
 export {

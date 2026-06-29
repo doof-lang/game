@@ -423,7 +423,7 @@ records, including negative relative face indices. Polygons are triangulated
 with a fan, and missing UVs or normals fall back to `(0, 0)` and generated face
 normals.
 
-### GLB Assets
+### glTF Assets
 
 ```doof
 asset := try! loadGlb("models/character.glb")
@@ -434,6 +434,8 @@ try! pose.resolveWorldTransforms()
 ```
 
 `loadGlb(path)` and `parseGlb(data, source)` parse embedded GLB v2 files.
+`loadGltf(path)` and `parseGltf(text, source, bin)` parse `.gltf` JSON files
+that use a single local `.bin` buffer.
 `glbAssetToSimpleMeshSpecs(asset)` extracts supported static triangle
 primitives. `GltfAsset` also preserves nodes, materials, textures, scenes, and
 animations. `GltfPose` is bound to its source asset and samples `STEP` or
