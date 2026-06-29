@@ -3,8 +3,8 @@ import { PI, TAU, acos, atan2, sqrt } from "std/math"
 import { SimpleMeshSpec } from "./mesh"
 import { Color, Point, Point3 } from "./render"
 
-const PHI = 1.618033988749895
-const EDGE_KEY_STRIDE = 4_294_967_296L
+readonly PHI = 1.618033988749895
+readonly EDGE_KEY_STRIDE = 4_294_967_296L
 
 class IcosphereGeometry {
   positions: Point3[] = []

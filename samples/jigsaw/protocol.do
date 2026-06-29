@@ -27,8 +27,8 @@ import {
   jigsawServerEventKey,
 } from "./session"
 
-export const JIGSAW_WEBSOCKET_PATH = "/jigsaw"
-const JIGSAW_MOVE_FLUSH_INTERVAL_MILLIS = 16L
+export readonly JIGSAW_WEBSOCKET_PATH = "/jigsaw"
+readonly JIGSAW_MOVE_FLUSH_INTERVAL_MILLIS = 16L
 
 export function encodeJigsawCommandFrame(command: JigsawClientCommand): string {
   frame: JsonObject := {

@@ -21,8 +21,8 @@ import {
   initGameApp,
 } from "std/game"
 
-const PANEL_WIDTH = 640.0
-const PANEL_HEIGHT = 540.0
+readonly PANEL_WIDTH = 640.0
+readonly PANEL_HEIGHT = 540.0
 
 function transformedPanelScale(surface: GameSurface): double {
   screenWidth := surface.width()

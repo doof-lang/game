@@ -6,7 +6,7 @@ import { createTexture } from "./render"
 import { GameSurface } from "./surface"
 import { BitmapFont, BitmapFontData, parseBitmapFontData } from "./text"
 
-const INTRINSIC_FONT_SOURCE = "<intrinsic-font>"
+readonly INTRINSIC_FONT_SOURCE = "<intrinsic-font>"
 
 export function intrinsicBitmapFontData(): Result<BitmapFontData, string> {
   compressed := intrinsicFontGzip()

@@ -13,7 +13,7 @@ import {
   parseBitmapFontData,
 } from "../index"
 
-const FONT_TEXT =
+readonly FONT_TEXT =
   "info face=\"Tiny Font\" size=16 bold=0 italic=0 charset=\"\" unicode=1 stretchH=100 smooth=1 aa=1 padding=0,0,0,0 spacing=1,1\n" +
   "common lineHeight=10 base=8 scaleW=64 scaleH=32 pages=1 packed=0\n" +
   "page id=0 file=\"tiny font.png\"\n" +

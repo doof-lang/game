@@ -3,7 +3,7 @@ import { PI, cos, sin } from "std/math"
 import { SimpleMeshSpec } from "./mesh"
 import { Color, Point, Point3 } from "./render"
 
-const TAU = PI * 2.0
+readonly TAU = PI * 2.0
 
 function latitudeSegmentCount(tessellation: int): int {
   if tessellation < 2 {

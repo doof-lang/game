@@ -18,7 +18,7 @@ function imageErrorMessage(operation: string, message: string): string {
   return "${operation}: ${message}"
 }
 
-const JIGSAW_ATLAS_CACHE_VERSION = 2
+readonly JIGSAW_ATLAS_CACHE_VERSION = 2
 
 export function jigsawAtlasCachePath(
   cacheRoot: string,

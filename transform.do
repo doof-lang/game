@@ -1,7 +1,7 @@
 import { acos, cos, sin, sqrt, radians as toRadians } from "std/math"
 import { Mat4, Point3 } from "./render"
 
-const EPSILON = 0.000001
+readonly EPSILON = 0.000001
 
 function clampUnit(value: double): double {
   if value < -1.0 {

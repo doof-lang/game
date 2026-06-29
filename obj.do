@@ -4,7 +4,7 @@ import { sqrt } from "std/math"
 import { SimpleMeshSpec } from "./mesh"
 import { Color, Point, Point3 } from "./render"
 
-const EPSILON = 0.000001
+readonly EPSILON = 0.000001
 
 class ObjTexCoord {
   u: double = 0.0

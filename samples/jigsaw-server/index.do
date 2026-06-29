@@ -56,7 +56,7 @@ export class JigsawHttpServerOptions {
   websocketCommandCapacity: int = 256
 }
 
-const JIGSAW_MOVE_FLUSH_INTERVAL_MILLIS = 16L
+readonly JIGSAW_MOVE_FLUSH_INTERVAL_MILLIS = 16L
 
 export class JigsawHttpServer {
   readonly host: string

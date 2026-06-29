@@ -1,11 +1,11 @@
 import { abs, min } from "std/math"
 import { randomInt } from "std/random"
 
-export const COLUMNS = 32
-export const ROWS = 32
-export const PIECE_SIZE = 128.0
-export const PUZZLE_STATE_VERSION = 1
-export const PIECE_HIT_SIZE_SCALE = 0.62
+export readonly COLUMNS = 32
+export readonly ROWS = 32
+export readonly PIECE_SIZE = 128.0
+export readonly PUZZLE_STATE_VERSION = 1
+export readonly PIECE_HIT_SIZE_SCALE = 0.62
 
 export class PuzzleLayout {
   pieceSize: double

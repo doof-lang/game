@@ -44,24 +44,24 @@ export enum CullMode {
   Back,
 }
 
-const CLEAR_NONE = 0
-const CLEAR_COLOR = 1
-const CLEAR_DEPTH = 2
-const CLEAR_COLOR_DEPTH = 3
+readonly CLEAR_NONE = 0
+readonly CLEAR_COLOR = 1
+readonly CLEAR_DEPTH = 2
+readonly CLEAR_COLOR_DEPTH = 3
 
-const DEPTH_DISABLED = 0
-const DEPTH_READ_ONLY = 1
-const DEPTH_READ_WRITE = 2
+readonly DEPTH_DISABLED = 0
+readonly DEPTH_READ_ONLY = 1
+readonly DEPTH_READ_WRITE = 2
 
-const BLEND_OPAQUE = 0
-const BLEND_ALPHA = 1
+readonly BLEND_OPAQUE = 0
+readonly BLEND_ALPHA = 1
 
-const WINDING_CLOCKWISE = 0
-const WINDING_COUNTER_CLOCKWISE = 1
+readonly WINDING_CLOCKWISE = 0
+readonly WINDING_COUNTER_CLOCKWISE = 1
 
-const CULL_NONE = 0
-const CULL_FRONT = 1
-const CULL_BACK = 2
+readonly CULL_NONE = 0
+readonly CULL_FRONT = 1
+readonly CULL_BACK = 2
 
 function clearKindCode(kind: ClearKind): int {
   return case kind {

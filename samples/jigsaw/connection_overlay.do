@@ -16,8 +16,8 @@ import {
   ServerConnectionState,
 } from "./client_runtime"
 
-const OVERLAY_WIDTH = 520.0
-const OVERLAY_HEIGHT = 124.0
+readonly OVERLAY_WIDTH = 520.0
+readonly OVERLAY_HEIGHT = 124.0
 
 export class JigsawConnectionOverlay {
   ui: UiLayer

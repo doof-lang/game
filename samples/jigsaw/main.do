@@ -72,16 +72,16 @@ import {
 } from "./render_helpers"
 import { jigsawAtlasCachePath, loadJigsawAtlasTexture } from "./jigsaw_atlas"
 
-const RECONNECT_INTERVAL_MILLIS = 1000L
+readonly RECONNECT_INTERVAL_MILLIS = 1000L
 readonly SOURCE_PHOTO_PATH = "images/IMG_0459.jpeg"
 readonly MASK_ATLAS_PATH = "images/jigjig.png"
-const DRAG_EDGE_AUTO_PAN_INTERVAL_MILLIS = 16L
-const DRAG_EDGE_AUTO_PAN_MARGIN = 72.0
-const DRAG_EDGE_AUTO_PAN_MAX_STEP = 18.0
-const JOIN_FLASH_INTERVAL_MILLIS = 16L
+readonly DRAG_EDGE_AUTO_PAN_INTERVAL_MILLIS = 16L
+readonly DRAG_EDGE_AUTO_PAN_MARGIN = 72.0
+readonly DRAG_EDGE_AUTO_PAN_MAX_STEP = 18.0
+readonly JOIN_FLASH_INTERVAL_MILLIS = 16L
 // Peak amount of white blended into joined pieces. Tune this to adjust the flash strength.
-const JOIN_FLASH_INTENSITY = 0.82
-const JOIN_FLASH_INTENSITY_STEP = 0.075
+readonly JOIN_FLASH_INTENSITY = 0.82
+readonly JOIN_FLASH_INTENSITY_STEP = 0.075
 
 function dragEdgeAutoPanAxis(pointer: double, size: double): double {
   margin := if size * 0.35 < DRAG_EDGE_AUTO_PAN_MARGIN then size * 0.35 else DRAG_EDGE_AUTO_PAN_MARGIN

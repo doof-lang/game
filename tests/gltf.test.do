@@ -5,9 +5,9 @@ import { Assert } from "std/assert"
 
 import { Color, Point3, Vec3, glbAssetToSimpleMeshSpecs, loadGlb, loadGltf, parseGlb, parseGltf } from "../index"
 
-const GLB_MAGIC = 1179937895
-const GLB_JSON = 1313821514
-const GLB_BIN = 5130562
+readonly GLB_MAGIC = 1179937895
+readonly GLB_JSON = 1313821514
+readonly GLB_BIN = 5130562
 
 function isFailure<T, E>(result: Result<T, E>): bool {
   return case result {

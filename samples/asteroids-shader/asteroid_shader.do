@@ -20,11 +20,11 @@ import {
   createIcosphereMeshSpec,
   drawShader,
 } from "std/game"
-const ASTEROID_COUNT = 72
-const ASTEROID_SUBDIVISIONS = 2
-const ASTEROID_VERTEX_STRIDE = 28
-const ASTEROID_INSTANCE_STRIDE = 64
-const ASTEROID_SHADER_PATH = "shaders/asteroid.metal"
+readonly ASTEROID_COUNT = 72
+readonly ASTEROID_SUBDIVISIONS = 2
+readonly ASTEROID_VERTEX_STRIDE = 28
+readonly ASTEROID_INSTANCE_STRIDE = 64
+readonly ASTEROID_SHADER_PATH = "shaders/asteroid.metal"
 
 export class AsteroidShaderResources {
   readonly pipeline: ShaderPipeline

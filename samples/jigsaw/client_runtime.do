@@ -19,8 +19,8 @@ import {
   createJigsawSession,
 } from "./session"
 
-const EVENT_DRAIN_PUMP_LIMIT = 16
-const COARSE_ZOOM_DELTA_SCALE = 0.01
+readonly EVENT_DRAIN_PUMP_LIMIT = 16
+readonly COARSE_ZOOM_DELTA_SCALE = 0.01
 
 export enum ServerConnectionState {
   Local,
