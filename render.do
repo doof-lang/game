@@ -4,7 +4,7 @@ import {
   NativeTexture,
 } from "./native"
 import { GameSurface } from "./surface"
-import { Rotation, Transform, Vec3 } from "./transform"
+import { Mat3, Rotation, Transform, Vec3 } from "./transform"
 import { Image, PixelAlphaMode, PixelBytes } from "std/image"
 import { abs, cos, sin, tan } from "std/math"
 
@@ -318,6 +318,36 @@ export class Mat4 {
       m31: (m00 * b09 - m01 * b07 + m02 * b06) * invDet,
       m32: (-m30 * b03 + m31 * b01 - m32 * b00) * invDet,
       m33: (m20 * b03 - m21 * b01 + m22 * b00) * invDet,
+    }
+  }
+
+  toNormalMat3(): Mat3 {
+    a := m00
+    b := m01
+    c := m02
+    d := m10
+    e := m11
+    f := m12
+    g := m20
+    h := m21
+    i := m22
+
+    det := a * (e * i - f * h) - b * (d * i - f * g) + c * (d * h - e * g)
+    if abs(det) < 0.000001 {
+      return Mat3.identity()
+    }
+
+    invDet := 1.0 / det
+    return Mat3 {
+      m00: (e * i - f * h) * invDet,
+      m01: (f * g - d * i) * invDet,
+      m02: (d * h - e * g) * invDet,
+      m10: (c * h - b * i) * invDet,
+      m11: (a * i - c * g) * invDet,
+      m12: (b * g - a * h) * invDet,
+      m20: (b * f - c * e) * invDet,
+      m21: (c * d - a * f) * invDet,
+      m22: (a * e - b * d) * invDet,
     }
   }
 

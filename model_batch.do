@@ -171,7 +171,9 @@ export class SimpleModelBatch {
     target.setCount(count())
     for slot of 0..<count() {
       if dirty[slot] != 0 {
-        matrix := transforms[slot].toMat4()
+        transform := transforms[slot]
+        matrix := transform.toMat4()
+        normal := transform.toNormalMat3()
         tint := tints[slot]
         whiteBlend := whiteBlends[slot]
         uvOffset := uvOffsets[slot]
@@ -194,6 +196,15 @@ export class SimpleModelBatch {
           matrix.m31,
           matrix.m32,
           matrix.m33,
+          normal.m00,
+          normal.m01,
+          normal.m02,
+          normal.m10,
+          normal.m11,
+          normal.m12,
+          normal.m20,
+          normal.m21,
+          normal.m22,
           tint.r,
           tint.g,
           tint.b,

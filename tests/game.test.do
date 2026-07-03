@@ -894,6 +894,29 @@ export function testMat4InverseRestoresTransformedPoint(): void {
   assertPoint3Approx(identityPoint, point)
 }
 
+export function testMat4NormalMatrixUsesInverseTranspose(): void {
+  matrix := Mat4
+    .rotationY(0.35)
+    .multiply(Mat4.scale(2.0, 3.0, 4.0))
+  normalMatrix := matrix.toNormalMat3()
+  expected := Transform {
+    position: Point3(0.0, 0.0, 0.0),
+    rotation: Rotation.y(20.05352282957881),
+    scale: Vec3.xyz(2.0, 3.0, 4.0),
+  }.toNormalMat3()
+
+  assertApprox(normalMatrix.m00, expected.m00)
+  assertApprox(normalMatrix.m01, expected.m01)
+  assertApprox(normalMatrix.m02, expected.m02)
+  assertApprox(normalMatrix.m10, expected.m10)
+  assertApprox(normalMatrix.m11, expected.m11)
+  assertApprox(normalMatrix.m12, expected.m12)
+  assertApprox(normalMatrix.m20, expected.m20)
+  assertApprox(normalMatrix.m21, expected.m21)
+  assertApprox(normalMatrix.m22, expected.m22)
+  assertVec3Approx(normalMatrix.transformVector(Vec3.zAxis).normalized(), expected.transformVector(Vec3.zAxis).normalized())
+}
+
 export function testMat4ProjectPointDividesByClipW(): void {
   matrix := Mat4.perspective(1.5707963267948966, 1.0, 1.0, 10.0)
   projected := matrix.projectPoint(Point3(2.0, 4.0, -5.0))

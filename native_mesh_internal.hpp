@@ -92,6 +92,25 @@ inline MatrixUniforms makeMatrixUniforms(
     };
 }
 
+inline MatrixUniforms makeNormalMatrixUniforms(
+    double n00,
+    double n01,
+    double n02,
+    double n10,
+    double n11,
+    double n12,
+    double n20,
+    double n21,
+    double n22
+) {
+    return MatrixUniforms {
+        { static_cast<float>(n00), static_cast<float>(n01), static_cast<float>(n02), 0.0f },
+        { static_cast<float>(n10), static_cast<float>(n11), static_cast<float>(n12), 0.0f },
+        { static_cast<float>(n20), static_cast<float>(n21), static_cast<float>(n22), 0.0f },
+        { 0.0f, 0.0f, 0.0f, 1.0f },
+    };
+}
+
 id<MTLSamplerState> linearSampler(id<MTLDevice> device, MTLSamplerAddressMode sAddressMode);
 
 }  // namespace native_mesh

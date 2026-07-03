@@ -171,6 +171,7 @@ export function drawSimpleMesh(
   lighting: SimpleMeshLighting = SimpleMeshLighting {},
 ): void {
   mvp := pass.camera().matrix(pass.surface()).multiply(model)
+  normal := model.toNormalMat3()
   drawNativeSimpleMesh(
     mesh.native,
     pass.metalRenderCommandEncoderHandle(),
@@ -193,6 +194,15 @@ export function drawSimpleMesh(
     mvp.m31,
     mvp.m32,
     mvp.m33,
+    normal.m00,
+    normal.m01,
+    normal.m02,
+    normal.m10,
+    normal.m11,
+    normal.m12,
+    normal.m20,
+    normal.m21,
+    normal.m22,
     lighting.ambient,
     lighting.directional,
     lighting.direction.x,
@@ -214,6 +224,7 @@ export function drawTexturedSimpleMesh(
   lighting: SimpleMeshLighting = SimpleMeshLighting {},
 ): void {
   mvp := pass.camera().matrix(pass.surface()).multiply(model)
+  normal := model.toNormalMat3()
   drawNativeTexturedSimpleMesh(
     mesh.native,
     texture.metalTextureHandle(),
@@ -237,6 +248,15 @@ export function drawTexturedSimpleMesh(
     mvp.m31,
     mvp.m32,
     mvp.m33,
+    normal.m00,
+    normal.m01,
+    normal.m02,
+    normal.m10,
+    normal.m11,
+    normal.m12,
+    normal.m20,
+    normal.m21,
+    normal.m22,
     lighting.ambient,
     lighting.directional,
     lighting.direction.x,
