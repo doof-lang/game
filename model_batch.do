@@ -4,7 +4,7 @@ import { Color, Point3, RenderPass, Texture } from "./render"
 import { GameSurface } from "./surface"
 import { Rotation, Transform, Vec3 } from "./transform"
 
-export class Vec2 {
+export struct Vec2 {
   readonly x: double
   readonly y: double
 

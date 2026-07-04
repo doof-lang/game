@@ -79,7 +79,7 @@ function particleTransform(particle: ParticleState): Transform {
 }
 
 function hiddenTransform(): Transform {
-  return Transform.identity().withScale(Vec3.zero)
+  return Transform.identity()
 }
 
 export class ParticleLayer {
