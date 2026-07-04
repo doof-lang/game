@@ -20,7 +20,7 @@ function safeScale(value: double, name: string): double {
   return value
 }
 
-export class Vec3 {
+export struct Vec3 {
   readonly x: double
   readonly y: double
   readonly z: double
@@ -98,7 +98,7 @@ export class Vec3 {
   }
 }
 
-export class Mat3 {
+export struct Mat3 {
   readonly m00: double
   readonly m01: double
   readonly m02: double
@@ -126,7 +126,7 @@ export class Mat3 {
   }
 }
 
-export class Rotation {
+export struct Rotation {
   readonly qx: double
   readonly qy: double
   readonly qz: double

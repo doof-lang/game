@@ -102,7 +102,7 @@ function cullModeCode(mode: CullMode): int {
   }
 }
 
-export class Color {
+export struct Color {
   readonly r: double
   readonly g: double
   readonly b: double
@@ -116,25 +116,25 @@ export class Color {
   static readonly transparent = Color(0.0, 0.0, 0.0, 0.0)
 }
 
-export class Point {
+export struct Point {
   readonly x: double
   readonly y: double
 }
 
-export class Point3 {
+export struct Point3 {
   readonly x: double
   readonly y: double
   readonly z: double
 }
 
-export class ClipPoint {
+export struct ClipPoint {
   readonly x: double
   readonly y: double
   readonly z: double
   readonly w: double
 }
 
-export class Mat4 {
+export struct Mat4 {
   readonly m00: double
   readonly m01: double
   readonly m02: double
@@ -369,7 +369,7 @@ export class Mat4 {
   }
 }
 
-export class Rect {
+export struct Rect {
   readonly x: double
   readonly y: double
   readonly width: double
@@ -594,7 +594,7 @@ export class Clear {
   }
 }
 
-export class Depth {
+export struct Depth {
   readonly mode: DepthMode
 
   static disabled(): Depth {
@@ -610,7 +610,7 @@ export class Depth {
   }
 }
 
-export class Blend {
+export struct Blend {
   readonly mode: BlendMode
 
   static opaque(): Blend {

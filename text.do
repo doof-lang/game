@@ -13,7 +13,7 @@ export enum TextAlign {
   Right,
 }
 
-export class BitmapGlyph {
+export struct BitmapGlyph {
   readonly id: int
   readonly x: int
   readonly y: int
@@ -26,7 +26,7 @@ export class BitmapGlyph {
   readonly channel: int = 0
 }
 
-export class BitmapKerning {
+export struct BitmapKerning {
   readonly first: int
   readonly second: int
   readonly amount: int
@@ -118,10 +118,10 @@ class FontParseState {
   kernings: Map<string, int> = {}
 }
 
-class TextGlyphPlacement {
-  glyph: BitmapGlyph
-  x: double
-  y: double
+struct TextGlyphPlacement {
+  readonly glyph: BitmapGlyph
+  readonly x: double
+  readonly y: double
 }
 
 class TextLine {
