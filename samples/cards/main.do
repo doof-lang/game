@@ -9,6 +9,7 @@ import {
   Point,
   Point3,
   RenderPassDescriptor,
+  SimpleMaterial,
   SimpleMeshBuilder,
   SimpleModelBatch,
   Transform,
@@ -66,35 +67,33 @@ function main(): int {
   uvScale := Vec2.xy(1.0 / double(cardColumns), 1.0 / double(cardRows))
   cardBatch.add{
     transform: Transform.identity().withPosition(Point3(80.0, 90.0, 0.0)),
-    uvOffset: cardUvOffset(0, 0, cardColumns, cardRows),
-    uvScale: uvScale,
+    material: SimpleMaterial { uvOffset: cardUvOffset(0, 0, cardColumns, cardRows), uvScale: uvScale },
   }
   cardBatch.add{
     transform: Transform.identity().withPosition(Point3(220.0, 90.0, 0.0)),
-    uvOffset: cardUvOffset(10, 1, cardColumns, cardRows),
-    uvScale: uvScale,
+    material: SimpleMaterial { uvOffset: cardUvOffset(10, 1, cardColumns, cardRows), uvScale: uvScale },
   }
   cardBatch.add{
     transform: Transform.identity().withPosition(Point3(360.0, 90.0, 0.0)),
-    uvOffset: cardUvOffset(12, 2, cardColumns, cardRows),
-    uvScale: uvScale,
+    material: SimpleMaterial { uvOffset: cardUvOffset(12, 2, cardColumns, cardRows), uvScale: uvScale },
   }
   cardBatch.add{
     transform: Transform.identity().withPosition(Point3(500.0, 90.0, 0.0)),
-    uvOffset: cardUvOffset(13, 0, cardColumns, cardRows),
-    uvScale: uvScale,
+    material: SimpleMaterial { uvOffset: cardUvOffset(13, 0, cardColumns, cardRows), uvScale: uvScale },
   }
   cardBatch.add{
     transform: Transform.identity().withPosition(Point3(640.0, 90.0, 0.0)),
-    uvOffset: cardUvOffset(13, 1, cardColumns, cardRows),
-    uvScale: uvScale,
+    material: SimpleMaterial { uvOffset: cardUvOffset(13, 1, cardColumns, cardRows), uvScale: uvScale },
   }
   joker := cardBatch.add{
     transform: Transform.identity().withPosition(Point3(780.0, 90.0, 0.0)),
+    material: SimpleMaterial { uvOffset: cardUvOffset(13, 2, cardColumns, cardRows), uvScale: uvScale },
+  }
+  joker.moveWorldBy(Vec3.xyz(0.0, 12.0, 0.0)).setMaterial(SimpleMaterial {
+    tint: Color(0.9, 1.0, 0.9),
     uvOffset: cardUvOffset(13, 2, cardColumns, cardRows),
     uvScale: uvScale,
-  }
-  joker.moveWorldBy(Vec3.xyz(0.0, 12.0, 0.0)).setTint(Color(0.9, 1.0, 0.9))
+  })
 
   app.key(Key.Escape).onPressed((): void => app.stop())
 

@@ -1,7 +1,7 @@
 import { clamp, cos, floor, sin } from "std/math"
 import { GameSurface } from "./surface"
 import { Color, Point3, RenderPass } from "./render"
-import { SimpleMesh, SimpleMeshBuilder, SimpleMeshLighting } from "./mesh"
+import { SimpleMaterial, SimpleMesh, SimpleMeshBuilder, SimpleMeshLighting } from "./mesh"
 import { SimpleModelBatch, SimpleModelInstance, drawSimpleModelBatch } from "./model_batch"
 import { Transform, Vec3 } from "./transform"
 
@@ -106,7 +106,7 @@ export class ParticleLayer {
     for index of 0..<config.capacity {
       state := ParticleState {}
       layer.states.push(state)
-      layer.instances.push(batch.add{ transform: hiddenTransform(), tint: Color.transparent })
+      layer.instances.push(batch.add{ transform: hiddenTransform(), material: SimpleMaterial { tint: Color.transparent } })
     }
     return layer
   }
@@ -120,7 +120,7 @@ export class ParticleLayer {
       if states[index].active {
         states[index].active = false
         instances[index].setTransform(hiddenTransform())
-        instances[index].setTint(Color.transparent)
+        instances[index].setMaterial(SimpleMaterial { tint: Color.transparent })
       }
     }
     active = 0
@@ -179,7 +179,7 @@ export class ParticleLayer {
     particle := states[index]
     if !particle.active {
       instances[index].setTransform(hiddenTransform())
-      instances[index].setTint(Color.transparent)
+      instances[index].setMaterial(SimpleMaterial { tint: Color.transparent })
       return
     }
 
@@ -190,7 +190,7 @@ export class ParticleLayer {
     }
 
     instances[index].setTransform(particleTransform(particle))
-    instances[index].setTint(Color(particle.color.r, particle.color.g, particle.color.b, alpha))
+    instances[index].setMaterial(SimpleMaterial { tint: Color(particle.color.r, particle.color.g, particle.color.b, alpha) })
   }
 
   update(deltaTime: double): bool {

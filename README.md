@@ -272,11 +272,12 @@ the order you provide; pass them counter-clockwise when viewed from the front to
 match the default winding. `quad(...)` emits two counter-clockwise triangles for
 the points `a`, `b`, `c`, `d`. `drawSimpleMesh(...)` uses one indexed Metal draw
 for the whole mesh with simple built-in lighting, while
-`drawTexturedSimpleMesh(...)` samples a `Texture` using the mesh UVs before
-applying the same lighting. Pass `SimpleMeshLighting { ambient, directional,
-direction }` as the optional final argument to control the built-in light; the
-defaults are ambient `0.25`, directional `0.75`, and direction
-`Point3(0.35, 0.60, 0.72)`.
+`drawTexturedSimpleMesh(...)` samples a `Texture` using the mesh UVs transformed
+by `SimpleMaterial` before applying the same lighting. Pass
+`SimpleMaterial { tint, whiteBlend, uvOffset, uvScale, specular, shininess,
+fresnel, fresnelPower }` before the optional `SimpleMeshLighting` argument to
+control material response. Lighting defaults are ambient `0.25`, directional
+`0.75`, and direction `Point3(0.35, 0.60, 0.72)`.
 
 ### Bitmap Font Text
 
@@ -471,9 +472,13 @@ batch := SimpleModelBatch {
 
 tree := batch.add{
   transform: Transform.identity().withPosition(Point3(80.0, 90.0, 0.0)),
-  tint: Color.white,
-  uvOffset: Vec2.zero,
-  uvScale: Vec2.xy(1.0 / 14.0, 1.0 / 4.0),
+  material: SimpleMaterial {
+    tint: Color.white,
+    uvOffset: Vec2.zero,
+    uvScale: Vec2.xy(1.0 / 14.0, 1.0 / 4.0),
+    specular: 0.25,
+    fresnel: 0.1,
+  },
 }
 tree.moveWorldBy(Vec3.xyz(0.0, 1.0, 0.0))
 

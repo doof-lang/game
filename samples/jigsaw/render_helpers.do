@@ -5,6 +5,7 @@ import {
   Point3,
   SimpleMesh,
   SimpleMeshBuilder,
+  SimpleMaterial,
   SimpleModelBatch,
   SimpleModelInstance,
   Texture,
@@ -57,9 +58,11 @@ function addPieceToBatch(
 ): SimpleModelInstance {
   return batch.add{
     transform: Transform.identity().withPosition(Point3(piece.x, piece.y, 0.0)),
-    tint,
-    uvOffset: uvOffset(piece.column, piece.row),
-    uvScale: Vec2.xy(1.0 / double(COLUMNS), 1.0 / double(ROWS)),
+    material: SimpleMaterial {
+      tint,
+      uvOffset: uvOffset(piece.column, piece.row),
+      uvScale: Vec2.xy(1.0 / double(COLUMNS), 1.0 / double(ROWS)),
+    },
   }
 }
 
@@ -81,9 +84,11 @@ export function createJoinFlashBatch(
     piece := pieces[pieceId]
     batch.add{
       transform: Transform.identity().withPosition(Point3(piece.x, piece.y, 0.0)),
-      whiteBlend: intensity,
-      uvOffset: uvOffset(piece.column, piece.row),
-      uvScale: Vec2.xy(1.0 / double(COLUMNS), 1.0 / double(ROWS)),
+      material: SimpleMaterial {
+        whiteBlend: intensity,
+        uvOffset: uvOffset(piece.column, piece.row),
+        uvScale: Vec2.xy(1.0 / double(COLUMNS), 1.0 / double(ROWS)),
+      },
     }
   }
   return batch

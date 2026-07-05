@@ -7,6 +7,18 @@ import {
 import { GameSurface } from "./surface"
 import { Color, Mat4, Point, Point3, RenderPass, Texture } from "./render"
 
+export struct Vec2 {
+  readonly x: double
+  readonly y: double
+
+  static readonly zero = Vec2 { x: 0.0, y: 0.0 }
+  static readonly one = Vec2 { x: 1.0, y: 1.0 }
+
+  static xy(x: double, y: double): Vec2 {
+    return Vec2 { x: x, y: y }
+  }
+}
+
 export class SimpleMeshSpec {
   positions: Point3[]
   indices: int[]
@@ -22,6 +34,17 @@ export class SimpleMeshLighting {
   ambient: double = 0.25
   directional: double = 0.75
   direction: Point3 = Point3(0.35, 0.60, 0.72)
+}
+
+export class SimpleMaterial {
+  tint: Color = Color { r: 1.0, g: 1.0, b: 1.0, a: 1.0 }
+  whiteBlend: double = 0.0
+  uvOffset: Vec2 = Vec2 { x: 0.0, y: 0.0 }
+  uvScale: Vec2 = Vec2 { x: 1.0, y: 1.0 }
+  specular: double = 0.0
+  shininess: double = 32.0
+  fresnel: double = 0.0
+  fresnelPower: double = 5.0
 }
 
 export class SimpleMesh {
@@ -168,32 +191,50 @@ export function drawSimpleMesh(
     m20: 0.0, m21: 0.0, m22: 1.0, m23: 0.0,
     m30: 0.0, m31: 0.0, m32: 0.0, m33: 1.0,
   },
+  material: SimpleMaterial = SimpleMaterial {},
   lighting: SimpleMeshLighting = SimpleMeshLighting {},
 ): void {
-  mvp := pass.camera().matrix(pass.surface()).multiply(model)
+  viewProjection := pass.camera().matrix(pass.surface())
   normal := model.toNormalMat3()
+  eye := pass.camera().transform.position
   drawNativeSimpleMesh(
     mesh.native,
     pass.metalRenderCommandEncoderHandle(),
     pass.metalDeviceHandle(),
     pass.nativeBlendModeCode(),
     pass.hasDepthAttachment(),
-    mvp.m00,
-    mvp.m01,
-    mvp.m02,
-    mvp.m03,
-    mvp.m10,
-    mvp.m11,
-    mvp.m12,
-    mvp.m13,
-    mvp.m20,
-    mvp.m21,
-    mvp.m22,
-    mvp.m23,
-    mvp.m30,
-    mvp.m31,
-    mvp.m32,
-    mvp.m33,
+    viewProjection.m00,
+    viewProjection.m01,
+    viewProjection.m02,
+    viewProjection.m03,
+    viewProjection.m10,
+    viewProjection.m11,
+    viewProjection.m12,
+    viewProjection.m13,
+    viewProjection.m20,
+    viewProjection.m21,
+    viewProjection.m22,
+    viewProjection.m23,
+    viewProjection.m30,
+    viewProjection.m31,
+    viewProjection.m32,
+    viewProjection.m33,
+    model.m00,
+    model.m01,
+    model.m02,
+    model.m03,
+    model.m10,
+    model.m11,
+    model.m12,
+    model.m13,
+    model.m20,
+    model.m21,
+    model.m22,
+    model.m23,
+    model.m30,
+    model.m31,
+    model.m32,
+    model.m33,
     normal.m00,
     normal.m01,
     normal.m02,
@@ -208,6 +249,22 @@ export function drawSimpleMesh(
     lighting.direction.x,
     lighting.direction.y,
     lighting.direction.z,
+    eye.x,
+    eye.y,
+    eye.z,
+    material.tint.r,
+    material.tint.g,
+    material.tint.b,
+    material.tint.a,
+    material.whiteBlend,
+    material.uvOffset.x,
+    material.uvOffset.y,
+    material.uvScale.x,
+    material.uvScale.y,
+    material.specular,
+    material.shininess,
+    material.fresnel,
+    material.fresnelPower,
   )
 }
 
@@ -221,10 +278,12 @@ export function drawTexturedSimpleMesh(
     m20: 0.0, m21: 0.0, m22: 1.0, m23: 0.0,
     m30: 0.0, m31: 0.0, m32: 0.0, m33: 1.0,
   },
+  material: SimpleMaterial = SimpleMaterial {},
   lighting: SimpleMeshLighting = SimpleMeshLighting {},
 ): void {
-  mvp := pass.camera().matrix(pass.surface()).multiply(model)
+  viewProjection := pass.camera().matrix(pass.surface())
   normal := model.toNormalMat3()
+  eye := pass.camera().transform.position
   drawNativeTexturedSimpleMesh(
     mesh.native,
     texture.metalTextureHandle(),
@@ -232,22 +291,38 @@ export function drawTexturedSimpleMesh(
     pass.metalDeviceHandle(),
     pass.nativeBlendModeCode(),
     pass.hasDepthAttachment(),
-    mvp.m00,
-    mvp.m01,
-    mvp.m02,
-    mvp.m03,
-    mvp.m10,
-    mvp.m11,
-    mvp.m12,
-    mvp.m13,
-    mvp.m20,
-    mvp.m21,
-    mvp.m22,
-    mvp.m23,
-    mvp.m30,
-    mvp.m31,
-    mvp.m32,
-    mvp.m33,
+    viewProjection.m00,
+    viewProjection.m01,
+    viewProjection.m02,
+    viewProjection.m03,
+    viewProjection.m10,
+    viewProjection.m11,
+    viewProjection.m12,
+    viewProjection.m13,
+    viewProjection.m20,
+    viewProjection.m21,
+    viewProjection.m22,
+    viewProjection.m23,
+    viewProjection.m30,
+    viewProjection.m31,
+    viewProjection.m32,
+    viewProjection.m33,
+    model.m00,
+    model.m01,
+    model.m02,
+    model.m03,
+    model.m10,
+    model.m11,
+    model.m12,
+    model.m13,
+    model.m20,
+    model.m21,
+    model.m22,
+    model.m23,
+    model.m30,
+    model.m31,
+    model.m32,
+    model.m33,
     normal.m00,
     normal.m01,
     normal.m02,
@@ -262,5 +337,21 @@ export function drawTexturedSimpleMesh(
     lighting.direction.x,
     lighting.direction.y,
     lighting.direction.z,
+    eye.x,
+    eye.y,
+    eye.z,
+    material.tint.r,
+    material.tint.g,
+    material.tint.b,
+    material.tint.a,
+    material.whiteBlend,
+    material.uvOffset.x,
+    material.uvOffset.y,
+    material.uvScale.x,
+    material.uvScale.y,
+    material.specular,
+    material.shininess,
+    material.fresnel,
+    material.fresnelPower,
   )
 }

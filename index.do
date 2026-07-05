@@ -29,9 +29,9 @@ export {
   synthSound,
 } from "./sound_synth"
 export { SfxrSoundConfig, SoundWave } from "./sound_synth_types"
-export { SimpleMesh, SimpleMeshBuilder, SimpleMeshLighting, SimpleMeshSpec, drawSimpleMesh, drawTexturedSimpleMesh } from "./mesh"
+export { SimpleMaterial, SimpleMesh, SimpleMeshBuilder, SimpleMeshLighting, SimpleMeshSpec, Vec2, drawSimpleMesh, drawTexturedSimpleMesh } from "./mesh"
 export { SimpleModel, drawSimpleModel } from "./model"
-export { SimpleModelBatch, SimpleModelInstance, SimpleModelInstanceConfig, Vec2, drawSimpleModelBatch } from "./model_batch"
+export { SimpleModelBatch, SimpleModelInstance, SimpleModelInstanceConfig, drawSimpleModelBatch } from "./model_batch"
 export { Scene, SceneEventHandler, SceneNode, SceneTick, SceneTickHandler, SceneUpdate, SceneUpdateHandler } from "./scene"
 export { ObjError, loadObjMeshSpec, parseObjMeshSpec } from "./obj"
 export { Fireworks, FireworksConfig } from "./fireworks"

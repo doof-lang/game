@@ -1,20 +1,8 @@
 import { NativeSimpleModelBatch, drawNativeSimpleModelBatch } from "./native"
-import { SimpleMesh, SimpleMeshLighting } from "./mesh"
-import { Color, Point3, RenderPass, Texture } from "./render"
+import { SimpleMaterial, SimpleMesh, SimpleMeshLighting } from "./mesh"
+import { Point3, RenderPass, Texture } from "./render"
 import { GameSurface } from "./surface"
 import { Rotation, Transform, Vec3 } from "./transform"
-
-export struct Vec2 {
-  readonly x: double
-  readonly y: double
-
-  static readonly zero = Vec2 { x: 0.0, y: 0.0 }
-  static readonly one = Vec2 { x: 1.0, y: 1.0 }
-
-  static xy(x: double, y: double): Vec2 {
-    return Vec2 { x: x, y: y }
-  }
-}
 
 export class SimpleModelInstanceConfig {
   transform: Transform = Transform {
@@ -22,10 +10,7 @@ export class SimpleModelInstanceConfig {
     rotation: Rotation { qx: 0.0, qy: 0.0, qz: 0.0, qw: 1.0 },
     scale: Vec3 { x: 1.0, y: 1.0, z: 1.0 },
   }
-  tint: Color = Color { r: 1.0, g: 1.0, b: 1.0, a: 1.0 }
-  whiteBlend: double = 0.0
-  uvOffset: Vec2 = Vec2 { x: 0.0, y: 0.0 }
-  uvScale: Vec2 = Vec2 { x: 1.0, y: 1.0 }
+  material: SimpleMaterial = SimpleMaterial {}
 }
 
 class SimpleModelInstanceState {
@@ -40,10 +25,7 @@ export class SimpleModelBatch {
   readonly capacity: int
 
   private transforms: Transform[] = []
-  private tints: Color[] = []
-  private whiteBlends: double[] = []
-  private uvOffsets: Vec2[] = []
-  private uvScales: Vec2[] = []
+  private materials: SimpleMaterial[] = []
   private dirty: int[] = []
   private states: SimpleModelInstanceState[] = []
   private native: NativeSimpleModelBatch | null = null
@@ -56,10 +38,7 @@ export class SimpleModelBatch {
       rotation: Rotation { qx: 0.0, qy: 0.0, qz: 0.0, qw: 1.0 },
       scale: Vec3 { x: 1.0, y: 1.0, z: 1.0 },
     },
-    tint: Color = Color { r: 1.0, g: 1.0, b: 1.0, a: 1.0 },
-    whiteBlend: double = 0.0,
-    uvOffset: Vec2 = Vec2 { x: 0.0, y: 0.0 },
-    uvScale: Vec2 = Vec2 { x: 1.0, y: 1.0 },
+    material: SimpleMaterial = SimpleMaterial {},
   ): SimpleModelInstance {
     if count() >= capacity {
       panic("SimpleModelBatch capacity exceeded")
@@ -68,10 +47,7 @@ export class SimpleModelBatch {
     slot := count()
     state := SimpleModelInstanceState { slot: slot }
     transforms.push(transform)
-    tints.push(tint)
-    whiteBlends.push(whiteBlend)
-    uvOffsets.push(uvOffset)
-    uvScales.push(uvScale)
+    materials.push(material)
     dirty.push(1)
     states.push(state)
 
@@ -89,20 +65,8 @@ export class SimpleModelBatch {
     return transforms[requireLive(state)]
   }
 
-  private tintOf(state: SimpleModelInstanceState): Color {
-    return tints[requireLive(state)]
-  }
-
-  private uvOffsetOf(state: SimpleModelInstanceState): Vec2 {
-    return uvOffsets[requireLive(state)]
-  }
-
-  private whiteBlendOf(state: SimpleModelInstanceState): double {
-    return whiteBlends[requireLive(state)]
-  }
-
-  private uvScaleOf(state: SimpleModelInstanceState): Vec2 {
-    return uvScales[requireLive(state)]
+  private materialOf(state: SimpleModelInstanceState): SimpleMaterial {
+    return materials[requireLive(state)]
   }
 
   private setTransformFor(state: SimpleModelInstanceState, transform: Transform): void {
@@ -111,27 +75,9 @@ export class SimpleModelBatch {
     dirty[slot] = 1
   }
 
-  private setTintFor(state: SimpleModelInstanceState, tint: Color): void {
+  private setMaterialFor(state: SimpleModelInstanceState, material: SimpleMaterial): void {
     slot := requireLive(state)
-    tints[slot] = tint
-    dirty[slot] = 1
-  }
-
-  private setWhiteBlendFor(state: SimpleModelInstanceState, whiteBlend: double): void {
-    slot := requireLive(state)
-    whiteBlends[slot] = whiteBlend
-    dirty[slot] = 1
-  }
-
-  private setUvOffsetFor(state: SimpleModelInstanceState, uvOffset: Vec2): void {
-    slot := requireLive(state)
-    uvOffsets[slot] = uvOffset
-    dirty[slot] = 1
-  }
-
-  private setUvScaleFor(state: SimpleModelInstanceState, uvScale: Vec2): void {
-    slot := requireLive(state)
-    uvScales[slot] = uvScale
+    materials[slot] = material
     dirty[slot] = 1
   }
 
@@ -142,10 +88,7 @@ export class SimpleModelBatch {
     last := count() - 1
     if slot != last {
       transforms[slot] = transforms[last]
-      tints[slot] = tints[last]
-      whiteBlends[slot] = whiteBlends[last]
-      uvOffsets[slot] = uvOffsets[last]
-      uvScales[slot] = uvScales[last]
+      materials[slot] = materials[last]
       dirty[slot] = 1
 
       movedState := states[last]
@@ -154,10 +97,7 @@ export class SimpleModelBatch {
     }
 
     transforms = transforms.slice(0, last)
-    tints = tints.slice(0, last)
-    whiteBlends = whiteBlends.slice(0, last)
-    uvOffsets = uvOffsets.slice(0, last)
-    uvScales = uvScales.slice(0, last)
+    materials = materials.slice(0, last)
     dirty = dirty.slice(0, last)
     states = states.slice(0, last)
   }
@@ -174,10 +114,7 @@ export class SimpleModelBatch {
         transform := transforms[slot]
         matrix := transform.toMat4()
         normal := transform.toNormalMat3()
-        tint := tints[slot]
-        whiteBlend := whiteBlends[slot]
-        uvOffset := uvOffsets[slot]
-        uvScale := uvScales[slot]
+        material := materials[slot]
         target.setInstance(
           slot,
           matrix.m00,
@@ -205,15 +142,19 @@ export class SimpleModelBatch {
           normal.m20,
           normal.m21,
           normal.m22,
-          tint.r,
-          tint.g,
-          tint.b,
-          tint.a,
-          whiteBlend,
-          uvOffset.x,
-          uvOffset.y,
-          uvScale.x,
-          uvScale.y,
+          material.tint.r,
+          material.tint.g,
+          material.tint.b,
+          material.tint.a,
+          material.whiteBlend,
+          material.uvOffset.x,
+          material.uvOffset.y,
+          material.uvScale.x,
+          material.uvScale.y,
+          material.specular,
+          material.shininess,
+          material.fresnel,
+          material.fresnelPower,
         )
         dirty[slot] = 0
       }
@@ -229,33 +170,15 @@ export class SimpleModelInstance {
   isLive(): bool => state.live
 
   transform(): Transform => batch.transformOf(state)
-  tint(): Color => batch.tintOf(state)
-  whiteBlend(): double => batch.whiteBlendOf(state)
-  uvOffset(): Vec2 => batch.uvOffsetOf(state)
-  uvScale(): Vec2 => batch.uvScaleOf(state)
+  material(): SimpleMaterial => batch.materialOf(state)
 
   setTransform(transform: Transform): SimpleModelInstance {
     batch.setTransformFor(state, transform)
     return this
   }
 
-  setTint(tint: Color): SimpleModelInstance {
-    batch.setTintFor(state, tint)
-    return this
-  }
-
-  setWhiteBlend(whiteBlend: double): SimpleModelInstance {
-    batch.setWhiteBlendFor(state, whiteBlend)
-    return this
-  }
-
-  setUvOffset(uvOffset: Vec2): SimpleModelInstance {
-    batch.setUvOffsetFor(state, uvOffset)
-    return this
-  }
-
-  setUvScale(uvScale: Vec2): SimpleModelInstance {
-    batch.setUvScaleFor(state, uvScale)
+  setMaterial(material: SimpleMaterial): SimpleModelInstance {
+    batch.setMaterialFor(state, material)
     return this
   }
 
@@ -335,6 +258,7 @@ export function drawSimpleModelBatch(
 
   nativeBatch := batch.syncNative()
   mvp := pass.camera().matrix(pass.surface())
+  eye := pass.camera().transform.position
   drawNativeSimpleModelBatch(
     batch.mesh.nativeSimpleMesh(),
     nativeBatch,
@@ -365,5 +289,8 @@ export function drawSimpleModelBatch(
     lighting.direction.x,
     lighting.direction.y,
     lighting.direction.z,
+    eye.x,
+    eye.y,
+    eye.z,
   )
 }

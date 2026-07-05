@@ -42,6 +42,7 @@ import {
   Rotation,
   Scene,
   SkyMap,
+  SimpleMaterial,
   SimpleModel,
   SimpleModelBatch,
   SimpleMeshBuilder,
@@ -167,7 +168,13 @@ function compileMeshSmoke(surface: GameSurface, pass: RenderPass): void {
     directional: 0.65,
     direction: Point3(-0.2, 0.8, 0.4),
   }
-  drawSimpleMesh(pass, mesh, Mat4.identity, lighting)
+  drawSimpleMesh(
+    pass,
+    mesh,
+    Mat4.identity,
+    SimpleMaterial { specular: 0.2, shininess: 24.0, fresnel: 0.1 },
+    lighting,
+  )
 
   model := SimpleModel(mesh)
   model
@@ -197,8 +204,17 @@ function compileTexturedSimpleMeshSmoke(texture: Texture, surface: GameSurface, 
     directional: 0.55,
     direction: Point3(0.3, 0.6, 0.7),
   }
-  drawTexturedSimpleMesh(pass, mesh, texture, Mat4.identity, lighting)
-  drawSimpleModel(pass, SimpleModel(mesh, texture), lighting)
+  material := SimpleMaterial {
+    tint: Color(0.9, 1.0, 1.0, 1.0),
+    uvOffset: Vec2.zero,
+    uvScale: Vec2.one,
+    specular: 0.35,
+    shininess: 48.0,
+    fresnel: 0.15,
+    fresnelPower: 4.0,
+  }
+  drawTexturedSimpleMesh(pass, mesh, texture, Mat4.identity, material, lighting)
+  drawSimpleModel(pass, SimpleModel(mesh, texture).setMaterial(material), lighting)
 }
 
 function compileUiLayerSmoke(font: BitmapFont, texture: Texture, surface: GameSurface, pass: RenderPass): void {
@@ -236,19 +252,27 @@ function compileSimpleModelBatchSmoke(texture: Texture, surface: GameSurface, pa
   }
   first := batch.add{
     transform: Transform.identity().withPosition(Point3(80.0, 90.0, 0.0)),
-    whiteBlend: 0.4,
-    uvOffset: Vec2.zero,
-    uvScale: Vec2.xy(1.0 / 14.0, 1.0 / 4.0),
+    material: SimpleMaterial {
+      whiteBlend: 0.4,
+      uvOffset: Vec2.zero,
+      uvScale: Vec2.xy(1.0 / 14.0, 1.0 / 4.0),
+      specular: 0.25,
+      shininess: 32.0,
+      fresnel: 0.2,
+      fresnelPower: 5.0,
+    },
   }
   second := batch.add{
     transform: Transform.identity().withPosition(Point3(220.0, 90.0, 0.0)),
-    tint: Color(1.0, 1.0, 1.0, 0.75),
-    uvOffset: Vec2.xy(10.0 / 14.0, 1.0 / 4.0),
-    uvScale: Vec2.xy(1.0 / 14.0, 1.0 / 4.0),
+    material: SimpleMaterial {
+      tint: Color(1.0, 1.0, 1.0, 0.75),
+      uvOffset: Vec2.xy(10.0 / 14.0, 1.0 / 4.0),
+      uvScale: Vec2.xy(1.0 / 14.0, 1.0 / 4.0),
+    },
   }
   first.moveWorldBy(Vec3.xyz(1.0, 0.0, 0.0))
-  first.setWhiteBlend(0.6)
-  Assert.equal(first.whiteBlend(), 0.6)
+  first.setMaterial(SimpleMaterial { whiteBlend: 0.6, uvScale: Vec2.xy(1.0 / 14.0, 1.0 / 4.0) })
+  Assert.equal(first.material().whiteBlend, 0.6)
   second.remove()
 
   Assert.equal(batch.count(), 1)

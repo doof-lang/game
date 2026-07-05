@@ -96,7 +96,11 @@ public:
         double uvOffsetX,
         double uvOffsetY,
         double uvScaleX,
-        double uvScaleY
+        double uvScaleY,
+        double specular,
+        double shininess,
+        double fresnel,
+        double fresnelPower
     );
     int64_t metalInstanceBufferHandle() const;
 
@@ -204,6 +208,22 @@ void drawNativeSimpleMesh(
     double m31,
     double m32,
     double m33,
+    double modelM00,
+    double modelM01,
+    double modelM02,
+    double modelM03,
+    double modelM10,
+    double modelM11,
+    double modelM12,
+    double modelM13,
+    double modelM20,
+    double modelM21,
+    double modelM22,
+    double modelM23,
+    double modelM30,
+    double modelM31,
+    double modelM32,
+    double modelM33,
     double n00,
     double n01,
     double n02,
@@ -217,7 +237,23 @@ void drawNativeSimpleMesh(
     double directionalLight,
     double lightDirectionX,
     double lightDirectionY,
-    double lightDirectionZ
+    double lightDirectionZ,
+    double eyeX,
+    double eyeY,
+    double eyeZ,
+    double red,
+    double green,
+    double blue,
+    double alpha,
+    double whiteBlend,
+    double uvOffsetX,
+    double uvOffsetY,
+    double uvScaleX,
+    double uvScaleY,
+    double specular,
+    double shininess,
+    double fresnel,
+    double fresnelPower
 );
 
 void drawNativeTexturedSimpleMesh(
@@ -243,6 +279,22 @@ void drawNativeTexturedSimpleMesh(
     double m31,
     double m32,
     double m33,
+    double modelM00,
+    double modelM01,
+    double modelM02,
+    double modelM03,
+    double modelM10,
+    double modelM11,
+    double modelM12,
+    double modelM13,
+    double modelM20,
+    double modelM21,
+    double modelM22,
+    double modelM23,
+    double modelM30,
+    double modelM31,
+    double modelM32,
+    double modelM33,
     double n00,
     double n01,
     double n02,
@@ -256,7 +308,23 @@ void drawNativeTexturedSimpleMesh(
     double directionalLight,
     double lightDirectionX,
     double lightDirectionY,
-    double lightDirectionZ
+    double lightDirectionZ,
+    double eyeX,
+    double eyeY,
+    double eyeZ,
+    double red,
+    double green,
+    double blue,
+    double alpha,
+    double whiteBlend,
+    double uvOffsetX,
+    double uvOffsetY,
+    double uvScaleX,
+    double uvScaleY,
+    double specular,
+    double shininess,
+    double fresnel,
+    double fresnelPower
 );
 
 void drawNativeSimpleModelBatch(
@@ -288,7 +356,10 @@ void drawNativeSimpleModelBatch(
     double directionalLight,
     double lightDirectionX,
     double lightDirectionY,
-    double lightDirectionZ
+    double lightDirectionZ,
+    double eyeX,
+    double eyeY,
+    double eyeZ
 );
 
 void drawNativeEquirectangularSkyMap(

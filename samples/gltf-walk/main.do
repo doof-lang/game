@@ -15,6 +15,7 @@ import {
   Point3,
   RenderPassDescriptor,
   RenderPass,
+  SimpleMaterial,
   SimpleMesh,
   SimpleMeshBuilder,
   SimpleMeshLighting,
@@ -86,7 +87,7 @@ function drawAnimatedPart(
   if part.nodeIndex >= 0 && part.nodeIndex < poseWorld.length {
     model = model.multiply(poseWorld[part.nodeIndex])
   }
-  drawTexturedSimpleMesh(pass, part.mesh, texture, model, lighting)
+  drawTexturedSimpleMesh(pass, part.mesh, texture, model, SimpleMaterial {}, lighting)
 }
 
 function main(): int {
@@ -177,7 +178,7 @@ function main(): int {
       .withScale(Vec3.xyz(0.72, 0.72, 0.72))
 
     renderer.pass(renderPassDescriptor, (pass): void => {
-      drawSimpleMesh(pass, ground, Mat4.identity, lighting)
+      drawSimpleMesh(pass, ground, Mat4.identity, SimpleMaterial {}, lighting)
       for part of parts {
         drawAnimatedPart(pass, part, texture, pose.world, sceneTransform, lighting)
       }

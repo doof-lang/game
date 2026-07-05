@@ -434,14 +434,18 @@ when viewed from the front to match the default pass winding.
 
 | Function | Description |
 | --- | --- |
-| `drawSimpleMesh(pass, mesh, model = Mat4.identity, lighting = SimpleMeshLighting {})` | Draw an untextured mesh with built-in lighting. |
-| `drawTexturedSimpleMesh(pass, mesh, texture, model = Mat4.identity, lighting = SimpleMeshLighting {})` | Draw a mesh using UVs and a texture. |
+| `drawSimpleMesh(pass, mesh, model = Mat4.identity, material = SimpleMaterial {}, lighting = SimpleMeshLighting {})` | Draw an untextured mesh with built-in material and lighting. |
+| `drawTexturedSimpleMesh(pass, mesh, texture, model = Mat4.identity, material = SimpleMaterial {}, lighting = SimpleMeshLighting {})` | Draw a mesh using material UVs and a texture. |
 | `drawSimpleModel(pass, model, lighting = SimpleMeshLighting {})` | Draw a `SimpleModel`, using its texture when present. |
 
 `SimpleMeshLighting` controls the built-in mesh lighting. `ambient` defaults
 to `0.25`, `directional` defaults to `0.75`, and `direction` defaults to
 `Point3(0.35, 0.60, 0.72)`. Negative light levels are clamped to zero by the
 renderer; values above `1.0` are allowed.
+
+`SimpleMaterial` controls tint, atlas UV transform, white blend, specular, and
+Fresnel terms. Defaults are white tint, no white blend, full UVs, and no
+specular or Fresnel contribution.
 
 ### `SimpleModel`
 
@@ -466,15 +470,17 @@ batch := SimpleModelBatch {
 
 card := batch.add{
   transform: Transform.identity().withPosition(Point3(64.0, 64.0, 0.0)),
-  uvOffset: Vec2.xy(0.0, 0.0),
-  uvScale: Vec2.xy(1.0 / 14.0, 1.0 / 4.0),
+  material: SimpleMaterial {
+    uvOffset: Vec2.xy(0.0, 0.0),
+    uvScale: Vec2.xy(1.0 / 14.0, 1.0 / 4.0),
+  },
 }
 ```
 
 `SimpleModelBatch` fields are `surface`, `mesh`, optional `texture`, and
 `capacity`. Methods are `count()` and `add(...)`. `SimpleModelInstance` exposes
-`isLive`, getters and setters for `transform`, `tint`, `whiteBlend`,
-`uvOffset`, `uvScale`, transform helpers, and `remove()`.
+`isLive`, getters and setters for `transform` and `material`, transform helpers,
+and `remove()`.
 
 `Vec2` provides `zero`, `one`, and `xy(x, y)`.
 
