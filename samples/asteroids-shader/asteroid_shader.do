@@ -1,4 +1,3 @@
-import { BlobBuilder } from "std/blob"
 import { readTextResource } from "std/fs"
 import { floor, sin } from "std/math"
 import {
@@ -8,6 +7,7 @@ import {
   SimpleMeshSpec,
   ShaderBuffer,
   ShaderBufferBinding,
+  ShaderBytesBuilder,
   ShaderBytesBinding,
   ShaderDraw,
   ShaderPipeline,
@@ -43,19 +43,14 @@ function randomSigned(index: int, salt: double): double {
   return randomUnit(index, salt) * 2.0 - 1.0
 }
 
-function writeFloat3(builder: BlobBuilder, x: double, y: double, z: double): void {
-  builder.writeFloat(float(x))
-  builder.writeFloat(float(y))
-  builder.writeFloat(float(z))
-}
-
-function writeAsteroidVertex(builder: BlobBuilder, spec: SimpleMeshSpec, index: int): void {
+function writeAsteroidVertex(builder: ShaderBytesBuilder, spec: SimpleMeshSpec, index: int): void {
   position := spec.positions[index]
   normal := spec.normals[index]
-  writeFloat3(builder, position.x, position.y, position.z)
-  writeFloat3(builder, normal.x, normal.y, normal.z)
   vertexSeed := normal.x * 0.41 + normal.y * 1.37 + normal.z * 2.11
-  builder.writeFloat(float(vertexSeed))
+  builder
+    .point3(position)
+    .point3(normal)
+    .float32(vertexSeed)
 }
 
 function createAsteroidGeometry(): SimpleMeshSpec {
@@ -63,7 +58,7 @@ function createAsteroidGeometry(): SimpleMeshSpec {
 }
 
 function asteroidVertexBytes(geometry: SimpleMeshSpec): readonly byte[] {
-  builder := BlobBuilder {}
+  builder := ShaderBytesBuilder()
   for index of 0..<geometry.positions.length {
     writeAsteroidVertex(builder, geometry, index)
   }
@@ -71,15 +66,15 @@ function asteroidVertexBytes(geometry: SimpleMeshSpec): readonly byte[] {
 }
 
 function asteroidIndexBytes(geometry: SimpleMeshSpec): readonly byte[] {
-  builder := BlobBuilder {}
+  builder := ShaderBytesBuilder()
   for index of geometry.indices {
-    builder.writeUnsignedInt(index)
+    builder.uint32(index)
   }
   return builder.build()
 }
 
 function asteroidInstanceBytes(): readonly byte[] {
-  builder := BlobBuilder {}
+  builder := ShaderBytesBuilder()
   for index of 0..<ASTEROID_COUNT {
     ring := double(index) / double(ASTEROID_COUNT)
     radius := 4.0 + randomUnit(index, 0.2) * 7.5
@@ -94,37 +89,30 @@ function asteroidInstanceBytes(): readonly byte[] {
     noiseSeed := randomUnit(index, 9.7) * 40.0
     warm := randomUnit(index, 10.8)
 
-    writeFloat3(builder, centerX, centerY, centerZ)
-    builder.writeFloat(float(size))
-    writeFloat3(builder, axis.x, axis.y, axis.z)
-    builder.writeFloat(float(spinSpeed))
-    builder.writeFloat(float(orbitPhase))
-    builder.writeFloat(float(noiseSeed))
-    builder.writeFloat(float(0.42 + warm * 0.28))
-    builder.writeFloat(0.0f)
-    builder.writeFloat(float(0.37 + warm * 0.12))
-    builder.writeFloat(float(0.31 + randomUnit(index, 11.9) * 0.18))
-    builder.writeFloat(0.0f)
-    builder.writeFloat(0.0f)
+    builder
+      .float3(centerX, centerY, centerZ)
+      .float32(size)
+      .vec3(axis)
+      .float32(spinSpeed)
+      .float32(orbitPhase)
+      .float32(noiseSeed)
+      .float32(0.42 + warm * 0.28)
+      .paddingFloat32()
+      .float32(0.37 + warm * 0.12)
+      .float32(0.31 + randomUnit(index, 11.9) * 0.18)
+      .paddingFloat32(2)
   }
   return builder.build()
 }
 
-function writeMat4Rows(builder: BlobBuilder, matrix: Mat4): void {
-  builder.writeFloat(float(matrix.m00)); builder.writeFloat(float(matrix.m01)); builder.writeFloat(float(matrix.m02)); builder.writeFloat(float(matrix.m03))
-  builder.writeFloat(float(matrix.m10)); builder.writeFloat(float(matrix.m11)); builder.writeFloat(float(matrix.m12)); builder.writeFloat(float(matrix.m13))
-  builder.writeFloat(float(matrix.m20)); builder.writeFloat(float(matrix.m21)); builder.writeFloat(float(matrix.m22)); builder.writeFloat(float(matrix.m23))
-  builder.writeFloat(float(matrix.m30)); builder.writeFloat(float(matrix.m31)); builder.writeFloat(float(matrix.m32)); builder.writeFloat(float(matrix.m33))
-}
-
 function uniformsBytes(viewProjection: Mat4, time: double): readonly byte[] {
-  builder := BlobBuilder {}
-  writeMat4Rows(builder, viewProjection)
-  builder.writeFloat(float(time))
-  builder.writeFloat(0.0f)
-  builder.writeFloat(float(ASTEROID_COUNT))
-  builder.writeFloat(0.0f)
-  return builder.build()
+  return ShaderBytesBuilder()
+    .mat4Rows(viewProjection)
+    .float32(time)
+    .paddingFloat32()
+    .float32(double(ASTEROID_COUNT))
+    .paddingFloat32()
+    .build()
 }
 
 function asteroidShaderSource(): string {
@@ -132,7 +120,7 @@ function asteroidShaderSource(): string {
 }
 
 export function createAsteroidShaderResources(surface: GameSurface): AsteroidShaderResources {
-  pipeline := try! ShaderPipeline.create(
+  pipeline := try! ShaderPipeline(
     surface,
     ShaderPipelineDescriptor {
       source: asteroidShaderSource(),

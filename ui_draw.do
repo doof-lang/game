@@ -109,8 +109,7 @@ function buttonBackground(button: UiButton): Color {
 }
 
 function quadMesh(surface: GameSurface, bounds: Rect, color: Color, z: double): SimpleMesh {
-  return SimpleMeshBuilder
-    .create()
+  return SimpleMeshBuilder()
     .quad{
       a: Point3(bounds.x, bounds.y, z),
       b: Point3(bounds.x + bounds.width, bounds.y, z),

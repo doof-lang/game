@@ -43,8 +43,7 @@ function main(): int {
     columns: cardColumns,
     rows: cardRows,
   }
-  cardMesh := SimpleMeshBuilder
-    .create()
+  cardMesh := SimpleMeshBuilder()
     .quad{
       a: Point3(0.0, 0.0, 0.0),
       b: Point3(cardWidth, 0.0, 0.0),

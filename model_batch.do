@@ -267,6 +267,7 @@ export function drawSimpleModelBatch(
     pass.metalRenderCommandEncoderHandle(),
     pass.metalDeviceHandle(),
     pass.nativeBlendModeCode(),
+    pass.hasColorAttachment(),
     pass.hasDepthAttachment(),
     mvp.m00,
     mvp.m01,

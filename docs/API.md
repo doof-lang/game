@@ -39,7 +39,7 @@ import {
 } from "std/game"
 
 function createMesh(surface: GameSurface): SimpleMesh {
-  builder := SimpleMeshBuilder.create()
+  builder := SimpleMeshBuilder()
   builder.quad{
     a: Point3(80.0, 80.0, 0.0),
     b: Point3(300.0, 80.0, 0.0),
@@ -319,6 +319,7 @@ the render callback returns.
 | `Point` / `Point3` / `ClipPoint` | 2D, 3D, and homogeneous projected points. |
 | `Rect` | `x`, `y`, `width`, and `height`. |
 | `Texture` | Uploaded Metal texture with pixel dimensions and native handle. |
+| `DepthTexture` | Renderable depth texture with pixel dimensions and native handle. |
 | `Atlas` | Texture grid helper with `cellRect(column, row)`. |
 
 ### `Renderer`
@@ -327,9 +328,11 @@ the render callback returns.
 | --- | --- | --- |
 | `surface()` | `GameSurface` | Active surface. |
 | `pass(desc, draw)` | `void` | Begin a render pass and invoke `draw(pass)`. |
+| `depthPass(texture, desc, draw)` | `void` | Begin a depth-only pass into a `DepthTexture`. |
 | `loadTexture(path)` | `Result<Texture, string>` | Load a texture for the active surface. |
 | `createTexture(image)` | `Result<Texture, string>` | Upload a `std/image` image. |
 | `createTextureFromPixels(pixels)` | `Result<Texture, string>` | Upload raw pixel bytes. |
+| `createDepthTexture(width, height)` | `Result<DepthTexture, string>` | Create a reusable depth texture for shadow maps and depth pre-passes. |
 
 ### `RenderPassDescriptor`
 
@@ -359,7 +362,12 @@ Defaults: `Camera.screen()`, `Clear.none()`, `Depth.disabled()`,
 | `metalRenderCommandEncoderHandle()` | `long` | Native encoder pointer. |
 | `metalCommandBufferHandle()` | `long` | Native command buffer pointer. |
 | `metalDeviceHandle()` | `long` | Native device pointer. |
+| `hasColorAttachment()` | `bool` | Whether the pass has a color attachment. |
 | `hasDepthAttachment()` | `bool` | Whether the pass has a depth attachment. |
+
+Depth textures can be rendered with `renderer.depthPass(...)` and then sampled
+from custom shaders by using `ShaderTextureBinding { index, depthTexture }`.
+The `game/samples/shadows` package demonstrates a directional-light shadow map.
 
 ### Cameras And Matrices
 
@@ -401,6 +409,26 @@ to project a point through the camera.
 `rotatedLocalX/Y/Z`, `rotatedWorldX/Y/Z`, `scaledBy`, `scaledByVec`,
 `applyPoint`, `applyVector`, `toMat4`, `toInverseMat4`, and `toNormalMat3`.
 
+## Collision
+
+`std/game` includes simple world-space overlap tests for common 3D collision
+primitives. Touching counts as intersecting.
+
+| API | Description |
+| --- | --- |
+| `CollisionSphere(center, radius)` | Sphere collider. Radius must be zero or greater. |
+| `CollisionCapsule(a, b, radius)` | Capsule collider from segment endpoints and radius. Identical endpoints behave like a sphere. |
+| `CollisionAabb(min, max)` | Axis-aligned box. `min` must be less than or equal to `max` on each axis. |
+| `CollisionAabb.fromCenterHalfExtents(center, halfExtents)` | Build an AABB from a center and non-negative half extents. |
+| `CollisionAabb.fromCenterSize(center, size)` | Build an AABB from a center and non-negative full size. |
+| `containsPoint(point)` | Available on spheres, capsules, and AABBs. |
+| `sphereIntersectsSphere(a, b)` | Test two spheres. |
+| `sphereIntersectsAabb(sphere, box)` | Test a sphere and AABB. |
+| `aabbIntersectsAabb(a, b)` | Test two AABBs. |
+| `capsuleIntersectsSphere(capsule, sphere)` | Test a capsule and sphere. |
+| `capsuleIntersectsCapsule(a, b)` | Test two capsules. |
+| `capsuleIntersectsAabb(capsule, box)` | Test a capsule and AABB. |
+
 ## Meshes, Models, And Batches
 
 ### `SimpleMeshSpec`
@@ -420,15 +448,24 @@ spec)` validates the spec and uploads it to the surface device.
 
 | Method | Return | Description |
 | --- | --- | --- |
-| `SimpleMeshBuilder.create()` | `SimpleMeshBuilder` | Create an empty builder. |
+| `SimpleMeshBuilder()` | `SimpleMeshBuilder` | Create an empty builder. |
 | `vertex{ position, color, uv, normal }` | `int` | Add one vertex and return its index. |
 | `triangle(a, b, c)` | `SimpleMeshBuilder` | Add an indexed triangle. |
 | `quad{ a, b, c, d, color, normal, uvA, uvB, uvC, uvD }` | `SimpleMeshBuilder` | Add two triangles for a quad. |
+| `quadUv{ a, b, c, d, color, normal, uv }` | `SimpleMeshBuilder` | Add a quad using a reusable `MeshUv` mapping. |
+| `box{ center, size, color, uv = MeshUv.unit() }` | `SimpleMeshBuilder` | Add a cuboid from a center point and size. |
+| `boxFromBounds{ min, max, color, uv = MeshUv.unit() }` | `SimpleMeshBuilder` | Add a cuboid from minimum and maximum corners. |
+| `append(spec)` | `SimpleMeshBuilder` | Append another `SimpleMeshSpec`, offsetting its indices. |
+| `appendTranslated(spec, offset)` | `SimpleMeshBuilder` | Append another spec with a position offset. |
 | `buildSpec()` | `SimpleMeshSpec` | Return a copy of the raw spec. |
 | `build(surface)` | `SimpleMesh` | Upload to the surface device. |
 
 Triangles are emitted in the order supplied. Use counter-clockwise vertices
 when viewed from the front to match the default pass winding.
+
+`MeshUv.zero()` maps all four quad corners to `(0, 0)`, matching untextured
+legacy defaults. `MeshUv.unit()` maps a face to `(0, 0)` through `(1, 1)`, and
+`MeshUv.rect(u0, v0, u1, v1)` maps a face to a texture or atlas sub-rectangle.
 
 ### Drawing Helpers
 
@@ -671,7 +708,7 @@ texture bindings. Use this path for custom vertex formats, indexed draws,
 instancing, normal maps, and material effects beyond `SimpleMesh`.
 
 ```doof
-pipeline := try! ShaderPipeline.create(
+pipeline := try! ShaderPipeline(
   app.surface,
   ShaderPipelineDescriptor {
     source,
@@ -693,11 +730,11 @@ pipeline := try! ShaderPipeline.create(
 | `ShaderVertexAttribute` | Attribute index, buffer index, byte offset, and format. |
 | `ShaderVertexLayout` | Buffer index, stride, step function, and step rate. |
 | `ShaderPipelineDescriptor` | Metal source, entry point names, attributes, and layouts. |
-| `ShaderPipeline.create(surface, desc)` | Compile a pipeline. |
+| `ShaderPipeline(surface, desc)` | Compile a pipeline. |
 | `ShaderBuffer.create(surface, data)` | Upload bytes to a Metal buffer. |
 | `ShaderBufferBinding` | Bind a vertex buffer at an index and offset. |
 | `ShaderBytesBinding.create(surface, index, bytes)` | Create a temporary-style bytes binding backed by a buffer. |
-| `ShaderTextureBinding` | Bind a fragment texture at an index. |
+| `ShaderTextureBinding` | Bind a fragment color texture or depth texture at an index. |
 | `ShaderDraw` | Pipeline, vertex buffers, counts, optional index buffer, bytes, textures, and instance count. |
 | `drawShader(pass, draw)` | Validate and issue the draw. |
 

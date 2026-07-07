@@ -20,7 +20,7 @@ import {
 } from "std/game"
 
 function createCubeMesh(surface: GameSurface): SimpleMesh {
-  builder := SimpleMeshBuilder.create()
+  builder := SimpleMeshBuilder()
 
   p000 := Point3(-1.0, -1.0, -1.0)
   p001 := Point3(-1.0, -1.0, 1.0)

@@ -48,7 +48,7 @@ class ParticleState {
 }
 
 function createParticleMesh(surface: GameSurface): SimpleMesh {
-  builder := SimpleMeshBuilder.create()
+  builder := SimpleMeshBuilder()
   builder.quad{
     a: Point3(-0.5, -0.5, 0.0),
     b: Point3(0.5, -0.5, 0.0),

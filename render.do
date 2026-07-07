@@ -1,4 +1,5 @@
 import {
+  NativeDepthTexture,
   NativeRenderFrame,
   NativeRenderPass,
   NativeTexture,
@@ -384,6 +385,14 @@ export class Texture {
   metalTextureHandle(): long => native.metalTextureHandle()
 }
 
+export class DepthTexture {
+  private readonly native: NativeDepthTexture
+
+  pixelWidth(): int => native.pixelWidth()
+  pixelHeight(): int => native.pixelHeight()
+  metalTextureHandle(): long => native.metalTextureHandle()
+}
+
 export class Atlas {
   readonly texture: Texture
   readonly columns: int
@@ -655,6 +664,7 @@ export class RenderPass {
   metalCommandBufferHandle(): long => native.metalCommandBufferHandle()
   metalDeviceHandle(): long => native.metalDeviceHandle()
   nativeBlendModeCode(): int => passBlendModeCode
+  hasColorAttachment(): bool => native.hasColorAttachment()
   hasDepthAttachment(): bool => native.hasDepthAttachment()
 }
 
@@ -677,6 +687,10 @@ export class Renderer {
     return createTextureFromPixelsForSurface(gameSurface, pixels)
   }
 
+  createDepthTexture(pixelWidth: int, pixelHeight: int): Result<DepthTexture, string> {
+    return createDepthTextureForSurface(gameSurface, pixelWidth, pixelHeight)
+  }
+
   pass(desc: RenderPassDescriptor, draw: (pass: RenderPass): void): void {
     nativePass := nativeFrame.beginPass(
       clearKindCode(desc.clear.kind),
@@ -684,6 +698,26 @@ export class Renderer {
       desc.clear.colorValue.g,
       desc.clear.colorValue.b,
       desc.clear.colorValue.a,
+      desc.clear.depthValue,
+      depthModeCode(desc.depth.mode),
+      blendModeCode(desc.blend.mode),
+      windingModeCode(desc.winding),
+      cullModeCode(desc.cull),
+    )
+
+    renderPass := RenderPass {
+      gameSurface: gameSurface,
+      passCamera: desc.camera,
+      passBlendModeCode: blendModeCode(desc.blend.mode),
+      native: nativePass,
+    }
+    draw(renderPass)
+    nativePass.end()
+  }
+
+  depthPass(texture: DepthTexture, desc: RenderPassDescriptor, draw: (pass: RenderPass): void): void {
+    nativePass := nativeFrame.beginDepthPass(
+      texture.native,
       desc.clear.depthValue,
       depthModeCode(desc.depth.mode),
       blendModeCode(desc.blend.mode),
@@ -719,6 +753,17 @@ export function createRenderer(surface: GameSurface, nativeFrame: NativeRenderFr
 
 export function createTexture(native: NativeTexture): Texture {
   return Texture { native: native }
+}
+
+export function createDepthTexture(native: NativeDepthTexture): DepthTexture {
+  return DepthTexture { native: native }
+}
+
+export function createDepthTextureForSurface(surface: GameSurface, pixelWidth: int, pixelHeight: int): Result<DepthTexture, string> {
+  return case NativeDepthTexture.create(pixelWidth, pixelHeight, surface.metalDeviceHandle()) {
+    success: Success -> Success { value: createDepthTexture(success.value) },
+    failure: Failure -> Failure { error: failure.error },
+  }
 }
 
 export function loadTextureForSurface(surface: GameSurface, path: string): Result<Texture, string> {

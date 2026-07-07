@@ -1,5 +1,5 @@
 import { Assert } from "std/assert"
-import { BlobBuilder } from "std/blob"
+import { BlobBuilder, BlobReader } from "std/blob"
 import { setInterval } from "std/event"
 import { Image, PixelBytes } from "std/image"
 import { approxEqual, sqrt } from "std/math"
@@ -31,6 +31,7 @@ import {
   Key,
   Mat4,
   Mat3,
+  MeshUv,
   MouseButton,
   ParticleConfig,
   ParticleLayer,
@@ -47,6 +48,7 @@ import {
   SimpleModelBatch,
   SimpleMeshBuilder,
   SimpleMeshLighting,
+  SimpleMeshSpec,
   Texture,
   Transform,
   UiLayer,
@@ -56,6 +58,7 @@ import {
   RenderPassDescriptor,
   ShaderBuffer,
   ShaderBufferBinding,
+  ShaderBytesBuilder,
   ShaderBytesBinding,
   ShaderDraw,
   ShaderPipeline,
@@ -103,6 +106,38 @@ function assertPoint3Approx(actual: Point3, expected: Point3): void {
   assertApprox(actual.z, expected.z)
 }
 
+function assertReaderFloatApprox(reader: BlobReader, expected: double): void {
+  assertApprox(double(reader.readFloat()), expected)
+}
+
+export function testShaderBytesBuilderPacksGameTypes(): void {
+  bytes := ShaderBytesBuilder()
+    .float2(1.0, 2.0)
+    .point3(Point3(3.0, 4.0, 5.0))
+    .vec3(Vec3.xyz(6.0, 7.0, 8.0))
+    .color(Color(0.1, 0.2, 0.3, 0.4))
+    .uint32(9L)
+    .paddingFloat32()
+    .build()
+
+  reader := BlobReader(bytes)
+  assertReaderFloatApprox(reader, 1.0)
+  assertReaderFloatApprox(reader, 2.0)
+  assertReaderFloatApprox(reader, 3.0)
+  assertReaderFloatApprox(reader, 4.0)
+  assertReaderFloatApprox(reader, 5.0)
+  assertReaderFloatApprox(reader, 6.0)
+  assertReaderFloatApprox(reader, 7.0)
+  assertReaderFloatApprox(reader, 8.0)
+  assertReaderFloatApprox(reader, 0.1)
+  assertReaderFloatApprox(reader, 0.2)
+  assertReaderFloatApprox(reader, 0.3)
+  assertReaderFloatApprox(reader, 0.4)
+  Assert.equal(reader.readUnsignedInt(), 9L)
+  assertReaderFloatApprox(reader, 0.0)
+  Assert.equal(reader.remaining(), 0L)
+}
+
 function verifyGameAppPanGestureApi(app: GameApp): void {
   app.beginPanGesture(10.0, 20.0)
   app.updatePanGesture(12.0, 24.0)
@@ -139,8 +174,12 @@ function crossPoint3(a: Point3, b: Point3): Point3 {
   )
 }
 
+function dotPoint3(a: Point3, b: Point3): double {
+  return a.x * b.x + a.y * b.y + a.z * b.z
+}
+
 function compileMeshSmoke(surface: GameSurface, pass: RenderPass): void {
-  builder := SimpleMeshBuilder.create()
+  builder := SimpleMeshBuilder()
   a := builder.vertex{
     position: Point3(-0.5, -0.5, 0.0),
     color: Color(0.0, 0.7, 1.0),
@@ -185,7 +224,7 @@ function compileMeshSmoke(surface: GameSurface, pass: RenderPass): void {
 }
 
 function compileTexturedSimpleMeshSmoke(texture: Texture, surface: GameSurface, pass: RenderPass): void {
-  builder := SimpleMeshBuilder.create()
+  builder := SimpleMeshBuilder()
   builder.quad{
     a: Point3(-0.5, -0.5, 0.0),
     b: Point3(0.5, -0.5, 0.0),
@@ -231,7 +270,7 @@ function compileSkyMapSmoke(texture: Texture, pass: RenderPass): void {
 }
 
 function compileSimpleModelBatchSmoke(texture: Texture, surface: GameSurface, pass: RenderPass): void {
-  builder := SimpleMeshBuilder.create()
+  builder := SimpleMeshBuilder()
   builder.quad{
     a: Point3(0.0, 0.0, 0.0),
     b: Point3(121.0, 0.0, 0.0),
@@ -378,7 +417,7 @@ function instancedShaderSource(): string {
 }
 
 function createShaderPipeline(surface: GameSurface): ShaderPipeline {
-  return try! ShaderPipeline.create(
+  return try! ShaderPipeline(
     surface,
     ShaderPipelineDescriptor {
       source: customShaderSource(),
@@ -418,7 +457,7 @@ function shaderInstanceBytes(): readonly byte[] {
 }
 
 function createInstancedShaderPipeline(surface: GameSurface): ShaderPipeline {
-  return try! ShaderPipeline.create(
+  return try! ShaderPipeline(
     surface,
     ShaderPipelineDescriptor {
       source: instancedShaderSource(),
@@ -465,16 +504,16 @@ function createInstancedShaderPipeline(surface: GameSurface): ShaderPipeline {
   )
 }
 
-function assertShaderPipelineFailure(result: Result<ShaderPipeline, string>): void {
+function assertShaderDrawFailure(result: Result<void, string>): void {
   case result {
-    s: Success -> Assert.isTrue(false, "expected shader pipeline creation to fail")
+    s: Success -> Assert.isTrue(false, "expected shader draw to fail")
     f: Failure -> Assert.isTrue(f.error.length > 0)
   }
 }
 
-function assertShaderDrawFailure(result: Result<void, string>): void {
+function assertShaderPipelineFailure(result: Result<ShaderPipeline, string>): void {
   case result {
-    s: Success -> Assert.isTrue(false, "expected shader draw to fail")
+    s: Success -> Assert.isTrue(false, "expected shader pipeline creation to fail")
     f: Failure -> Assert.isTrue(f.error.length > 0)
   }
 }
@@ -549,7 +588,7 @@ function compileShaderSmoke(texture: Texture, surface: GameSurface, pass: Render
     },
   )
 
-  emptyPipeline := ShaderPipeline.create(
+  emptyPipeline := ShaderPipeline(
     surface,
     ShaderPipelineDescriptor {
       source: "",
@@ -561,7 +600,7 @@ function compileShaderSmoke(texture: Texture, surface: GameSurface, pass: Render
   )
   assertShaderPipelineFailure(emptyPipeline)
 
-  missingFunction := ShaderPipeline.create(
+  missingFunction := ShaderPipeline(
     surface,
     ShaderPipelineDescriptor {
       source: customShaderSource(),
@@ -573,7 +612,7 @@ function compileShaderSmoke(texture: Texture, surface: GameSurface, pass: Render
   )
   assertShaderPipelineFailure(missingFunction)
 
-  invalidLayout := ShaderPipeline.create(
+  invalidLayout := ShaderPipeline(
     surface,
     ShaderPipelineDescriptor {
       source: customShaderSource(),
@@ -585,7 +624,7 @@ function compileShaderSmoke(texture: Texture, surface: GameSurface, pass: Render
   )
   assertShaderPipelineFailure(invalidLayout)
 
-  invalidStepRate := ShaderPipeline.create(
+  invalidStepRate := ShaderPipeline(
     surface,
     ShaderPipelineDescriptor {
       source: customShaderSource(),
@@ -683,9 +722,27 @@ function compileGameAppSmoke(): Result<void, string> {
   app.onRender((renderer): void => {
     rendererTexture := try! renderer.createTexture(inMemoryImage)
     rendererPixelTexture := try! renderer.createTextureFromPixels(inMemoryPixels)
+    depthTexture := try! renderer.createDepthTexture(64, 64)
     Assert.equal(rendererTexture.pixelWidth(), 1)
     Assert.equal(rendererPixelTexture.pixelWidth(), 1)
+    Assert.equal(depthTexture.pixelWidth(), 64)
+    Assert.equal(depthTexture.pixelHeight(), 64)
     surface := app.surface
+    renderer.depthPass(
+      depthTexture,
+      RenderPassDescriptor {
+        camera: Camera.orthographic(-1.0, 1.0, -1.0, 1.0, 0.1, 10.0),
+        clear: Clear.depth(1.0),
+        depth: Depth.readWrite(),
+        blend: Blend.opaque(),
+        cull: CullMode.Back,
+      },
+      (pass): void => {
+        Assert.isFalse(pass.hasColorAttachment())
+        Assert.isTrue(pass.hasDepthAttachment())
+        compileMeshSmoke(surface, pass)
+      },
+    )
     renderer.pass(
       RenderPassDescriptor {
         clear: Clear.colorDepth(Color.black, 1.0),
@@ -707,7 +764,10 @@ function compileGameAppSmoke(): Result<void, string> {
         encoderHandle := pass.metalRenderCommandEncoderHandle()
         deviceHandle := pass.metalDeviceHandle()
         blendCode := pass.nativeBlendModeCode()
+        hasColor := pass.hasColorAttachment()
         hasDepth := pass.hasDepthAttachment()
+        Assert.isTrue(hasColor)
+        Assert.isTrue(hasDepth)
         topLeft := pass.camera().project(passSurface, Point3(0.0, 0.0, 0.0))
         bottomRight := pass.camera().project(passSurface, Point3(surfaceWidth, surfaceHeight, 0.0))
         assertApprox(topLeft.x, -1.0)
@@ -1085,7 +1145,7 @@ export function testPointRectAndColorHelpers(): void {
 }
 
 export function testSimpleMeshBuilderVertexDefaults(): void {
-  builder := SimpleMeshBuilder.create()
+  builder := SimpleMeshBuilder()
   index := builder.vertex{ position: Point3(1.0, 2.0, 3.0) }
   spec := builder.buildSpec()
 
@@ -1107,7 +1167,7 @@ export function testSimpleMeshBuilderVertexDefaults(): void {
 }
 
 export function testSimpleMeshBuilderTriangleAndQuadSpec(): void {
-  builder := SimpleMeshBuilder.create()
+  builder := SimpleMeshBuilder()
   i0 := builder.vertex{
     position: Point3(0.0, 0.0, 0.0),
     color: Color.red,
@@ -1151,6 +1211,108 @@ export function testSimpleMeshBuilderTriangleAndQuadSpec(): void {
   Assert.equal(spec.uvs[3].x, 0.0)
   Assert.equal(spec.uvs[4].x, 1.0)
   Assert.equal(spec.uvs[5].y, 0.0)
+}
+
+function assertTriangleFaces(spec: SimpleMeshSpec, triangleOffset: int, expected: Point3): void {
+  first := spec.positions[spec.indices[triangleOffset]]
+  second := spec.positions[spec.indices[triangleOffset + 1]]
+  third := spec.positions[spec.indices[triangleOffset + 2]]
+  actual := crossPoint3(subtractPoint3(second, first), subtractPoint3(third, first))
+  Assert.isTrue(dotPoint3(actual, expected) > 0.0)
+}
+
+export function testSimpleMeshBuilderBoxBuildsUvMappedFaces(): void {
+  spec := SimpleMeshBuilder()
+    .box{
+      center: Point3(1.0, 2.0, 3.0),
+      size: Vec3.xyz(2.0, 4.0, 6.0),
+      color: Color(0.25, 0.5, 0.75),
+    }
+    .buildSpec()
+
+  Assert.equal(spec.vertexCount(), 24)
+  Assert.equal(spec.indexCount(), 36)
+
+  Assert.equal(spec.positions[0].x, 0.0)
+  Assert.equal(spec.positions[0].y, 0.0)
+  Assert.equal(spec.positions[0].z, 6.0)
+  Assert.equal(spec.positions[23].x, 0.0)
+  Assert.equal(spec.positions[23].y, 0.0)
+  Assert.equal(spec.positions[23].z, 6.0)
+  Assert.equal(spec.colors[0].r, 0.25)
+  Assert.equal(spec.colors[0].g, 0.5)
+  Assert.equal(spec.colors[0].b, 0.75)
+
+  assertTriangleFaces(spec, 0, Point3(0.0, 0.0, 1.0))
+  assertTriangleFaces(spec, 6, Point3(0.0, 0.0, -1.0))
+  assertTriangleFaces(spec, 24, Point3(0.0, 1.0, 0.0))
+  assertTriangleFaces(spec, 30, Point3(0.0, -1.0, 0.0))
+  Assert.equal(spec.normals[0].z, 1.0)
+  Assert.equal(spec.normals[4].z, -1.0)
+  Assert.equal(spec.normals[16].y, 1.0)
+  Assert.equal(spec.normals[20].y, -1.0)
+
+  Assert.equal(spec.uvs[0].x, 0.0)
+  Assert.equal(spec.uvs[0].y, 0.0)
+  Assert.equal(spec.uvs[1].x, 1.0)
+  Assert.equal(spec.uvs[1].y, 0.0)
+  Assert.equal(spec.uvs[2].x, 1.0)
+  Assert.equal(spec.uvs[2].y, 1.0)
+  Assert.equal(spec.uvs[3].x, 0.0)
+  Assert.equal(spec.uvs[3].y, 1.0)
+}
+
+export function testSimpleMeshBuilderBoxSupportsUvRects(): void {
+  spec := SimpleMeshBuilder()
+    .boxFromBounds{
+      min: Point3(-1.0, -1.0, -1.0),
+      max: Point3(1.0, 1.0, 1.0),
+      uv: MeshUv.rect(0.25, 0.5, 0.75, 1.0),
+    }
+    .buildSpec()
+
+  Assert.equal(spec.uvs[0].x, 0.25)
+  Assert.equal(spec.uvs[0].y, 0.5)
+  Assert.equal(spec.uvs[1].x, 0.75)
+  Assert.equal(spec.uvs[2].y, 1.0)
+  Assert.equal(spec.uvs[20].x, 0.25)
+  Assert.equal(spec.uvs[22].x, 0.75)
+}
+
+export function testSimpleMeshBuilderAppendCopiesAndOffsetsSpecs(): void {
+  source := SimpleMeshBuilder()
+  source.vertex{
+    position: Point3(0.0, 0.0, 0.0),
+    color: Color.red,
+    uv: Point(0.25, 0.5),
+    normal: Point3(0.0, 1.0, 0.0),
+  }
+  source.vertex{ position: Point3(1.0, 0.0, 0.0) }
+  source.vertex{ position: Point3(0.0, 1.0, 0.0) }
+  source.triangle(0, 1, 2)
+  sourceSpec := source.buildSpec()
+
+  combined := SimpleMeshBuilder()
+    .append(sourceSpec)
+    .appendTranslated(sourceSpec, Point3(10.0, 20.0, 30.0))
+    .buildSpec()
+
+  Assert.equal(combined.vertexCount(), 6)
+  Assert.equal(combined.indexCount(), 6)
+  Assert.equal(combined.indices[0], 0)
+  Assert.equal(combined.indices[1], 1)
+  Assert.equal(combined.indices[2], 2)
+  Assert.equal(combined.indices[3], 3)
+  Assert.equal(combined.indices[4], 4)
+  Assert.equal(combined.indices[5], 5)
+  Assert.equal(combined.positions[3].x, 10.0)
+  Assert.equal(combined.positions[3].y, 20.0)
+  Assert.equal(combined.positions[3].z, 30.0)
+  Assert.equal(combined.positions[4].x, 11.0)
+  Assert.equal(combined.colors[3].r, 1.0)
+  Assert.equal(combined.uvs[3].x, 0.25)
+  Assert.equal(combined.uvs[3].y, 0.5)
+  Assert.equal(combined.normals[3].y, 1.0)
 }
 
 export function testCreateSphereMeshSpecBuildsEquirectangularSphere(): void {

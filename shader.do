@@ -4,7 +4,7 @@ import {
   drawNativeShader,
 } from "./native"
 import { GameSurface } from "./surface"
-import { RenderPass, Texture } from "./render"
+import { DepthTexture, RenderPass, Texture } from "./render"
 
 export enum ShaderVertexFormat {
   Float,
@@ -89,7 +89,7 @@ export class ShaderBuffer {
 export class ShaderPipeline {
   private readonly native: NativeShaderPipeline
 
-  static create(surface: GameSurface, desc: ShaderPipelineDescriptor): Result<ShaderPipeline, string> {
+  static constructor(surface: GameSurface, desc: ShaderPipelineDescriptor): Result<ShaderPipeline, string> {
     if desc.source.length == 0 {
       return Failure("Shader source must not be empty")
     }
@@ -183,7 +183,18 @@ export class ShaderBytesBinding {
 
 export class ShaderTextureBinding {
   readonly index: int
-  readonly texture: Texture
+  readonly texture: Texture | null = null
+  readonly depthTexture: DepthTexture | null = null
+
+  metalTextureHandle(): long {
+    if texture != null {
+      return texture!.metalTextureHandle()
+    }
+    if depthTexture != null {
+      return depthTexture!.metalTextureHandle()
+    }
+    return 0L
+  }
 }
 
 export class ShaderDraw {
@@ -257,7 +268,7 @@ function collectTextureBindingIndices(bindings: readonly ShaderTextureBinding[])
 function collectTextureBindingHandles(bindings: readonly ShaderTextureBinding[]): long[] {
   let handles: long[] = []
   for binding of bindings {
-    handles.push(binding.texture.metalTextureHandle())
+    handles.push(binding.metalTextureHandle())
   }
   return handles
 }
@@ -296,6 +307,12 @@ function validateTextureBindings(bindings: readonly ShaderTextureBinding[]): Res
   for binding of bindings {
     if binding.index < 0 {
       return Failure("Shader texture binding index must be non-negative")
+    }
+    if binding.texture == null && binding.depthTexture == null {
+      return Failure("Shader texture binding must include a texture or depth texture")
+    }
+    if binding.texture != null && binding.depthTexture != null {
+      return Failure("Shader texture binding must not include both texture and depth texture")
     }
   }
   return Success()
@@ -348,6 +365,7 @@ export function drawShader(pass: RenderPass, draw: ShaderDraw): Result<void, str
     draw.instanceCount,
     pass.metalRenderCommandEncoderHandle(),
     pass.nativeBlendModeCode(),
+    pass.hasColorAttachment(),
     pass.hasDepthAttachment(),
   )
 }

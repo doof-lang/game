@@ -61,7 +61,7 @@ function createAnimatedParts(
 }
 
 function createGroundMesh(surface: GameSurface): SimpleMesh {
-  builder := SimpleMeshBuilder.create()
+  builder := SimpleMeshBuilder()
   color := Color(0.22, 0.75, 0.22)
   normal := Point3(0.0, 1.0, 0.0)
   builder.quad{

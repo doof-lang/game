@@ -179,7 +179,7 @@ public:
     );
     ~NativeShaderPipeline();
 
-    doof::Result<int64_t, std::string> metalPipelineHandle(int32_t blendMode, bool hasDepthAttachment);
+    doof::Result<int64_t, std::string> metalPipelineHandle(int32_t blendMode, bool hasColorAttachment, bool hasDepthAttachment);
 
 private:
     struct Impl;
@@ -191,6 +191,7 @@ void drawNativeSimpleMesh(
     int64_t metalRenderCommandEncoderHandle,
     int64_t metalDeviceHandle,
     int32_t blendMode,
+    bool hasColorAttachment,
     bool hasDepthAttachment,
     double m00,
     double m01,
@@ -262,6 +263,7 @@ void drawNativeTexturedSimpleMesh(
     int64_t metalRenderCommandEncoderHandle,
     int64_t metalDeviceHandle,
     int32_t blendMode,
+    bool hasColorAttachment,
     bool hasDepthAttachment,
     double m00,
     double m01,
@@ -335,6 +337,7 @@ void drawNativeSimpleModelBatch(
     int64_t metalRenderCommandEncoderHandle,
     int64_t metalDeviceHandle,
     int32_t blendMode,
+    bool hasColorAttachment,
     bool hasDepthAttachment,
     double m00,
     double m01,
@@ -437,6 +440,7 @@ doof::Result<void, std::string> drawNativeShader(
     int32_t instanceCount,
     int64_t metalRenderCommandEncoderHandle,
     int32_t blendMode,
+    bool hasColorAttachment,
     bool hasDepthAttachment
 );
 

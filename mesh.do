@@ -6,6 +6,7 @@ import {
 } from "./native"
 import { GameSurface } from "./surface"
 import { Color, Mat4, Point, Point3, RenderPass, Texture } from "./render"
+import { Vec3 } from "./transform"
 
 export struct Vec2 {
   readonly x: double
@@ -16,6 +17,35 @@ export struct Vec2 {
 
   static xy(x: double, y: double): Vec2 {
     return Vec2 { x: x, y: y }
+  }
+}
+
+export class MeshUv {
+  readonly a: Point
+  readonly b: Point
+  readonly c: Point
+  readonly d: Point
+
+  static zero(): MeshUv {
+    return MeshUv {
+      a: Point(0.0, 0.0),
+      b: Point(0.0, 0.0),
+      c: Point(0.0, 0.0),
+      d: Point(0.0, 0.0),
+    }
+  }
+
+  static unit(): MeshUv {
+    return MeshUv.rect(0.0, 0.0, 1.0, 1.0)
+  }
+
+  static rect(u0: double, v0: double, u1: double, v1: double): MeshUv {
+    return MeshUv {
+      a: Point(u0, v0),
+      b: Point(u1, v0),
+      c: Point(u1, v1),
+      d: Point(u0, v1),
+    }
   }
 }
 
@@ -123,10 +153,6 @@ export class SimpleMeshBuilder {
   private uvs: Point[] = []
   private normals: Point3[] = []
 
-  static create(): SimpleMeshBuilder {
-    return SimpleMeshBuilder {}
-  }
-
   vertex(
     position: Point3,
     color: Color = Color { r: 1.0, g: 1.0, b: 1.0, a: 1.0 },
@@ -167,6 +193,98 @@ export class SimpleMeshBuilder {
     return triangle(ai, ci, di)
   }
 
+  quadUv(
+    a: Point3,
+    b: Point3,
+    c: Point3,
+    d: Point3,
+    color: Color = Color { r: 1.0, g: 1.0, b: 1.0, a: 1.0 },
+    normal: Point3 = Point3 { x: 0.0, y: 0.0, z: 1.0 },
+    uv: MeshUv = MeshUv.unit(),
+  ): SimpleMeshBuilder {
+    return quad{
+      a,
+      b,
+      c,
+      d,
+      color,
+      normal,
+      uvA: uv.a,
+      uvB: uv.b,
+      uvC: uv.c,
+      uvD: uv.d,
+    }
+  }
+
+  box(
+    center: Point3,
+    size: Vec3,
+    color: Color = Color { r: 1.0, g: 1.0, b: 1.0, a: 1.0 },
+    uv: MeshUv = MeshUv.unit(),
+  ): SimpleMeshBuilder {
+    halfX := size.x * 0.5
+    halfY := size.y * 0.5
+    halfZ := size.z * 0.5
+    return boxFromBounds{
+      min: Point3(center.x - halfX, center.y - halfY, center.z - halfZ),
+      max: Point3(center.x + halfX, center.y + halfY, center.z + halfZ),
+      color,
+      uv,
+    }
+  }
+
+  boxFromBounds(
+    min: Point3,
+    max: Point3,
+    color: Color = Color { r: 1.0, g: 1.0, b: 1.0, a: 1.0 },
+    uv: MeshUv = MeshUv.unit(),
+  ): SimpleMeshBuilder {
+    p000 := Point3(min.x, min.y, min.z)
+    p001 := Point3(min.x, min.y, max.z)
+    p010 := Point3(min.x, max.y, min.z)
+    p011 := Point3(min.x, max.y, max.z)
+    p100 := Point3(max.x, min.y, min.z)
+    p101 := Point3(max.x, min.y, max.z)
+    p110 := Point3(max.x, max.y, min.z)
+    p111 := Point3(max.x, max.y, max.z)
+
+    quadUv(p001, p101, p111, p011, color, Point3(0.0, 0.0, 1.0), uv)
+    quadUv(p100, p000, p010, p110, color, Point3(0.0, 0.0, -1.0), uv)
+    quadUv(p000, p001, p011, p010, color, Point3(-1.0, 0.0, 0.0), uv)
+    quadUv(p101, p100, p110, p111, color, Point3(1.0, 0.0, 0.0), uv)
+    quadUv(p010, p011, p111, p110, color, Point3(0.0, 1.0, 0.0), uv)
+    return quadUv(p000, p100, p101, p001, color, Point3(0.0, -1.0, 0.0), uv)
+  }
+
+  append(spec: SimpleMeshSpec): SimpleMeshBuilder {
+    return appendTranslated(spec, Point3(0.0, 0.0, 0.0))
+  }
+
+  appendTranslated(spec: SimpleMeshSpec, offset: Point3): SimpleMeshBuilder {
+    base := positions.length
+    for index of 0..<spec.positions.length {
+      position := spec.positions[index]
+      vertex{
+        position: Point3(position.x + offset.x, position.y + offset.y, position.z + offset.z),
+        color: spec.colors[index],
+        uv: spec.uvs[index],
+        normal: spec.normals[index],
+      }
+    }
+
+    let index = 0
+    while index < spec.indices.length {
+      triangle(
+        spec.indices[index] + base,
+        spec.indices[index + 1] + base,
+        spec.indices[index + 2] + base,
+      )
+      index += 3
+    }
+
+    return this
+  }
+
   buildSpec(): SimpleMeshSpec {
     return {
       positions: positions.slice(0, positions.length),
@@ -202,6 +320,7 @@ export function drawSimpleMesh(
     pass.metalRenderCommandEncoderHandle(),
     pass.metalDeviceHandle(),
     pass.nativeBlendModeCode(),
+    pass.hasColorAttachment(),
     pass.hasDepthAttachment(),
     viewProjection.m00,
     viewProjection.m01,
@@ -290,6 +409,7 @@ export function drawTexturedSimpleMesh(
     pass.metalRenderCommandEncoderHandle(),
     pass.metalDeviceHandle(),
     pass.nativeBlendModeCode(),
+    pass.hasColorAttachment(),
     pass.hasDepthAttachment(),
     viewProjection.m00,
     viewProjection.m01,

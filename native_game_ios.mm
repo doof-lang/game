@@ -490,19 +490,38 @@ struct NativeTexture::Impl {
     }
 };
 
+struct NativeDepthTexture::Impl {
+    id<MTLTexture> texture = nil;
+    int32_t pixelWidth = 0;
+    int32_t pixelHeight = 0;
+
+    Impl(void* rawTexture, int32_t pixelWidth, int32_t pixelHeight)
+        : texture((__bridge id<MTLTexture>)rawTexture),
+          pixelWidth(pixelWidth),
+          pixelHeight(pixelHeight) {
+        [texture retain];
+    }
+
+    ~Impl() {
+        [texture release];
+    }
+};
+
 struct NativeRenderPass::Impl {
     id<MTLRenderCommandEncoder> encoder = nil;
     id<MTLCommandBuffer> commandBuffer = nil;
     id<MTLDevice> device = nil;
     int32_t blendMode = 0;
+    bool hasColor = false;
     bool hasDepth = false;
     bool ended = false;
 
-    Impl(void* rawEncoder, void* rawCommandBuffer, void* rawDevice, int32_t blendMode, bool hasDepth)
+    Impl(void* rawEncoder, void* rawCommandBuffer, void* rawDevice, int32_t blendMode, bool hasColor, bool hasDepth)
         : encoder((__bridge id<MTLRenderCommandEncoder>)rawEncoder),
           commandBuffer((__bridge id<MTLCommandBuffer>)rawCommandBuffer),
           device((__bridge id<MTLDevice>)rawDevice),
           blendMode(blendMode),
+          hasColor(hasColor),
           hasDepth(hasDepth) {
         [encoder retain];
         [commandBuffer retain];
@@ -2077,8 +2096,59 @@ int64_t NativeTexture::metalTextureHandle() const {
     return reinterpret_cast<int64_t>((__bridge void*)impl_->texture);
 }
 
-NativeRenderPass::NativeRenderPass(void* encoder, void* commandBuffer, void* device, int32_t blendMode, bool hasDepth)
-    : impl_(std::make_shared<Impl>(encoder, commandBuffer, device, blendMode, hasDepth)) {}
+doof::Result<std::shared_ptr<NativeDepthTexture>, std::string> NativeDepthTexture::create(
+    int32_t pixelWidth,
+    int32_t pixelHeight,
+    int64_t metalDeviceHandle
+) {
+    if (pixelWidth <= 0 || pixelHeight <= 0) {
+        return doof::Result<std::shared_ptr<NativeDepthTexture>, std::string>::failure("Depth texture dimensions must be positive");
+    }
+    constexpr int32_t kMaxTextureSize = 16384;
+    if (pixelWidth > kMaxTextureSize || pixelHeight > kMaxTextureSize) {
+        return doof::Result<std::shared_ptr<NativeDepthTexture>, std::string>::failure("Depth texture dimensions are too large");
+    }
+
+    id<MTLDevice> device = (__bridge id<MTLDevice>)reinterpret_cast<void*>(metalDeviceHandle);
+    if (device == nil) {
+        return doof::Result<std::shared_ptr<NativeDepthTexture>, std::string>::failure("Metal device handle is invalid");
+    }
+
+    MTLTextureDescriptor* descriptor = [MTLTextureDescriptor texture2DDescriptorWithPixelFormat:MTLPixelFormatDepth32Float
+                                                                                          width:static_cast<NSUInteger>(pixelWidth)
+                                                                                         height:static_cast<NSUInteger>(pixelHeight)
+                                                                                      mipmapped:NO];
+    descriptor.usage = MTLTextureUsageRenderTarget | MTLTextureUsageShaderRead;
+    descriptor.storageMode = MTLStorageModePrivate;
+    id<MTLTexture> texture = [device newTextureWithDescriptor:descriptor];
+    if (texture == nil) {
+        return doof::Result<std::shared_ptr<NativeDepthTexture>, std::string>::failure("Failed to create depth texture");
+    }
+
+    auto native = std::make_shared<NativeDepthTexture>((__bridge void*)texture, pixelWidth, pixelHeight);
+    [texture release];
+    return doof::Result<std::shared_ptr<NativeDepthTexture>, std::string>::success(native);
+}
+
+NativeDepthTexture::NativeDepthTexture(void* texture, int32_t pixelWidth, int32_t pixelHeight)
+    : impl_(std::make_shared<Impl>(texture, pixelWidth, pixelHeight)) {}
+
+NativeDepthTexture::~NativeDepthTexture() = default;
+
+int32_t NativeDepthTexture::pixelWidth() const {
+    return impl_->pixelWidth;
+}
+
+int32_t NativeDepthTexture::pixelHeight() const {
+    return impl_->pixelHeight;
+}
+
+int64_t NativeDepthTexture::metalTextureHandle() const {
+    return reinterpret_cast<int64_t>((__bridge void*)impl_->texture);
+}
+
+NativeRenderPass::NativeRenderPass(void* encoder, void* commandBuffer, void* device, int32_t blendMode, bool hasColor, bool hasDepth)
+    : impl_(std::make_shared<Impl>(encoder, commandBuffer, device, blendMode, hasColor, hasDepth)) {}
 
 NativeRenderPass::~NativeRenderPass() = default;
 
@@ -2102,6 +2172,10 @@ int64_t NativeRenderPass::metalCommandBufferHandle() const {
 
 int64_t NativeRenderPass::metalDeviceHandle() const {
     return reinterpret_cast<int64_t>((__bridge void*)impl_->device);
+}
+
+bool NativeRenderPass::hasColorAttachment() const {
+    return impl_->hasColor;
 }
 
 bool NativeRenderPass::hasDepthAttachment() const {
@@ -2130,7 +2204,7 @@ std::shared_ptr<NativeRenderPass> NativeRenderFrame::beginPass(
     int32_t cullMode
 ) {
     if (!impl_->valid || impl_->commandBuffer == nil || impl_->drawable == nil) {
-        return std::shared_ptr<NativeRenderPass>(new NativeRenderPass(nullptr, nullptr, nullptr, blendMode, false));
+        return std::shared_ptr<NativeRenderPass>(new NativeRenderPass(nullptr, nullptr, nullptr, blendMode, true, false));
     }
 
     MTLRenderPassDescriptor* descriptor = [MTLRenderPassDescriptor renderPassDescriptor];
@@ -2152,7 +2226,7 @@ std::shared_ptr<NativeRenderPass> NativeRenderFrame::beginPass(
 
     id<MTLRenderCommandEncoder> encoder = [impl_->commandBuffer renderCommandEncoderWithDescriptor:descriptor];
     if (encoder == nil) {
-        return std::shared_ptr<NativeRenderPass>(new NativeRenderPass(nullptr, impl_->commandBuffer, impl_->device, blendMode, needsDepthAttachment));
+        return std::shared_ptr<NativeRenderPass>(new NativeRenderPass(nullptr, impl_->commandBuffer, impl_->device, blendMode, true, needsDepthAttachment));
     }
 
     if (needsDepthAttachment) {
@@ -2175,7 +2249,59 @@ std::shared_ptr<NativeRenderPass> NativeRenderFrame::beginPass(
         (__bridge void*)impl_->commandBuffer,
         (__bridge void*)impl_->device,
         blendMode,
+        true,
         needsDepthAttachment
+    ));
+}
+
+std::shared_ptr<NativeRenderPass> NativeRenderFrame::beginDepthPass(
+    std::shared_ptr<NativeDepthTexture> depthTexture,
+    double clearDepth,
+    int32_t depthMode,
+    int32_t blendMode,
+    int32_t windingMode,
+    int32_t cullMode
+) {
+    if (!impl_->valid || impl_->commandBuffer == nil || !depthTexture) {
+        return std::shared_ptr<NativeRenderPass>(new NativeRenderPass(nullptr, impl_->commandBuffer, impl_->device, blendMode, false, false));
+    }
+
+    id<MTLTexture> texture = (__bridge id<MTLTexture>)reinterpret_cast<void*>(depthTexture->metalTextureHandle());
+    if (texture == nil) {
+        return std::shared_ptr<NativeRenderPass>(new NativeRenderPass(nullptr, impl_->commandBuffer, impl_->device, blendMode, false, false));
+    }
+
+    MTLRenderPassDescriptor* descriptor = [MTLRenderPassDescriptor renderPassDescriptor];
+    descriptor.depthAttachment.texture = texture;
+    descriptor.depthAttachment.storeAction = MTLStoreActionStore;
+    descriptor.depthAttachment.clearDepth = clearDepth;
+    descriptor.depthAttachment.loadAction = MTLLoadActionClear;
+
+    id<MTLRenderCommandEncoder> encoder = [impl_->commandBuffer renderCommandEncoderWithDescriptor:descriptor];
+    if (encoder == nil) {
+        return std::shared_ptr<NativeRenderPass>(new NativeRenderPass(nullptr, impl_->commandBuffer, impl_->device, blendMode, false, true));
+    }
+
+    MTLDepthStencilDescriptor* depthDescriptor = [[MTLDepthStencilDescriptor alloc] init];
+    depthDescriptor.depthCompareFunction = depthMode == kDepthDisabled ? MTLCompareFunctionAlways : MTLCompareFunctionLessEqual;
+    depthDescriptor.depthWriteEnabled = depthMode == kDepthReadWrite;
+    id<MTLDepthStencilState> depthState = [impl_->device newDepthStencilStateWithDescriptor:depthDescriptor];
+    [depthDescriptor release];
+    if (depthState != nil) {
+        [encoder setDepthStencilState:depthState];
+        [depthState release];
+    }
+
+    [encoder setFrontFacingWinding:metalWindingForMode(windingMode)];
+    [encoder setCullMode:metalCullModeForMode(cullMode)];
+
+    return std::shared_ptr<NativeRenderPass>(new NativeRenderPass(
+        (__bridge void*)encoder,
+        (__bridge void*)impl_->commandBuffer,
+        (__bridge void*)impl_->device,
+        blendMode,
+        false,
+        true
     ));
 }
 

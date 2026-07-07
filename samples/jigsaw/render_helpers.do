@@ -35,8 +35,7 @@ function uvOffset(column: int, row: int): Vec2 {
 }
 
 export function createPieceMesh(surface: GameSurface, layout: PuzzleLayout): SimpleMesh {
-  return SimpleMeshBuilder
-    .create()
+  return SimpleMeshBuilder()
     .quad{
       a: Point3(0.0, 0.0, 0.0),
       b: Point3(layout.pieceSize, 0.0, 0.0),

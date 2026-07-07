@@ -21,8 +21,7 @@ import {
 } from "std/game"
 
 function createPlayerMesh(surface: GameSurface): SimpleMesh {
-  return SimpleMeshBuilder
-    .create()
+  return SimpleMeshBuilder()
     .quad{
       a: Point3(-32.0, -32.0, 0.0),
       b: Point3(32.0, -32.0, 0.0),

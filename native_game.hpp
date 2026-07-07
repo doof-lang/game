@@ -57,6 +57,25 @@ private:
     std::shared_ptr<Impl> impl_;
 };
 
+class NativeDepthTexture {
+public:
+    static doof::Result<std::shared_ptr<NativeDepthTexture>, std::string> create(
+        int32_t pixelWidth,
+        int32_t pixelHeight,
+        int64_t metalDeviceHandle
+    );
+    NativeDepthTexture(void* texture, int32_t pixelWidth, int32_t pixelHeight);
+    ~NativeDepthTexture();
+
+    int32_t pixelWidth() const;
+    int32_t pixelHeight() const;
+    int64_t metalTextureHandle() const;
+
+private:
+    struct Impl;
+    std::shared_ptr<Impl> impl_;
+};
+
 class NativeRenderPass {
 public:
     ~NativeRenderPass();
@@ -65,12 +84,13 @@ public:
     int64_t metalRenderCommandEncoderHandle() const;
     int64_t metalCommandBufferHandle() const;
     int64_t metalDeviceHandle() const;
+    bool hasColorAttachment() const;
     bool hasDepthAttachment() const;
 
 private:
     friend class NativeRenderFrame;
 
-    NativeRenderPass(void* encoder, void* commandBuffer, void* device, int32_t blendMode, bool hasDepth);
+    NativeRenderPass(void* encoder, void* commandBuffer, void* device, int32_t blendMode, bool hasColor, bool hasDepth);
 
     struct Impl;
     std::shared_ptr<Impl> impl_;
@@ -87,6 +107,14 @@ public:
         double clearGreen,
         double clearBlue,
         double clearAlpha,
+        double clearDepth,
+        int32_t depthMode,
+        int32_t blendMode,
+        int32_t windingMode,
+        int32_t cullMode
+    );
+    std::shared_ptr<NativeRenderPass> beginDepthPass(
+        std::shared_ptr<NativeDepthTexture> depthTexture,
         double clearDepth,
         int32_t depthMode,
         int32_t blendMode,

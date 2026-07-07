@@ -15,7 +15,7 @@ import {
 } from "std/game"
 
 function createMinimalMesh(surface: GameSurface): SimpleMesh {
-  builder := SimpleMeshBuilder.create()
+  builder := SimpleMeshBuilder()
 
   topLeft := builder.vertex{
     position: Point3(80.0, 80.0, 0.0),

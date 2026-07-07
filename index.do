@@ -1,5 +1,16 @@
 export { GameApp, GameAppOptions, GameWindowMode, initGameApp } from "./app"
 export {
+  CollisionAabb,
+  CollisionCapsule,
+  CollisionSphere,
+  aabbIntersectsAabb,
+  capsuleIntersectsAabb,
+  capsuleIntersectsCapsule,
+  capsuleIntersectsSphere,
+  sphereIntersectsAabb,
+  sphereIntersectsSphere,
+} from "./collision"
+export {
   controllerAxisCode,
   controllerAxisFromCode,
   controllerButtonCode,
@@ -29,7 +40,7 @@ export {
   synthSound,
 } from "./sound_synth"
 export { SfxrSoundConfig, SoundWave } from "./sound_synth_types"
-export { SimpleMaterial, SimpleMesh, SimpleMeshBuilder, SimpleMeshLighting, SimpleMeshSpec, Vec2, drawSimpleMesh, drawTexturedSimpleMesh } from "./mesh"
+export { MeshUv, SimpleMaterial, SimpleMesh, SimpleMeshBuilder, SimpleMeshLighting, SimpleMeshSpec, Vec2, drawSimpleMesh, drawTexturedSimpleMesh } from "./mesh"
 export { SimpleModel, drawSimpleModel } from "./model"
 export { SimpleModelBatch, SimpleModelInstance, SimpleModelInstanceConfig, drawSimpleModelBatch } from "./model_batch"
 export { Scene, SceneEventHandler, SceneNode, SceneTick, SceneTickHandler, SceneUpdate, SceneUpdateHandler } from "./scene"
@@ -81,6 +92,7 @@ export {
   ShaderVertexStepFunction,
   drawShader,
 } from "./shader"
+export { ShaderBytesBuilder } from "./shader_bytes"
 export { createSphereMeshSpec } from "./sphere"
 export { createIcosphereMeshSpec } from "./icosphere"
 export { SkyMap, drawEquirectangularSkyMap } from "./sky"
@@ -124,6 +136,7 @@ export {
   Color,
   CullMode,
   Depth,
+  DepthTexture,
   DepthMode,
   Mat4,
   Point,

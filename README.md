@@ -45,7 +45,7 @@ import {
 } from "std/game"
 
 function createMesh(surface: GameSurface): SimpleMesh {
-  builder := SimpleMeshBuilder.create()
+  builder := SimpleMeshBuilder()
   builder.quad{
     a: Point3(80.0, 80.0, 0.0),
     b: Point3(300.0, 80.0, 0.0),
@@ -244,7 +244,7 @@ drawing applies the active pass camera and model matrix on the GPU.
 ### Static Simple Meshes
 
 ```doof
-builder := SimpleMeshBuilder.create()
+builder := SimpleMeshBuilder()
 i0 := builder.vertex{ position: Point3(-0.5, -0.5, 0.0), color: Color(0.0, 0.7, 1.0) }
 i1 := builder.vertex{ position: Point3(0.5, -0.5, 0.0), color: Color(0.0, 0.7, 1.0) }
 i2 := builder.vertex{ position: Point3(0.0, 0.5, 0.0), color: Color(0.0, 0.7, 1.0) }
@@ -448,8 +448,7 @@ animations. `GltfPose` is bound to its source asset and samples `STEP` or
 loadedTexture := try! app.loadTexture("/path/to/card_atlas.png")
 atlas := Atlas { texture: loadedTexture, columns: 14, rows: 4 }
 
-cardMesh := SimpleMeshBuilder
-  .create()
+cardMesh := SimpleMeshBuilder()
   .quad{
     a: Point3(0.0, 0.0, 0.0),
     b: Point3(121.0, 0.0, 0.0),
@@ -556,7 +555,7 @@ source := "#include <metal_stdlib>\n" +
   "vertex VertexOut vertex_main(VertexIn in [[stage_in]]) { VertexOut out; out.position = float4(in.position, 0.0, 1.0); out.color = in.color; return out; }\n" +
   "fragment float4 fragment_main(VertexOut in [[stage_in]]) { return in.color; }\n"
 
-pipeline := try! ShaderPipeline.create(
+pipeline := try! ShaderPipeline(
   app.surface,
   ShaderPipelineDescriptor {
     source,

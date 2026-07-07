@@ -227,15 +227,15 @@ SimpleMeshMaterialUniforms makeSimpleMeshMaterialUniforms(
     };
 }
 
-id<MTLRenderPipelineState> simpleMeshPipeline(id<MTLDevice> device, int32_t blendMode, bool hasDepthAttachment, bool textured) {
+id<MTLRenderPipelineState> simpleMeshPipeline(id<MTLDevice> device, int32_t blendMode, bool hasColorAttachment, bool hasDepthAttachment, bool textured) {
     if (device == nil) {
         return nil;
     }
 
-    static id<MTLRenderPipelineState> pipelines[8] = {};
-    static bool attempted[8] = {};
+    static id<MTLRenderPipelineState> pipelines[16] = {};
+    static bool attempted[16] = {};
 
-    int32_t slot = (textured ? 4 : 0) + (blendMode == 1 ? 2 : 0) + (hasDepthAttachment ? 1 : 0);
+    int32_t slot = (textured ? 8 : 0) + (blendMode == 1 ? 4 : 0) + (hasColorAttachment ? 2 : 0) + (hasDepthAttachment ? 1 : 0);
     if (pipelines[slot] != nil) {
         return pipelines[slot];
     }
@@ -318,10 +318,12 @@ id<MTLRenderPipelineState> simpleMeshPipeline(id<MTLDevice> device, int32_t blen
 
     MTLRenderPipelineDescriptor* descriptor = [[MTLRenderPipelineDescriptor alloc] init];
     descriptor.vertexFunction = [library newFunctionWithName:@"doof_game_simple_mesh_vertex"];
-    descriptor.fragmentFunction = [library newFunctionWithName:(textured ? @"doof_game_textured_simple_mesh_fragment" : @"doof_game_simple_mesh_fragment")];
-    descriptor.colorAttachments[0].pixelFormat = MTLPixelFormatBGRA8Unorm;
+    if (hasColorAttachment) {
+        descriptor.fragmentFunction = [library newFunctionWithName:(textured ? @"doof_game_textured_simple_mesh_fragment" : @"doof_game_simple_mesh_fragment")];
+        descriptor.colorAttachments[0].pixelFormat = MTLPixelFormatBGRA8Unorm;
+    }
     native_mesh::configureDepthAttachment(descriptor, hasDepthAttachment);
-    if (blendMode == 1) {
+    if (hasColorAttachment && blendMode == 1) {
         native_mesh::configureAlphaBlending(descriptor.colorAttachments[0]);
     }
 
@@ -334,15 +336,15 @@ id<MTLRenderPipelineState> simpleMeshPipeline(id<MTLDevice> device, int32_t blen
     return pipelines[slot];
 }
 
-id<MTLRenderPipelineState> simpleModelBatchPipeline(id<MTLDevice> device, int32_t blendMode, bool hasDepthAttachment, bool textured) {
+id<MTLRenderPipelineState> simpleModelBatchPipeline(id<MTLDevice> device, int32_t blendMode, bool hasColorAttachment, bool hasDepthAttachment, bool textured) {
     if (device == nil) {
         return nil;
     }
 
-    static id<MTLRenderPipelineState> pipelines[8] = {};
-    static bool attempted[8] = {};
+    static id<MTLRenderPipelineState> pipelines[16] = {};
+    static bool attempted[16] = {};
 
-    int32_t slot = (textured ? 4 : 0) + (blendMode == 1 ? 2 : 0) + (hasDepthAttachment ? 1 : 0);
+    int32_t slot = (textured ? 8 : 0) + (blendMode == 1 ? 4 : 0) + (hasColorAttachment ? 2 : 0) + (hasDepthAttachment ? 1 : 0);
     if (pipelines[slot] != nil) {
         return pipelines[slot];
     }
@@ -423,10 +425,12 @@ id<MTLRenderPipelineState> simpleModelBatchPipeline(id<MTLDevice> device, int32_
 
     MTLRenderPipelineDescriptor* descriptor = [[MTLRenderPipelineDescriptor alloc] init];
     descriptor.vertexFunction = [library newFunctionWithName:@"doof_game_simple_model_batch_vertex"];
-    descriptor.fragmentFunction = [library newFunctionWithName:(textured ? @"doof_game_textured_simple_model_batch_fragment" : @"doof_game_simple_model_batch_fragment")];
-    descriptor.colorAttachments[0].pixelFormat = MTLPixelFormatBGRA8Unorm;
+    if (hasColorAttachment) {
+        descriptor.fragmentFunction = [library newFunctionWithName:(textured ? @"doof_game_textured_simple_model_batch_fragment" : @"doof_game_simple_model_batch_fragment")];
+        descriptor.colorAttachments[0].pixelFormat = MTLPixelFormatBGRA8Unorm;
+    }
     native_mesh::configureDepthAttachment(descriptor, hasDepthAttachment);
-    if (blendMode == 1) {
+    if (hasColorAttachment && blendMode == 1) {
         native_mesh::configureAlphaBlending(descriptor.colorAttachments[0]);
     }
 
@@ -446,6 +450,7 @@ void drawSimpleMeshInternal(
     int64_t metalRenderCommandEncoderHandle,
     int64_t metalDeviceHandle,
     int32_t blendMode,
+    bool hasColorAttachment,
     bool hasDepthAttachment,
     const native_mesh::MatrixUniforms& uniforms,
     const native_mesh::MatrixUniforms& modelUniforms,
@@ -466,7 +471,7 @@ void drawSimpleMeshInternal(
         return;
     }
 
-    id<MTLRenderPipelineState> pipeline = simpleMeshPipeline(device, blendMode, hasDepthAttachment, textured);
+    id<MTLRenderPipelineState> pipeline = simpleMeshPipeline(device, blendMode, hasColorAttachment, hasDepthAttachment, textured);
     if (pipeline == nil) {
         return;
     }
@@ -570,9 +575,9 @@ struct NativeShaderPipeline::Impl {
     MTLVertexDescriptor* vertexDescriptor = nil;
     std::string vertexFunction;
     std::string fragmentFunction;
-    id<MTLRenderPipelineState> pipelines[4] = {};
-    bool attempted[4] = {};
-    std::string errors[4];
+    id<MTLRenderPipelineState> pipelines[8] = {};
+    bool attempted[8] = {};
+    std::string errors[8];
 
     Impl(
         void* rawDevice,
@@ -1009,12 +1014,12 @@ NativeShaderPipeline::NativeShaderPipeline(
 
 NativeShaderPipeline::~NativeShaderPipeline() = default;
 
-doof::Result<int64_t, std::string> NativeShaderPipeline::metalPipelineHandle(int32_t blendMode, bool hasDepthAttachment) {
+doof::Result<int64_t, std::string> NativeShaderPipeline::metalPipelineHandle(int32_t blendMode, bool hasColorAttachment, bool hasDepthAttachment) {
     if (impl_->device == nil || impl_->library == nil || impl_->vertexDescriptor == nil) {
         return doof::Result<int64_t, std::string>::failure("Shader pipeline is invalid");
     }
 
-    int32_t slot = (blendMode == 1 ? 2 : 0) + (hasDepthAttachment ? 1 : 0);
+    int32_t slot = (blendMode == 1 ? 4 : 0) + (hasColorAttachment ? 2 : 0) + (hasDepthAttachment ? 1 : 0);
     if (impl_->pipelines[slot] != nil) {
         return doof::Result<int64_t, std::string>::success(native_mesh::metalHandle(impl_->pipelines[slot]));
     }
@@ -1024,8 +1029,8 @@ doof::Result<int64_t, std::string> NativeShaderPipeline::metalPipelineHandle(int
     impl_->attempted[slot] = true;
 
     id<MTLFunction> vertex = [impl_->library newFunctionWithName:nsString(impl_->vertexFunction)];
-    id<MTLFunction> fragment = [impl_->library newFunctionWithName:nsString(impl_->fragmentFunction)];
-    if (vertex == nil || fragment == nil) {
+    id<MTLFunction> fragment = hasColorAttachment ? [impl_->library newFunctionWithName:nsString(impl_->fragmentFunction)] : nil;
+    if (vertex == nil || (hasColorAttachment && fragment == nil)) {
         [fragment release];
         [vertex release];
         impl_->errors[slot] = "Shader functions are no longer available";
@@ -1034,11 +1039,13 @@ doof::Result<int64_t, std::string> NativeShaderPipeline::metalPipelineHandle(int
 
     MTLRenderPipelineDescriptor* descriptor = [[MTLRenderPipelineDescriptor alloc] init];
     descriptor.vertexFunction = vertex;
-    descriptor.fragmentFunction = fragment;
+    if (hasColorAttachment) {
+        descriptor.fragmentFunction = fragment;
+        descriptor.colorAttachments[0].pixelFormat = MTLPixelFormatBGRA8Unorm;
+    }
     descriptor.vertexDescriptor = impl_->vertexDescriptor;
-    descriptor.colorAttachments[0].pixelFormat = MTLPixelFormatBGRA8Unorm;
     native_mesh::configureDepthAttachment(descriptor, hasDepthAttachment);
-    if (blendMode == 1) {
+    if (hasColorAttachment && blendMode == 1) {
         native_mesh::configureAlphaBlending(descriptor.colorAttachments[0]);
     }
 
@@ -1062,6 +1069,7 @@ void drawNativeSimpleMesh(
     int64_t metalRenderCommandEncoderHandle,
     int64_t metalDeviceHandle,
     int32_t blendMode,
+    bool hasColorAttachment,
     bool hasDepthAttachment,
     double m00,
     double m01,
@@ -1133,6 +1141,7 @@ void drawNativeSimpleMesh(
         metalRenderCommandEncoderHandle,
         metalDeviceHandle,
         blendMode,
+        hasColorAttachment,
         hasDepthAttachment,
         native_mesh::makeMatrixUniforms(m00, m01, m02, m03, m10, m11, m12, m13, m20, m21, m22, m23, m30, m31, m32, m33),
         native_mesh::makeMatrixUniforms(modelM00, modelM01, modelM02, modelM03, modelM10, modelM11, modelM12, modelM13, modelM20, modelM21, modelM22, modelM23, modelM30, modelM31, modelM32, modelM33),
@@ -1148,6 +1157,7 @@ void drawNativeTexturedSimpleMesh(
     int64_t metalRenderCommandEncoderHandle,
     int64_t metalDeviceHandle,
     int32_t blendMode,
+    bool hasColorAttachment,
     bool hasDepthAttachment,
     double m00,
     double m01,
@@ -1219,6 +1229,7 @@ void drawNativeTexturedSimpleMesh(
         metalRenderCommandEncoderHandle,
         metalDeviceHandle,
         blendMode,
+        hasColorAttachment,
         hasDepthAttachment,
         native_mesh::makeMatrixUniforms(m00, m01, m02, m03, m10, m11, m12, m13, m20, m21, m22, m23, m30, m31, m32, m33),
         native_mesh::makeMatrixUniforms(modelM00, modelM01, modelM02, modelM03, modelM10, modelM11, modelM12, modelM13, modelM20, modelM21, modelM22, modelM23, modelM30, modelM31, modelM32, modelM33),
@@ -1236,6 +1247,7 @@ void drawNativeSimpleModelBatch(
     int64_t metalRenderCommandEncoderHandle,
     int64_t metalDeviceHandle,
     int32_t blendMode,
+    bool hasColorAttachment,
     bool hasDepthAttachment,
     double m00,
     double m01,
@@ -1276,7 +1288,7 @@ void drawNativeSimpleModelBatch(
         return;
     }
 
-    id<MTLRenderPipelineState> pipeline = simpleModelBatchPipeline(device, blendMode, hasDepthAttachment, textured);
+    id<MTLRenderPipelineState> pipeline = simpleModelBatchPipeline(device, blendMode, hasColorAttachment, hasDepthAttachment, textured);
     if (pipeline == nil) {
         return;
     }
@@ -1338,6 +1350,7 @@ doof::Result<void, std::string> drawNativeShader(
     int32_t instanceCount,
     int64_t metalRenderCommandEncoderHandle,
     int32_t blendMode,
+    bool hasColorAttachment,
     bool hasDepthAttachment
 ) {
     if (!pipeline) {
@@ -1349,7 +1362,7 @@ doof::Result<void, std::string> drawNativeShader(
         return doof::Result<void, std::string>::failure("Metal render command encoder handle is invalid");
     }
 
-    auto pipelineHandle = pipeline->metalPipelineHandle(blendMode, hasDepthAttachment);
+    auto pipelineHandle = pipeline->metalPipelineHandle(blendMode, hasColorAttachment, hasDepthAttachment);
     if (pipelineHandle.isFailure()) {
         return doof::Result<void, std::string>::failure(pipelineHandle.error());
     }

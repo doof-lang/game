@@ -77,6 +77,13 @@ export import class NativeTexture from "native_game.hpp" as doof_game::NativeTex
   metalTextureHandle(): long
 }
 
+export import class NativeDepthTexture from "native_game.hpp" as doof_game::NativeDepthTexture {
+  static create(pixelWidth: int, pixelHeight: int, metalDeviceHandle: long): Result<NativeDepthTexture, string>
+  pixelWidth(): int
+  pixelHeight(): int
+  metalTextureHandle(): long
+}
+
 export import function intrinsicFontGzip(): readonly byte[] from "native_intrinsic_font.hpp" as doof_game::intrinsicFontGzip
 export import function intrinsicFontAlpha4Gzip(): readonly byte[] from "native_intrinsic_font.hpp" as doof_game::intrinsicFontAlpha4Gzip
 
@@ -94,6 +101,14 @@ export import class NativeRenderFrame from "native_game.hpp" as doof_game::Nativ
     windingMode: int,
     cullMode: int,
   ): NativeRenderPass
+  beginDepthPass(
+    depthTexture: NativeDepthTexture,
+    clearDepth: double,
+    depthMode: int,
+    blendMode: int,
+    windingMode: int,
+    cullMode: int,
+  ): NativeRenderPass
   commit(): void
 }
 
@@ -102,6 +117,7 @@ export import class NativeRenderPass from "native_game.hpp" as doof_game::Native
   metalRenderCommandEncoderHandle(): long
   metalCommandBufferHandle(): long
   metalDeviceHandle(): long
+  hasColorAttachment(): bool
   hasDepthAttachment(): bool
 }
 
@@ -216,6 +232,7 @@ export import function drawNativeSimpleMesh(
   metalRenderCommandEncoderHandle: long,
   metalDeviceHandle: long,
   blendMode: int,
+  hasColorAttachment: bool,
   hasDepthAttachment: bool,
   m00: double,
   m01: double,
@@ -287,6 +304,7 @@ export import function drawNativeTexturedSimpleMesh(
   metalRenderCommandEncoderHandle: long,
   metalDeviceHandle: long,
   blendMode: int,
+  hasColorAttachment: bool,
   hasDepthAttachment: bool,
   m00: double,
   m01: double,
@@ -360,6 +378,7 @@ export import function drawNativeSimpleModelBatch(
   metalRenderCommandEncoderHandle: long,
   metalDeviceHandle: long,
   blendMode: int,
+  hasColorAttachment: bool,
   hasDepthAttachment: bool,
   m00: double,
   m01: double,
@@ -406,6 +425,7 @@ export import function drawNativeShader(
   instanceCount: int,
   metalRenderCommandEncoderHandle: long,
   blendMode: int,
+  hasColorAttachment: bool,
   hasDepthAttachment: bool,
 ): Result<void, string> from "native_mesh.hpp" as doof_game::drawNativeShader
 
