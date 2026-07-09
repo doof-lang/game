@@ -14,7 +14,6 @@ import {
   drawSimpleModel,
   initGameApp,
 } from "std/game"
-import { join, resourcesDirectory } from "std/path"
 
 function main(): int {
   app := initGameApp{ title: "Doof Game Text" }
@@ -24,8 +23,7 @@ function main(): int {
     return 1
   }
 
-  resources := try! resourcesDirectory()
-  handwritingFont := app.loadBitmapFont(join([resources, "fonts/handwriting.fnt"])) else error {
+  handwritingFont := app.loadBitmapFontResource("fonts/handwriting.fnt") else error {
     println(error)
     return 1
   }

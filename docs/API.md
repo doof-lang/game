@@ -162,11 +162,14 @@ normal resizable window.
 | `screenPointer()` | `ScreenPointer` | Create a primary screen pointer helper. |
 | `gestures()` | `ScreenGestures` | Create a screen gesture dispatcher. |
 | `loadTexture(path)` | `Result<Texture, string>` | Decode and upload an image file. |
+| `loadTextureResource(path)` | `Result<Texture, string>` | Decode and upload an image from package resources. |
 | `createTexture(image)` | `Result<Texture, string>` | Upload a `std/image` image. |
 | `createTextureFromPixels(pixels)` | `Result<Texture, string>` | Upload `PixelBytes` directly. |
 | `loadBitmapFont(path)` | `Result<BitmapFont, string>` | Load AngelCode BMFont text metrics and its texture page. |
+| `loadBitmapFontResource(path)` | `Result<BitmapFont, string>` | Load AngelCode BMFont text metrics and its texture page from package resources. |
 | `loadIntrinsicFont()` | `Result<BitmapFont, string>` | Load the small embedded bitmap font. |
 | `loadSound(path)` | `Result<Sound, string>` | Load platform-supported audio. |
+| `loadSoundResource(path)` | `Result<Sound, string>` | Load platform-supported audio from package resources. |
 | `beginPanGesture(x, y)` | `void` | Begin an app-declared pan gesture. |
 | `updatePanGesture(x, y)` | `void` | Emit pan deltas from an app-declared pan gesture. |
 | `endPanGesture()` | `void` | End a pan gesture, possibly starting inertia. |
@@ -582,10 +585,13 @@ app.onRender((renderer): void => {
 | `createIcosphereMeshSpec{ radius = 1.0, subdivisions = 2, color = Color.white }` | Create an icosphere with evenly distributed triangles. |
 | `parseObjMeshSpec(text, source = "input", color = Color.white)` | Parse Wavefront OBJ text into a `SimpleMeshSpec`. |
 | `loadObjMeshSpec(path, color = Color.white)` | Load and parse a Wavefront OBJ file. |
+| `loadObjMeshSpecResource(path, color = Color.white)` | Load and parse a Wavefront OBJ file from package resources. |
 | `parseGlb(data, source = "input")` | Parse an embedded GLB v2 file into a `GltfAsset`. |
 | `loadGlb(path)` | Load and parse an embedded GLB v2 file. |
+| `loadGlbResource(path)` | Load and parse an embedded GLB v2 file from package resources. |
 | `parseGltf(text, source = "input", bin = [])` | Parse a glTF JSON document with optional supplied binary buffer data. |
 | `loadGltf(path)` | Load a `.gltf` file and its single local `.bin` buffer. |
+| `loadGltfResource(path)` | Load a `.gltf` resource and its single local `.bin` resource. |
 | `GltfAsset.createPose()` | Create an asset-bound `GltfPose` initialized from node defaults. |
 | `GltfAnimation.apply(time, pose)` | Sample node TRS and morph weights into a pose. |
 | `glbAssetToSimpleMeshSpecs(asset, color = Color.white)` | Extract supported static triangle primitives into `GltfSimpleMeshSpec[]`. |
@@ -614,7 +620,9 @@ non-triangle primitives are reported through warnings or errors where possible.
 `Texture` exposes `pixelWidth()`, `pixelHeight()`, and
 `metalTextureHandle()`.
 
-Load textures with `app.loadTexture(path)` or `renderer.loadTexture(path)`.
+Load package-resource textures with `app.loadTextureResource(path)`. Use
+`app.loadTexture(path)` or `renderer.loadTexture(path)` when you already have a
+filesystem path.
 Create generated textures with `app.createTexture(image)`,
 `renderer.createTexture(image)`, `app.createTextureFromPixels(pixels)`, or
 `renderer.createTextureFromPixels(pixels)`.
@@ -757,7 +765,7 @@ native particle field. Draw it with `drawSpaceDust(pass, dust)`.
 ```doof
 pickup := try! pickupSound()
 laser := try! synthSound(SfxrSoundConfig.laser())
-musicSting := try! app.loadSound("audio/sting.wav")
+musicSting := try! app.loadSoundResource("audio/sting.wav")
 
 try! pickup.play()
 try! laser.play(SoundPlayOptions { volume: 0.35, pan: -0.25 })
@@ -767,6 +775,7 @@ try! musicSting.play(SoundPlayOptions { volume: 0.8 })
 | API | Description |
 | --- | --- |
 | `Sound.load(path)` / `loadSound(path)` | Decode a platform-supported audio file. |
+| `Sound.loadResource(path)` / `loadSoundResource(path)` | Decode a platform-supported audio file from package resources. |
 | `Sound.fromSamples(samples)` | Create a reusable sound from mono samples. |
 | `Sound.play(options = SoundPlayOptions {})` | Start playback. Repeated calls can overlap. |
 | `Sound.stop()` | Stop active voices for this sound. |

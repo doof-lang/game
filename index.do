@@ -29,7 +29,7 @@ export { ControllerQuery, InputState } from "./input"
 export { ScreenGesture, ScreenGestures } from "./screen_gestures"
 export { ScreenPointer } from "./screen_pointer"
 export { keyCode, keyFromCode } from "./keys"
-export { Sound, SoundPlayOptions, SoundSamples, loadSound } from "./sound"
+export { Sound, SoundPlayOptions, SoundSamples, loadSound, loadSoundResource } from "./sound"
 export {
   explosionSound,
   generateSoundSamples,
@@ -44,7 +44,7 @@ export { MeshUv, SimpleMaterial, SimpleMesh, SimpleMeshBuilder, SimpleMeshLighti
 export { SimpleModel, drawSimpleModel } from "./model"
 export { SimpleModelBatch, SimpleModelInstance, SimpleModelInstanceConfig, drawSimpleModelBatch } from "./model_batch"
 export { Scene, SceneEventHandler, SceneNode, SceneTick, SceneTickHandler, SceneUpdate, SceneUpdateHandler } from "./scene"
-export { ObjError, loadObjMeshSpec, parseObjMeshSpec } from "./obj"
+export { ObjError, loadObjMeshSpec, loadObjMeshSpecResource, parseObjMeshSpec } from "./obj"
 export { Fireworks, FireworksConfig } from "./fireworks"
 export { ParticleConfig, ParticleLayer, ParticleLayerConfig } from "./particles"
 export {

@@ -1,3 +1,5 @@
+import { resourcePath } from "std/path"
+
 import { NativeSound } from "./sound_native"
 
 export class SoundPlayOptions {
@@ -11,6 +13,11 @@ export class Sound {
   static load(path: string): Result<Sound, string> {
     try native := NativeSound.load(path)
     return Success(Sound { native })
+  }
+
+  static loadResource(path: string): Result<Sound, string> {
+    try resolvedPath := resourcePath(path)
+    return Sound.load(resolvedPath)
   }
 
   static fromSamples(samples: SoundSamples): Result<Sound, string> {
@@ -45,4 +52,8 @@ export class SoundSamples {
 
 export function loadSound(path: string): Result<Sound, string> {
   return Sound.load(path)
+}
+
+export function loadSoundResource(path: string): Result<Sound, string> {
+  return Sound.loadResource(path)
 }

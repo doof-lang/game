@@ -20,6 +20,7 @@ Hardware keyboard events are not exposed on iOS yet.
 ## Documentation
 
 - [Guide and API reference](docs/API.md) maps the app host, rendering, assets, input, UI, sound, platform targets, samples, and source modules.
+- [Cookbook](docs/cookbook/README.md) breaks common tasks into small, copyable guides.
 - Tests can be run with `doof test game`.
 - [Samples](samples/) show complete programs built with this module.
 
@@ -145,18 +146,20 @@ import { SfxrSoundConfig, SoundPlayOptions, synthSound } from "std/game"
 
 pickup := try! synthSound(SfxrSoundConfig.pickup())
 laser := try! synthSound(SfxrSoundConfig.laser())
-musicSting := try! app.loadSound("audio/sting.wav")
+musicSting := try! app.loadSoundResource("audio/sting.wav")
 
 try! pickup.play()
 try! laser.play(SoundPlayOptions { volume: 0.35, pan: -0.25 })
 try! musicSting.play(SoundPlayOptions { volume: 0.8 })
 ```
 
-`Sound.load(path)` and `loadSound(path)` decode platform-supported audio files
-such as WAV, MP3, AAC, and CAF into a reusable sound object. `Sound.play(...)`
-starts playback immediately; repeated calls can overlap, which keeps one-shot
-effects simple. `Sound.stop()` stops active voices for that sound, `duration()`
-reports seconds, and `isPlaying()` reports whether any voices are still active.
+`app.loadSoundResource(path)`, `Sound.loadResource(path)`, and
+`loadSoundResource(path)` decode package-resource audio files such as WAV, MP3,
+AAC, and CAF into a reusable sound object. Use `loadSound(path)` when you
+already have a filesystem path. `Sound.play(...)` starts playback immediately;
+repeated calls can overlap, which keeps one-shot effects simple. `Sound.stop()`
+stops active voices for that sound, `duration()` reports seconds, and
+`isPlaying()` reports whether any voices are still active.
 
 `SfxrSoundConfig` generates short mono effects in Doof and feeds them through
 the same `Sound` playback path. Use the presets (`pickup`, `laser`,
@@ -309,9 +312,9 @@ renderer.pass(
 basic text and UI need no external font assets. Its compressed BMFont metrics
 and packed 4-bit alpha atlas add about 15 KB to the module.
 
-For a custom font, use `app.loadBitmapFont("fonts/hud.fnt")`. It reads AngelCode
-BMFont text `.fnt` metrics and loads its referenced single-page bitmap atlas
-relative to the font file.
+For a custom font, use `app.loadBitmapFontResource("fonts/hud.fnt")`. It reads
+AngelCode BMFont text `.fnt` metrics and loads its referenced single-page bitmap
+atlas relative to the font file.
 
 The returned `BitmapFont` owns that texture. `createTextMeshSpec(...)`, `createTextMesh(...)`, and
 `createTextModel(...)` lay out text in logical screen coordinates for
@@ -388,7 +391,7 @@ mix text atlases when needed.
 ### Sphere Meshes
 
 ```doof
-texture := try! app.loadTexture("images/earth.png")
+texture := try! app.loadTextureResource("images/earth.png")
 spec := createSphereMeshSpec{ radius: 1.0, tessellation: 32 }
 planet := SimpleModel(SimpleMesh(app.surface, spec), texture)
 ```
@@ -413,28 +416,30 @@ UV seam.
 ### OBJ Meshes
 
 ```doof
-spec := try! loadObjMeshSpec("models/ship.obj")
+spec := try! loadObjMeshSpecResource("models/ship.obj")
 mesh := SimpleMesh(app.surface, spec)
 ```
 
-`loadObjMeshSpec(path)` reads a Wavefront `.obj` file and converts its faces to
-a `SimpleMeshSpec`. `parseObjMeshSpec(text, source)` provides the same parser
-for in-memory OBJ text. The loader supports `v`, `vt`, `vn`, and polygonal `f`
-records, including negative relative face indices. Polygons are triangulated
-with a fan, and missing UVs or normals fall back to `(0, 0)` and generated face
-normals.
+`loadObjMeshSpecResource(path)` reads a Wavefront `.obj` resource and converts
+its faces to a `SimpleMeshSpec`. Use `loadObjMeshSpec(path)` when you already
+have a filesystem path. `parseObjMeshSpec(text, source)` provides the same
+parser for in-memory OBJ text. The loader supports `v`, `vt`, `vn`, and
+polygonal `f` records, including negative relative face indices. Polygons are
+triangulated with a fan, and missing UVs or normals fall back to `(0, 0)` and
+generated face normals.
 
 ### glTF Assets
 
 ```doof
-asset := try! loadGlb("models/character.glb")
+asset := try! loadGlbResource("models/character.glb")
 pose := asset.createPose()
 animation := try! asset.getAnimation()
 try! animation.apply(timeSeconds, pose)
 try! pose.resolveWorldTransforms()
 ```
 
-`loadGlb(path)` and `parseGlb(data, source)` parse embedded GLB v2 files.
+`loadGlbResource(path)` and `loadGltfResource(path)` load package-resource model
+files. `loadGlb(path)` and `parseGlb(data, source)` parse embedded GLB v2 files.
 `loadGltf(path)` and `parseGltf(text, source, bin)` parse `.gltf` JSON files
 that use a single local `.bin` buffer.
 `glbAssetToSimpleMeshSpecs(asset)` extracts supported static triangle

@@ -1,4 +1,4 @@
-import { readText } from "std/fs"
+import { readText, readTextResource } from "std/fs"
 import { sqrt } from "std/math"
 
 import { SimpleMeshSpec } from "./mesh"
@@ -429,6 +429,19 @@ export function loadObjMeshSpec(
     s: Success -> parseObjMeshSpec(s.value, path, color),
     f: Failure -> Failure {
       error: objError("read", 0, `${path}: failed to read OBJ file: ${f.error}`)
+    },
+  }
+}
+
+export function loadObjMeshSpecResource(
+  path: string,
+  color: Color = Color { r: 1.0, g: 1.0, b: 1.0, a: 1.0 },
+): Result<SimpleMeshSpec, ObjError> {
+  textResult := readTextResource(path)
+  return case textResult {
+    s: Success -> parseObjMeshSpec(s.value, path, color),
+    f: Failure -> Failure {
+      error: objError("read", 0, `${path}: failed to read OBJ resource: ${f.error}`)
     },
   }
 }

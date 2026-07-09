@@ -38,7 +38,7 @@ import {
 } from "./render"
 import { ScreenGesture, ScreenGestures } from "./screen_gestures"
 import { ScreenPointer } from "./screen_pointer"
-import { Sound, loadSound as loadSoundFile } from "./sound"
+import { Sound, loadSound as loadSoundFile, loadSoundResource as loadSoundResourceFile } from "./sound"
 import { GameSurface } from "./surface"
 import { BitmapFont, loadBitmapFontForSurface } from "./text"
 import { ControllerAxis, ControllerButton, ControllerSlot, ControllerStick, GameEventKind, GameRenderMode, Key, MouseButton } from "./types"
@@ -162,12 +162,21 @@ export class GameApp {
     return loadBitmapFontForSurface(this.surface, path)
   }
 
+  loadBitmapFontResource(path: string): Result<BitmapFont, string> {
+    try resolvedPath := resourcePath(path)
+    return loadBitmapFontForSurface(this.surface, resolvedPath)
+  }
+
   loadIntrinsicFont(): Result<BitmapFont, string> {
     return loadIntrinsicBitmapFontForSurface(this.surface)
   }
 
   loadSound(path: string): Result<Sound, string> {
     return loadSoundFile(path)
+  }
+
+  loadSoundResource(path: string): Result<Sound, string> {
+    return loadSoundResourceFile(path)
   }
 
   stop(): void {
