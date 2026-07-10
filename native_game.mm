@@ -562,7 +562,7 @@ doof::Result<std::shared_ptr<NativeTexture>, std::string> loadRadianceHdrTexture
 ) {
     std::ifstream file(path, std::ios::binary);
     if (!file) {
-        return doof::Result<std::shared_ptr<NativeTexture>, std::string>::failure("Failed to load HDR image: " + path);
+        return doof::Failure<std::string>{"Failed to load HDR image: " + path};
     }
 
     std::vector<uint8_t> bytes((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
@@ -577,7 +577,7 @@ doof::Result<std::shared_ptr<NativeTexture>, std::string> loadRadianceHdrTexture
     }
 
     if (width <= 0 || height <= 0) {
-        return doof::Result<std::shared_ptr<NativeTexture>, std::string>::failure("Failed to parse HDR image resolution: " + path);
+        return doof::Failure<std::string>{"Failed to parse HDR image resolution: " + path};
     }
 
     const size_t pixelCount = static_cast<size_t>(width) * static_cast<size_t>(height);
@@ -585,7 +585,7 @@ doof::Result<std::shared_ptr<NativeTexture>, std::string> loadRadianceHdrTexture
 
     for (int32_t y = 0; y < height; ++y) {
         if (offset + 4u > bytes.size()) {
-            return doof::Result<std::shared_ptr<NativeTexture>, std::string>::failure("HDR image ended early: " + path);
+            return doof::Failure<std::string>{"HDR image ended early: " + path};
         }
 
         uint8_t b0 = bytes[offset];
@@ -596,7 +596,7 @@ doof::Result<std::shared_ptr<NativeTexture>, std::string> loadRadianceHdrTexture
             int32_t scanlineWidth = (static_cast<int32_t>(b2) << 8) | static_cast<int32_t>(b3);
             offset += 4u;
             if (scanlineWidth != width) {
-                return doof::Result<std::shared_ptr<NativeTexture>, std::string>::failure("HDR scanline width mismatch: " + path);
+                return doof::Failure<std::string>{"HDR scanline width mismatch: " + path};
             }
 
             std::vector<uint8_t> channels(static_cast<size_t>(width) * 4u);
@@ -604,13 +604,13 @@ doof::Result<std::shared_ptr<NativeTexture>, std::string> loadRadianceHdrTexture
                 int32_t x = 0;
                 while (x < width) {
                     if (offset >= bytes.size()) {
-                        return doof::Result<std::shared_ptr<NativeTexture>, std::string>::failure("HDR RLE data ended early: " + path);
+                        return doof::Failure<std::string>{"HDR RLE data ended early: " + path};
                     }
                     uint8_t count = bytes[offset++];
                     if (count > 128) {
                         int32_t run = static_cast<int32_t>(count) - 128;
                         if (run <= 0 || x + run > width || offset >= bytes.size()) {
-                            return doof::Result<std::shared_ptr<NativeTexture>, std::string>::failure("HDR RLE run is invalid: " + path);
+                            return doof::Failure<std::string>{"HDR RLE run is invalid: " + path};
                         }
                         uint8_t value = bytes[offset++];
                         for (int32_t i = 0; i < run; ++i) {
@@ -619,7 +619,7 @@ doof::Result<std::shared_ptr<NativeTexture>, std::string> loadRadianceHdrTexture
                     } else {
                         int32_t run = static_cast<int32_t>(count);
                         if (run <= 0 || x + run > width || offset + static_cast<size_t>(run) > bytes.size()) {
-                            return doof::Result<std::shared_ptr<NativeTexture>, std::string>::failure("HDR RLE literal is invalid: " + path);
+                            return doof::Failure<std::string>{"HDR RLE literal is invalid: " + path};
                         }
                         for (int32_t i = 0; i < run; ++i) {
                             channels[static_cast<size_t>(channel) * static_cast<size_t>(width) + static_cast<size_t>(x++)] = bytes[offset++];
@@ -638,7 +638,7 @@ doof::Result<std::shared_ptr<NativeTexture>, std::string> loadRadianceHdrTexture
         } else {
             size_t rowBytes = static_cast<size_t>(width) * 4u;
             if (offset + rowBytes > bytes.size()) {
-                return doof::Result<std::shared_ptr<NativeTexture>, std::string>::failure("HDR image ended early: " + path);
+                return doof::Failure<std::string>{"HDR image ended early: " + path};
             }
             std::copy(bytes.begin() + static_cast<std::ptrdiff_t>(offset),
                       bytes.begin() + static_cast<std::ptrdiff_t>(offset + rowBytes),
@@ -663,7 +663,7 @@ doof::Result<std::shared_ptr<NativeTexture>, std::string> loadRadianceHdrTexture
     descriptor.usage = MTLTextureUsageShaderRead;
     id<MTLTexture> texture = [device newTextureWithDescriptor:descriptor];
     if (texture == nil) {
-        return doof::Result<std::shared_ptr<NativeTexture>, std::string>::failure("Failed to create HDR texture: " + path);
+        return doof::Failure<std::string>{"Failed to create HDR texture: " + path};
     }
 
     [texture replaceRegion:MTLRegionMake2D(0, 0, static_cast<NSUInteger>(width), static_cast<NSUInteger>(height))
@@ -677,7 +677,7 @@ doof::Result<std::shared_ptr<NativeTexture>, std::string> loadRadianceHdrTexture
         height
     );
     [texture release];
-    return doof::Result<std::shared_ptr<NativeTexture>, std::string>::success(native);
+    return doof::Success<std::shared_ptr<NativeTexture>>{native};
 }
 
 NSScreen* targetLaunchScreen() {
@@ -1757,7 +1757,7 @@ doof::Result<std::shared_ptr<NativeTexture>, std::string> NativeTexture::load(
 ) {
     id<MTLDevice> device = (__bridge id<MTLDevice>)reinterpret_cast<void*>(metalDeviceHandle);
     if (device == nil) {
-        return doof::Result<std::shared_ptr<NativeTexture>, std::string>::failure("Metal device handle is invalid");
+        return doof::Failure<std::string>{"Metal device handle is invalid"};
     }
 
     const std::string cacheKey = textureCacheKey(metalDeviceHandle, path);
@@ -1766,7 +1766,7 @@ doof::Result<std::shared_ptr<NativeTexture>, std::string> NativeTexture::load(
         auto found = textureCache().find(cacheKey);
         if (found != textureCache().end()) {
             if (auto cached = found->second.lock()) {
-                return doof::Result<std::shared_ptr<NativeTexture>, std::string>::success(cached);
+                return doof::Success<std::shared_ptr<NativeTexture>>{cached};
             }
             textureCache().erase(found);
         }
@@ -1774,9 +1774,9 @@ doof::Result<std::shared_ptr<NativeTexture>, std::string> NativeTexture::load(
 
     if (pathHasHdrExtension(path)) {
         auto loaded = loadRadianceHdrTexture(path, device);
-        if (loaded.isSuccess()) {
+        if (doof::is_success(loaded)) {
             std::lock_guard<std::mutex> lock(textureCacheMutex());
-            textureCache()[cacheKey] = loaded.value();
+            textureCache()[cacheKey] = doof::success_value(loaded);
         }
         return loaded;
     }
@@ -1784,20 +1784,20 @@ doof::Result<std::shared_ptr<NativeTexture>, std::string> NativeTexture::load(
     NSString* nsPath = nsString(path);
     NSImage* image = [[NSImage alloc] initWithContentsOfFile:nsPath];
     if (image == nil) {
-        return doof::Result<std::shared_ptr<NativeTexture>, std::string>::failure("Failed to load image: " + path);
+        return doof::Failure<std::string>{"Failed to load image: " + path};
     }
 
     CGImageRef cgImage = [image CGImageForProposedRect:nullptr context:nil hints:nil];
     if (cgImage == nullptr) {
         [image release];
-        return doof::Result<std::shared_ptr<NativeTexture>, std::string>::failure("Failed to decode image: " + path);
+        return doof::Failure<std::string>{"Failed to decode image: " + path};
     }
 
     const size_t width = CGImageGetWidth(cgImage);
     const size_t height = CGImageGetHeight(cgImage);
     if (width == 0 || height == 0) {
         [image release];
-        return doof::Result<std::shared_ptr<NativeTexture>, std::string>::failure("Image is empty: " + path);
+        return doof::Failure<std::string>{"Image is empty: " + path};
     }
 
     std::vector<uint8_t> pixels(width * height * 4u);
@@ -1814,7 +1814,7 @@ doof::Result<std::shared_ptr<NativeTexture>, std::string> NativeTexture::load(
     CGColorSpaceRelease(colorSpace);
     if (context == nullptr) {
         [image release];
-        return doof::Result<std::shared_ptr<NativeTexture>, std::string>::failure("Failed to create image decode context: " + path);
+        return doof::Failure<std::string>{"Failed to create image decode context: " + path};
     }
 
     CGContextClearRect(context, CGRectMake(0, 0, static_cast<CGFloat>(width), static_cast<CGFloat>(height)));
@@ -1829,7 +1829,7 @@ doof::Result<std::shared_ptr<NativeTexture>, std::string> NativeTexture::load(
     descriptor.usage = MTLTextureUsageShaderRead;
     id<MTLTexture> texture = [device newTextureWithDescriptor:descriptor];
     if (texture == nil) {
-        return doof::Result<std::shared_ptr<NativeTexture>, std::string>::failure("Failed to create texture: " + path);
+        return doof::Failure<std::string>{"Failed to create texture: " + path};
     }
 
     [texture replaceRegion:MTLRegionMake2D(0, 0, width, height)
@@ -1847,7 +1847,7 @@ doof::Result<std::shared_ptr<NativeTexture>, std::string> NativeTexture::load(
         std::lock_guard<std::mutex> lock(textureCacheMutex());
         textureCache()[cacheKey] = native;
     }
-    return doof::Result<std::shared_ptr<NativeTexture>, std::string>::success(native);
+    return doof::Success<std::shared_ptr<NativeTexture>>{native};
 }
 
 doof::Result<std::shared_ptr<NativeTexture>, std::string> NativeTexture::createRgba(
@@ -1859,35 +1859,27 @@ doof::Result<std::shared_ptr<NativeTexture>, std::string> NativeTexture::createR
 ) {
     id<MTLDevice> device = (__bridge id<MTLDevice>)reinterpret_cast<void*>(metalDeviceHandle);
     if (device == nil) {
-        return doof::Result<std::shared_ptr<NativeTexture>, std::string>::failure("Metal device handle is invalid");
+        return doof::Failure<std::string>{"Metal device handle is invalid"};
     }
     if (pixelWidth <= 0 || pixelHeight <= 0) {
-        return doof::Result<std::shared_ptr<NativeTexture>, std::string>::failure(
-            "RGBA texture dimensions must be positive"
-        );
+        return doof::Failure<std::string>{"RGBA texture dimensions must be positive"};
     }
 
     const size_t width = static_cast<size_t>(pixelWidth);
     const size_t height = static_cast<size_t>(pixelHeight);
     if (width > std::numeric_limits<size_t>::max() / height ||
         width * height > std::numeric_limits<size_t>::max() / 4u) {
-        return doof::Result<std::shared_ptr<NativeTexture>, std::string>::failure(
-            "RGBA texture dimensions are too large"
-        );
+        return doof::Failure<std::string>{"RGBA texture dimensions are too large"};
     }
 
     const size_t expectedSize = width * height * 4u;
     if (!data || data->size() != expectedSize) {
         const size_t actualSize = data ? data->size() : 0u;
-        return doof::Result<std::shared_ptr<NativeTexture>, std::string>::failure(
-            "RGBA buffer has " + std::to_string(actualSize) +
-            " bytes; expected " + std::to_string(expectedSize)
-        );
+        return doof::Failure<std::string>{"RGBA buffer has " + std::to_string(actualSize) +
+            " bytes; expected " + std::to_string(expectedSize)};
     }
     if (alphaMode < 0 || alphaMode > 1) {
-        return doof::Result<std::shared_ptr<NativeTexture>, std::string>::failure(
-            "RGBA texture alpha mode is invalid"
-        );
+        return doof::Failure<std::string>{"RGBA texture alpha mode is invalid"};
     }
 
     std::vector<uint8_t> straightPixels;
@@ -1909,9 +1901,7 @@ doof::Result<std::shared_ptr<NativeTexture>, std::string> NativeTexture::createR
             uploadBytes = straightPixels.data();
         }
     } catch (const std::bad_alloc&) {
-        return doof::Result<std::shared_ptr<NativeTexture>, std::string>::failure(
-            "Not enough memory to convert RGBA texture pixels"
-        );
+        return doof::Failure<std::string>{"Not enough memory to convert RGBA texture pixels"};
     }
 
     MTLTextureDescriptor* descriptor = [MTLTextureDescriptor texture2DDescriptorWithPixelFormat:MTLPixelFormatRGBA8Unorm
@@ -1921,9 +1911,7 @@ doof::Result<std::shared_ptr<NativeTexture>, std::string> NativeTexture::createR
     descriptor.usage = MTLTextureUsageShaderRead;
     id<MTLTexture> texture = [device newTextureWithDescriptor:descriptor];
     if (texture == nil) {
-        return doof::Result<std::shared_ptr<NativeTexture>, std::string>::failure(
-            "Failed to create RGBA texture"
-        );
+        return doof::Failure<std::string>{"Failed to create RGBA texture"};
     }
 
     [texture replaceRegion:MTLRegionMake2D(0, 0, width, height)
@@ -1933,7 +1921,7 @@ doof::Result<std::shared_ptr<NativeTexture>, std::string> NativeTexture::createR
 
     auto native = std::make_shared<NativeTexture>((__bridge void*)texture, pixelWidth, pixelHeight);
     [texture release];
-    return doof::Result<std::shared_ptr<NativeTexture>, std::string>::success(native);
+    return doof::Success<std::shared_ptr<NativeTexture>>{native};
 }
 
 doof::Result<std::shared_ptr<NativeTexture>, std::string> NativeTexture::createAlpha4(
@@ -1944,31 +1932,25 @@ doof::Result<std::shared_ptr<NativeTexture>, std::string> NativeTexture::createA
 ) {
     id<MTLDevice> device = (__bridge id<MTLDevice>)reinterpret_cast<void*>(metalDeviceHandle);
     if (device == nil) {
-        return doof::Result<std::shared_ptr<NativeTexture>, std::string>::failure("Metal device handle is invalid");
+        return doof::Failure<std::string>{"Metal device handle is invalid"};
     }
     if (pixelWidth <= 0 || pixelHeight <= 0) {
-        return doof::Result<std::shared_ptr<NativeTexture>, std::string>::failure(
-            "Alpha texture dimensions must be positive"
-        );
+        return doof::Failure<std::string>{"Alpha texture dimensions must be positive"};
     }
 
     const size_t width = static_cast<size_t>(pixelWidth);
     const size_t height = static_cast<size_t>(pixelHeight);
     if (width > std::numeric_limits<size_t>::max() / height ||
         width * height > std::numeric_limits<size_t>::max() / 4u) {
-        return doof::Result<std::shared_ptr<NativeTexture>, std::string>::failure(
-            "Alpha texture dimensions are too large"
-        );
+        return doof::Failure<std::string>{"Alpha texture dimensions are too large"};
     }
 
     const size_t pixelCount = width * height;
     const size_t expectedSize = (pixelCount + 1u) / 2u;
     if (!data || data->size() != expectedSize) {
         const size_t actualSize = data ? data->size() : 0u;
-        return doof::Result<std::shared_ptr<NativeTexture>, std::string>::failure(
-            "Alpha4 buffer has " + std::to_string(actualSize) +
-            " bytes; expected " + std::to_string(expectedSize)
-        );
+        return doof::Failure<std::string>{"Alpha4 buffer has " + std::to_string(actualSize) +
+            " bytes; expected " + std::to_string(expectedSize)};
     }
 
     std::vector<uint8_t> pixels(pixelCount * 4u);
@@ -1991,9 +1973,7 @@ doof::Result<std::shared_ptr<NativeTexture>, std::string> NativeTexture::createA
     descriptor.usage = MTLTextureUsageShaderRead;
     id<MTLTexture> texture = [device newTextureWithDescriptor:descriptor];
     if (texture == nil) {
-        return doof::Result<std::shared_ptr<NativeTexture>, std::string>::failure(
-            "Failed to create Alpha4 texture"
-        );
+        return doof::Failure<std::string>{"Failed to create Alpha4 texture"};
     }
 
     [texture replaceRegion:MTLRegionMake2D(0, 0, width, height)
@@ -2007,7 +1987,7 @@ doof::Result<std::shared_ptr<NativeTexture>, std::string> NativeTexture::createA
         pixelHeight
     );
     [texture release];
-    return doof::Result<std::shared_ptr<NativeTexture>, std::string>::success(native);
+    return doof::Success<std::shared_ptr<NativeTexture>>{native};
 }
 
 
@@ -2034,16 +2014,16 @@ doof::Result<std::shared_ptr<NativeDepthTexture>, std::string> NativeDepthTextur
     int64_t metalDeviceHandle
 ) {
     if (pixelWidth <= 0 || pixelHeight <= 0) {
-        return doof::Result<std::shared_ptr<NativeDepthTexture>, std::string>::failure("Depth texture dimensions must be positive");
+        return doof::Failure<std::string>{"Depth texture dimensions must be positive"};
     }
     constexpr int32_t kMaxTextureSize = 16384;
     if (pixelWidth > kMaxTextureSize || pixelHeight > kMaxTextureSize) {
-        return doof::Result<std::shared_ptr<NativeDepthTexture>, std::string>::failure("Depth texture dimensions are too large");
+        return doof::Failure<std::string>{"Depth texture dimensions are too large"};
     }
 
     id<MTLDevice> device = (__bridge id<MTLDevice>)reinterpret_cast<void*>(metalDeviceHandle);
     if (device == nil) {
-        return doof::Result<std::shared_ptr<NativeDepthTexture>, std::string>::failure("Metal device handle is invalid");
+        return doof::Failure<std::string>{"Metal device handle is invalid"};
     }
 
     MTLTextureDescriptor* descriptor = [MTLTextureDescriptor texture2DDescriptorWithPixelFormat:MTLPixelFormatDepth32Float
@@ -2054,12 +2034,12 @@ doof::Result<std::shared_ptr<NativeDepthTexture>, std::string> NativeDepthTextur
     descriptor.storageMode = MTLStorageModePrivate;
     id<MTLTexture> texture = [device newTextureWithDescriptor:descriptor];
     if (texture == nil) {
-        return doof::Result<std::shared_ptr<NativeDepthTexture>, std::string>::failure("Failed to create depth texture");
+        return doof::Failure<std::string>{"Failed to create depth texture"};
     }
 
     auto native = std::make_shared<NativeDepthTexture>((__bridge void*)texture, pixelWidth, pixelHeight);
     [texture release];
-    return doof::Result<std::shared_ptr<NativeDepthTexture>, std::string>::success(native);
+    return doof::Success<std::shared_ptr<NativeDepthTexture>>{native};
 }
 
 NativeDepthTexture::NativeDepthTexture(void* texture, int32_t pixelWidth, int32_t pixelHeight)
@@ -2499,7 +2479,7 @@ doof::Result<void, std::string> NativeGameApp::run(
 ) {
     @autoreleasepool {
         if (!impl_->initializationError.empty()) {
-            return doof::Result<void, std::string>::failure(impl_->initializationError);
+            return doof::Failure<std::string>{impl_->initializationError};
         }
 
         NSApplication* app = [NSApplication sharedApplication];
@@ -2580,7 +2560,7 @@ doof::Result<void, std::string> NativeGameApp::run(
             [window close];
             [window release];
             gActiveState = nullptr;
-            return doof::Result<void, std::string>::failure("Display link initialization failed");
+            return doof::Failure<std::string>{"Display link initialization failed"};
         }
         state->displayLink = displayLink;
         CVDisplayLinkSetOutputCallback(displayLink, displayLinkCallback, state.get());
@@ -2605,7 +2585,7 @@ doof::Result<void, std::string> NativeGameApp::run(
         [window release];
         gActiveState = nullptr;
 
-        return doof::Result<void, std::string>::success();
+        return doof::Success<void>{};
     }
 }
 

@@ -27,14 +27,10 @@ inline doof::Result<std::shared_ptr<std::vector<uint8_t>>, std::string> composeJ
     int32_t rows
 ) {
     if (photoWidth <= 0 || photoHeight <= 0 || maskWidth <= 0 || maskHeight <= 0) {
-        return doof::Result<std::shared_ptr<std::vector<uint8_t>>, std::string>::failure(
-            "Jigsaw source images must have positive dimensions"
-        );
+        return doof::Failure<std::string>{"Jigsaw source images must have positive dimensions"};
     }
     if (columns <= 0 || rows <= 0 || maskWidth % columns != 0 || maskHeight % rows != 0) {
-        return doof::Result<std::shared_ptr<std::vector<uint8_t>>, std::string>::failure(
-            "Jigsaw grid must divide the mask atlas dimensions"
-        );
+        return doof::Failure<std::string>{"Jigsaw grid must divide the mask atlas dimensions"};
     }
 
     const size_t photoPixelCount = static_cast<size_t>(photoWidth) * static_cast<size_t>(photoHeight);
@@ -43,9 +39,7 @@ inline doof::Result<std::shared_ptr<std::vector<uint8_t>>, std::string> composeJ
         maskPixelCount > std::numeric_limits<size_t>::max() / 4u ||
         !photo || photo->size() != photoPixelCount * 4u ||
         !mask || mask->size() != maskPixelCount * 4u) {
-        return doof::Result<std::shared_ptr<std::vector<uint8_t>>, std::string>::failure(
-            "Jigsaw source pixel payload has an invalid size"
-        );
+        return doof::Failure<std::string>{"Jigsaw source pixel payload has an invalid size"};
     }
 
     const int32_t cellWidth = maskWidth / columns;
@@ -97,11 +91,9 @@ inline doof::Result<std::shared_ptr<std::vector<uint8_t>>, std::string> composeJ
                 );
             }
         }
-        return doof::Result<std::shared_ptr<std::vector<uint8_t>>, std::string>::success(output);
+        return doof::Success<std::shared_ptr<std::vector<uint8_t>>>{output};
     } catch (const std::bad_alloc&) {
-        return doof::Result<std::shared_ptr<std::vector<uint8_t>>, std::string>::failure(
-            "Not enough memory to compose the jigsaw atlas"
-        );
+        return doof::Failure<std::string>{"Not enough memory to compose the jigsaw atlas"};
     }
 }
 

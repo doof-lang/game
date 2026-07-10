@@ -162,18 +162,18 @@ std::shared_ptr<NativeSpaceDustBuilder> NativeSpaceDustBuilder::addParticle(doub
 doof::Result<std::shared_ptr<NativeSpaceDust>, std::string> NativeSpaceDustBuilder::build(int64_t metalDeviceHandle) {
     id<MTLDevice> device = native_mesh::bridgeMetalHandle<id<MTLDevice>>(metalDeviceHandle);
     if (device == nil) {
-        return doof::Result<std::shared_ptr<NativeSpaceDust>, std::string>::failure("Metal device handle is invalid");
+        return doof::Failure<std::string>{"Metal device handle is invalid"};
     }
 
     if (impl_->particles.empty()) {
-        return doof::Result<std::shared_ptr<NativeSpaceDust>, std::string>::failure("Space dust has no particles");
+        return doof::Failure<std::string>{"Space dust has no particles"};
     }
 
     id<MTLBuffer> particleBuffer = [device newBufferWithBytes:impl_->particles.data()
                                                        length:impl_->particles.size() * sizeof(SpaceDustParticle)
                                                       options:MTLResourceStorageModeShared];
     if (particleBuffer == nil) {
-        return doof::Result<std::shared_ptr<NativeSpaceDust>, std::string>::failure("Failed to create space dust particle buffer");
+        return doof::Failure<std::string>{"Failed to create space dust particle buffer"};
     }
 
     auto dust = std::make_shared<NativeSpaceDust>(
@@ -183,7 +183,7 @@ doof::Result<std::shared_ptr<NativeSpaceDust>, std::string> NativeSpaceDustBuild
     );
 
     [particleBuffer release];
-    return doof::Result<std::shared_ptr<NativeSpaceDust>, std::string>::success(dust);
+    return doof::Success<std::shared_ptr<NativeSpaceDust>>{dust};
 }
 
 void drawNativeSpaceDust(

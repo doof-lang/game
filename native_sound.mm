@@ -141,26 +141,24 @@ NativeSound::~NativeSound() = default;
 doof::Result<std::shared_ptr<NativeSound>, std::string> NativeSound::load(const std::string& path) {
     NSString* nsPath = stringFromUtf8(path);
     if (nsPath == nil) {
-        return doof::Result<std::shared_ptr<NativeSound>, std::string>::failure("Sound path is not valid UTF-8");
+        return doof::Failure<std::string>{"Sound path is not valid UTF-8"};
     }
 
     NSData* data = [NSData dataWithContentsOfFile:nsPath];
     if (data == nil || [data length] == 0) {
-        return doof::Result<std::shared_ptr<NativeSound>, std::string>::failure("Failed to load sound: " + path);
+        return doof::Failure<std::string>{"Failed to load sound: " + path};
     }
 
     NSError* error = nil;
     AVAudioPlayer* player = [[AVAudioPlayer alloc] initWithData:data error:&error];
     if (player == nil) {
-        return doof::Result<std::shared_ptr<NativeSound>, std::string>::failure(
-            "Failed to decode sound '" + path + "': " + nsErrorMessage(error, "unknown audio decode error")
-        );
+        return doof::Failure<std::string>{"Failed to decode sound '" + path + "': " + nsErrorMessage(error, "unknown audio decode error")};
     }
 
     const double duration = [player duration];
     [player release];
     auto sound = std::shared_ptr<NativeSound>(new NativeSound((__bridge void*)data, duration));
-    return doof::Result<std::shared_ptr<NativeSound>, std::string>::success(sound);
+    return doof::Success<std::shared_ptr<NativeSound>>{sound};
 }
 
 doof::Result<std::shared_ptr<NativeSound>, std::string> NativeSound::fromMonoSamples(
@@ -168,24 +166,24 @@ doof::Result<std::shared_ptr<NativeSound>, std::string> NativeSound::fromMonoSam
     const std::shared_ptr<std::vector<double>>& samples
 ) {
     if (sampleRate <= 0) {
-        return doof::Result<std::shared_ptr<NativeSound>, std::string>::failure("Sound sample rate must be positive");
+        return doof::Failure<std::string>{"Sound sample rate must be positive"};
     }
     if (!samples || samples->empty()) {
-        return doof::Result<std::shared_ptr<NativeSound>, std::string>::failure("Sound samples must not be empty");
+        return doof::Failure<std::string>{"Sound samples must not be empty"};
     }
     if (samples->size() > (std::numeric_limits<uint32_t>::max() - 44) / 2) {
-        return doof::Result<std::shared_ptr<NativeSound>, std::string>::failure("Sound sample buffer is too large");
+        return doof::Failure<std::string>{"Sound sample buffer is too large"};
     }
 
     std::vector<uint8_t> wav = encodeMonoWav(sampleRate, *samples);
     NSData* data = [NSData dataWithBytes:wav.data() length:wav.size()];
     if (data == nil) {
-        return doof::Result<std::shared_ptr<NativeSound>, std::string>::failure("Failed to allocate sound data");
+        return doof::Failure<std::string>{"Failed to allocate sound data"};
     }
 
     const double duration = static_cast<double>(samples->size()) / static_cast<double>(sampleRate);
     auto sound = std::shared_ptr<NativeSound>(new NativeSound((__bridge void*)data, duration));
-    return doof::Result<std::shared_ptr<NativeSound>, std::string>::success(sound);
+    return doof::Success<std::shared_ptr<NativeSound>>{sound};
 }
 
 double NativeSound::duration() const {
@@ -194,7 +192,7 @@ double NativeSound::duration() const {
 
 doof::Result<void, std::string> NativeSound::play(double volume, double pan) {
     if (!impl_ || impl_->data == nil) {
-        return doof::Result<void, std::string>::failure("Sound is not loaded");
+        return doof::Failure<std::string>{"Sound is not loaded"};
     }
 
     configureAudioSession();
@@ -202,9 +200,7 @@ doof::Result<void, std::string> NativeSound::play(double volume, double pan) {
     NSError* error = nil;
     AVAudioPlayer* player = [[AVAudioPlayer alloc] initWithData:impl_->data error:&error];
     if (player == nil) {
-        return doof::Result<void, std::string>::failure(
-            "Failed to create sound player: " + nsErrorMessage(error, "unknown audio player error")
-        );
+        return doof::Failure<std::string>{"Failed to create sound player: " + nsErrorMessage(error, "unknown audio player error")};
     }
 
     [player setVolume:static_cast<float>(std::max(0.0, std::min(1.0, volume)))];
@@ -212,7 +208,7 @@ doof::Result<void, std::string> NativeSound::play(double volume, double pan) {
     [player prepareToPlay];
     if (![player play]) {
         [player release];
-        return doof::Result<void, std::string>::failure("Failed to start sound playback");
+        return doof::Failure<std::string>{"Failed to start sound playback"};
     }
 
     {
@@ -220,7 +216,7 @@ doof::Result<void, std::string> NativeSound::play(double volume, double pan) {
         impl_->pruneStopped();
         impl_->players.push_back(player);
     }
-    return doof::Result<void, std::string>::success();
+    return doof::Success<void>{};
 }
 
 void NativeSound::stop() {
