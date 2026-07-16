@@ -480,6 +480,7 @@ export class Camera {
 
   withScale(scale: Vec3): Camera {
     transform = transform.withScale(scale)
+    return this
   }
 
   moveBy(delta: Vec3): Camera {
