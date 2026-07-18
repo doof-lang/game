@@ -3,7 +3,7 @@ import { GameApp, Texture } from "std/game"
 import { Image, PixelAlphaMode, PixelBytes } from "std/image"
 import { join } from "std/path"
 
-import function composeJigsawAtlas(
+import isolated function composeJigsawAtlas(
   photo: readonly byte[],
   photoWidth: int,
   photoHeight: int,

@@ -8,22 +8,22 @@ export import class NativeGameSurface from "native_game.hpp" as doof_game::Nativ
 }
 
 export import class NativeGameEvent from "native_game.hpp" as doof_game::NativeGameEvent {
-  kindCode(): int
-  keyCode(): int
-  mouseButtonCode(): int
-  controllerSlotCode(): int
-  controllerName(): string
-  x(): double
-  y(): double
-  deltaX(): double
-  deltaY(): double
-  panDeltaX(): double
-  panDeltaY(): double
-  scrollDeltaX(): double
-  scrollDeltaY(): double
-  pixelWidth(): int
-  pixelHeight(): int
-  magnificationDelta(): double
+  isolated kindCode(): int
+  isolated keyCode(): int
+  isolated mouseButtonCode(): int
+  isolated controllerSlotCode(): int
+  isolated controllerName(): string
+  isolated x(): double
+  isolated y(): double
+  isolated deltaX(): double
+  isolated deltaY(): double
+  isolated panDeltaX(): double
+  isolated panDeltaY(): double
+  isolated scrollDeltaX(): double
+  isolated scrollDeltaY(): double
+  isolated pixelWidth(): int
+  isolated pixelHeight(): int
+  isolated magnificationDelta(): double
 }
 
 export import class NativeInputState from "native_game.hpp" as doof_game::NativeInputState {
@@ -48,7 +48,7 @@ export import class NativeGameApp from "native_game.hpp" as doof_game::NativeGam
   static create(title: string, windowed: bool, windowWidth: int, windowHeight: int): NativeGameApp
   surface(): NativeGameSurface
   input(): NativeInputState
-  fps(): double
+  isolated fps(): double
   run(
     continuousRendering: bool,
     onEvent: (event: NativeGameEvent, input: NativeInputState): void,
@@ -58,34 +58,34 @@ export import class NativeGameApp from "native_game.hpp" as doof_game::NativeGam
 }
 
 export import class NativeTexture from "native_game.hpp" as doof_game::NativeTexture {
-  static load(path: string, metalDeviceHandle: long): Result<NativeTexture, string>
-  static createRgba(
+  isolated static load(path: string, metalDeviceHandle: long): Result<NativeTexture, string>
+  isolated static createRgba(
     data: readonly byte[],
     pixelWidth: int,
     pixelHeight: int,
     alphaMode: int,
     metalDeviceHandle: long,
   ): Result<NativeTexture, string>
-  static createAlpha4(
+  isolated static createAlpha4(
     data: readonly byte[],
     pixelWidth: int,
     pixelHeight: int,
     metalDeviceHandle: long,
   ): Result<NativeTexture, string>
-  pixelWidth(): int
-  pixelHeight(): int
-  metalTextureHandle(): long
+  isolated pixelWidth(): int
+  isolated pixelHeight(): int
+  isolated metalTextureHandle(): long
 }
 
 export import class NativeDepthTexture from "native_game.hpp" as doof_game::NativeDepthTexture {
-  static create(pixelWidth: int, pixelHeight: int, metalDeviceHandle: long): Result<NativeDepthTexture, string>
-  pixelWidth(): int
-  pixelHeight(): int
-  metalTextureHandle(): long
+  isolated static create(pixelWidth: int, pixelHeight: int, metalDeviceHandle: long): Result<NativeDepthTexture, string>
+  isolated pixelWidth(): int
+  isolated pixelHeight(): int
+  isolated metalTextureHandle(): long
 }
 
-export import function intrinsicFontGzip(): readonly byte[] from "native_intrinsic_font.hpp" as doof_game::intrinsicFontGzip
-export import function intrinsicFontAlpha4Gzip(): readonly byte[] from "native_intrinsic_font.hpp" as doof_game::intrinsicFontAlpha4Gzip
+export import isolated function intrinsicFontGzip(): readonly byte[] from "native_intrinsic_font.hpp" as doof_game::intrinsicFontGzip
+export import isolated function intrinsicFontAlpha4Gzip(): readonly byte[] from "native_intrinsic_font.hpp" as doof_game::intrinsicFontAlpha4Gzip
 
 export import class NativeRenderFrame from "native_game.hpp" as doof_game::NativeRenderFrame {
   static create(surface: NativeGameSurface): NativeRenderFrame
@@ -122,8 +122,8 @@ export import class NativeRenderPass from "native_game.hpp" as doof_game::Native
 }
 
 export import class NativeSimpleMeshBuilder from "native_mesh.hpp" as doof_game::NativeSimpleMeshBuilder {
-  static create(): NativeSimpleMeshBuilder
-  addVertex(
+  isolated static create(): NativeSimpleMeshBuilder
+  isolated addVertex(
     x: double,
     y: double,
     z: double,
@@ -137,13 +137,13 @@ export import class NativeSimpleMeshBuilder from "native_mesh.hpp" as doof_game:
     normalY: double,
     normalZ: double,
   ): int
-  addTriangle(a: int, b: int, c: int): NativeSimpleMeshBuilder
-  build(metalDeviceHandle: long): Result<NativeSimpleMesh, string>
+  isolated addTriangle(a: int, b: int, c: int): NativeSimpleMeshBuilder
+  isolated build(metalDeviceHandle: long): Result<NativeSimpleMesh, string>
 }
 
 export import class NativeSimpleMesh from "native_mesh.hpp" as doof_game::NativeSimpleMesh {
-  vertexCount(): int
-  indexCount(): int
+  isolated vertexCount(): int
+  isolated indexCount(): int
 }
 
 export import class NativeSimpleModelBatch from "native_mesh.hpp" as doof_game::NativeSimpleModelBatch {
@@ -195,23 +195,23 @@ export import class NativeSimpleModelBatch from "native_mesh.hpp" as doof_game::
 }
 
 export import class NativeSpaceDustBuilder from "native_mesh.hpp" as doof_game::NativeSpaceDustBuilder {
-  static create(): NativeSpaceDustBuilder
-  addParticle(x: double, y: double, z: double, brightness: double): NativeSpaceDustBuilder
-  build(metalDeviceHandle: long): Result<NativeSpaceDust, string>
+  isolated static create(): NativeSpaceDustBuilder
+  isolated addParticle(x: double, y: double, z: double, brightness: double): NativeSpaceDustBuilder
+  isolated build(metalDeviceHandle: long): Result<NativeSpaceDust, string>
 }
 
 export import class NativeSpaceDust from "native_mesh.hpp" as doof_game::NativeSpaceDust {
-  particleCount(): int
+  isolated particleCount(): int
 }
 
 export import class NativeShaderBuffer from "native_mesh.hpp" as doof_game::NativeShaderBuffer {
-  static create(metalDeviceHandle: long, data: readonly byte[]): Result<NativeShaderBuffer, string>
-  byteLength(): int
-  metalBufferHandle(): long
+  isolated static create(metalDeviceHandle: long, data: readonly byte[]): Result<NativeShaderBuffer, string>
+  isolated byteLength(): int
+  isolated metalBufferHandle(): long
 }
 
 export import class NativeShaderPipeline from "native_mesh.hpp" as doof_game::NativeShaderPipeline {
-  static create(
+  isolated static create(
     metalDeviceHandle: long,
     source: string,
     vertexFunction: string,
