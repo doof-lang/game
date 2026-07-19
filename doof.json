@@ -26,7 +26,6 @@
           "AVFoundation",
           "Cocoa",
           "CoreGraphics",
-          "CoreVideo",
           "Foundation",
           "GameController",
           "Metal",

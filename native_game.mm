@@ -2,10 +2,10 @@
 
 #import <AppKit/AppKit.h>
 #import <CoreGraphics/CGDirectDisplayMetal.h>
-#import <CoreVideo/CoreVideo.h>
 #import <GameController/GameController.h>
 #import <Metal/Metal.h>
 #import <QuartzCore/CAMetalLayer.h>
+#import <QuartzCore/CADisplayLink.h>
 #import <dispatch/dispatch.h>
 
 #include <algorithm>
@@ -28,6 +28,8 @@
 #include <unordered_map>
 #include <unordered_set>
 #include <utility>
+
+@class DoofGameDisplayLinkTarget;
 
 namespace doof_game {
 
@@ -917,7 +919,6 @@ struct NativeGameApp::Impl {
     std::string initializationError;
     std::atomic<double> framesPerSecond = 0.0;
     NSScreen* screen = nil;
-    CGDirectDisplayID displayID = kCGNullDirectDisplay;
 
     Impl(std::string title, bool windowed, int32_t windowWidth, int32_t windowHeight)
         : title(std::move(title)),
@@ -926,8 +927,6 @@ struct NativeGameApp::Impl {
           windowHeight(std::max(windowHeight, 1)),
           input(std::make_shared<NativeInputState>()) {
         screen = [targetLaunchScreen() retain];
-        displayID = directDisplayIdForScreen(screen);
-
         id<MTLDevice> device = newMetalDeviceForScreen(screen);
         if (device == nil) {
             initializationError = "Metal device initialization failed";
@@ -977,7 +976,8 @@ struct GameRuntimeState : std::enable_shared_from_this<GameRuntimeState> {
     doof::callback<int32_t()> drainEvents;
     std::atomic<double>* framesPerSecond = nullptr;
     bool continuousRendering = true;
-    CVDisplayLinkRef displayLink = nullptr;
+    CADisplayLink* displayLink = nil;
+    DoofGameDisplayLinkTarget* displayLinkTarget = nil;
     std::atomic_bool running = true;
     std::atomic_bool renderRequested = false;
     std::atomic_bool renderCallbackPending = false;
@@ -1142,17 +1142,17 @@ struct GameRuntimeState : std::enable_shared_from_this<GameRuntimeState> {
     }
 
     void startDisplayLinkIfNeeded() {
-        if (!running.load() || displayLink == nullptr || !renderRequested.load()) {
+        if (!running.load() || displayLink == nil || !renderRequested.load()) {
             return;
         }
         if (!displayLinkRunning.exchange(true)) {
-            CVDisplayLinkStart(displayLink);
+            [displayLink setPaused:NO];
         }
     }
 
     void stopDisplayLink() {
-        if (displayLink != nullptr && displayLinkRunning.exchange(false)) {
-            CVDisplayLinkStop(displayLink);
+        if (displayLink != nil && displayLinkRunning.exchange(false)) {
+            [displayLink setPaused:YES];
         }
     }
 
@@ -1461,34 +1461,37 @@ std::shared_ptr<NativeGameEvent> makeResizeEvent(const std::shared_ptr<NativeGam
     );
 }
 
-CVReturn displayLinkCallback(
-    CVDisplayLinkRef displayLink,
-    const CVTimeStamp* now,
-    const CVTimeStamp* outputTime,
-    CVOptionFlags flagsIn,
-    CVOptionFlags* flagsOut,
-    void* displayLinkContext
-) {
-    (void)displayLink;
-    (void)now;
-    (void)outputTime;
-    (void)flagsIn;
-    (void)flagsOut;
-
-    auto* state = static_cast<GameRuntimeState*>(displayLinkContext);
-    if (state == nullptr || !state->running.load()) {
-        return kCVReturnSuccess;
-    }
-
-    state->schedulePanInertiaStep();
-    state->scheduleRender();
-
-    return kCVReturnSuccess;
-}
-
 }  // namespace
 
 }  // namespace doof_game
+
+@interface DoofGameDisplayLinkTarget : NSObject {
+@public
+    doof_game::GameRuntimeState* state_;
+}
+- (instancetype)initWithState:(doof_game::GameRuntimeState*)state;
+- (void)tick:(CADisplayLink*)displayLink;
+@end
+
+@implementation DoofGameDisplayLinkTarget
+
+- (instancetype)initWithState:(doof_game::GameRuntimeState*)state {
+    self = [super init];
+    if (self) {
+        state_ = state;
+    }
+    return self;
+}
+
+- (void)tick:(CADisplayLink*)displayLink {
+    (void)displayLink;
+    if (state_ != nullptr && state_->running.load()) {
+        state_->schedulePanInertiaStep();
+        state_->scheduleRender();
+    }
+}
+
+@end
 
 @interface DoofGameWindow : NSWindow
 @end
@@ -1521,7 +1524,6 @@ CVReturn displayLinkCallback(
         [self setWantsLayer:YES];
         [self setLayer:(__bridge CAMetalLayer*)reinterpret_cast<void*>(state->surface->metalLayerHandle())];
         [self setAutoresizingMask:NSViewWidthSizable | NSViewHeightSizable];
-        [self setAcceptsTouchEvents:NO];
         [self.window makeFirstResponder:self];
     }
     return self;
@@ -2499,8 +2501,6 @@ doof::Result<void, std::string> NativeGameApp::run(
         impl_->framesPerSecond.store(0.0);
         gActiveState = state.get();
         state->initializeControllers();
-        CVDisplayLinkRef displayLink = nullptr;
-
         NSScreen* screen = impl_->screen != nil ? impl_->screen : targetLaunchScreen();
         NSRect frame = [screen frame];
         NSRect visibleFrame = [screen visibleFrame];
@@ -2546,13 +2546,17 @@ doof::Result<void, std::string> NativeGameApp::run(
         [window orderFrontRegardless];
         [app activateIgnoringOtherApps:YES];
 
-        CVReturn displayLinkResult = impl_->displayID != kCGNullDirectDisplay
-            ? CVDisplayLinkCreateWithCGDisplay(impl_->displayID, &displayLink)
-            : CVDisplayLinkCreateWithActiveCGDisplays(&displayLink);
-        if (displayLinkResult != kCVReturnSuccess || displayLink == nullptr) {
-            displayLinkResult = CVDisplayLinkCreateWithActiveCGDisplays(&displayLink);
+        DoofGameDisplayLinkTarget* target = [[DoofGameDisplayLinkTarget alloc] initWithState:state.get()];
+        CADisplayLink* displayLink = [view displayLinkWithTarget:target selector:@selector(tick:)];
+        if (displayLink != nil) {
+            [displayLink setPaused:YES];
+            [displayLink addToRunLoop:[NSRunLoop mainRunLoop] forMode:NSRunLoopCommonModes];
+            state->displayLinkTarget = target;
+            state->displayLink = [displayLink retain];
+        } else {
+            [target release];
         }
-        if (displayLinkResult != kCVReturnSuccess || displayLink == nullptr) {
+        if (displayLink == nil) {
             [window orderOut:nil];
             [window setDelegate:nil];
             [delegate release];
@@ -2562,8 +2566,6 @@ doof::Result<void, std::string> NativeGameApp::run(
             gActiveState = nullptr;
             return doof::Failure<std::string>{"Display link initialization failed"};
         }
-        state->displayLink = displayLink;
-        CVDisplayLinkSetOutputCallback(displayLink, displayLinkCallback, state.get());
 
         drainEvents.call();
         state->requestRender();
@@ -2572,9 +2574,15 @@ doof::Result<void, std::string> NativeGameApp::run(
 
         state->running.store(false);
         state->stopDisplayLink();
-        CVDisplayLinkRelease(displayLink);
-        state->displayLink = nullptr;
-
+        if (state->displayLink != nil) {
+            [state->displayLink invalidate];
+            [state->displayLink release];
+            state->displayLink = nil;
+        }
+        if (state->displayLinkTarget != nil) {
+            [state->displayLinkTarget release];
+            state->displayLinkTarget = nil;
+        }
         drainEvents.call();
 
         [window orderOut:nil];
