@@ -39,7 +39,7 @@ export function jigsawAtlasCachePath(
   return Success { value: join([cacheRoot, filename]) }
 }
 
-export function cacheJigsawAtlas(pixels: PixelBytes, cachePath: string): Result<void, string> {
+export function cacheJigsawAtlas(pixels: PixelBytes, cachePath: string): Result<none, string> {
   writeBlob(cachePath, pixels.bytes) else error {
     return Failure { error: "Could not write cached jigsaw atlas pixels: ${error.name}" }
   }
@@ -49,24 +49,24 @@ export function cacheJigsawAtlas(pixels: PixelBytes, cachePath: string): Result<
   return Success {}
 }
 
-export function loadCachedJigsawAtlas(cachePath: string): PixelBytes | null {
+export function loadCachedJigsawAtlas(cachePath: string): PixelBytes | none {
   dimensionsPath := "${cachePath}.dimensions"
   if !exists(cachePath) || !exists(dimensionsPath) {
-    return null
+    return none
   }
-  dimensionsText := readText(dimensionsPath) else { return null }
+  dimensionsText := readText(dimensionsPath) else { return none }
   dimensions := dimensionsText.split("x")
   if dimensions.length != 2 {
-    return null
+    return none
   }
-  width := int.parse(dimensions[0]) else { return null }
-  height := int.parse(dimensions[1]) else { return null }
+  width := int.parse(dimensions[0]) else { return none }
+  height := int.parse(dimensions[1]) else { return none }
   if width <= 0 || height <= 0 {
-    return null
+    return none
   }
-  bytes := readBlob(cachePath) else { return null }
+  bytes := readBlob(cachePath) else { return none }
   if long(bytes.length) != long(width) * long(height) * 4L {
-    return null
+    return none
   }
   return PixelBytes(width, height, bytes, PixelAlphaMode.Straight)
 }
@@ -75,13 +75,13 @@ export function loadJigsawAtlasTexture(
   app: GameApp,
   photoPath: string,
   maskAtlasPath: string,
-  cachePath: string | null,
+  cachePath: string | none,
   columns: int,
   rows: int,
 ): Result<Texture, string> {
-  if cachePath != null {
+  if cachePath != none {
     cachedPixels := loadCachedJigsawAtlas(cachePath!)
-    if cachedPixels != null {
+    if cachedPixels != none {
       cachedTexture := app.createTextureFromPixels(cachedPixels!) else error {
         return Failure { error: error }
       }
@@ -96,7 +96,7 @@ export function loadJigsawAtlasTexture(
     return Failure { error: error }
   }
 
-  if cachePath != null {
+  if cachePath != none {
     cacheJigsawAtlas(pixels, cachePath!) else error {
       println(error)
     }

@@ -10,7 +10,7 @@ class TestInputSource {
   }
 }
 
-export function testInputButtonReflectsCurrentState(): void {
+export function testInputButtonReflectsCurrentState(): none {
   source := TestInputSource {}
   button := source.button()
 
@@ -24,16 +24,16 @@ export function testInputButtonReflectsCurrentState(): void {
   Assert.isFalse(button.released())
 }
 
-export function testInputButtonPressedAndReleasedHandlersFireOnEdgesOnly(): void {
+export function testInputButtonPressedAndReleasedHandlersFireOnEdgesOnly(): none {
   source := TestInputSource {}
   button := source.button()
   let pressed = 0
   let released = 0
 
-  button.onPressed((): void => {
+  button.onPressed((): none => {
     pressed += 1
   })
-  button.onReleased((): void => {
+  button.onReleased((): none => {
     released += 1
   })
 
@@ -54,7 +54,7 @@ export function testInputButtonPressedAndReleasedHandlersFireOnEdgesOnly(): void
   Assert.equal(released, 1)
 }
 
-export function testCompositeInputButtonUsesOrState(): void {
+export function testCompositeInputButtonUsesOrState(): none {
   first := TestInputSource {}
   second := TestInputSource {}
   firstButton := first.button()
@@ -82,7 +82,7 @@ export function testCompositeInputButtonUsesOrState(): void {
   Assert.isTrue(composite.released())
 }
 
-export function testCompositeInputButtonHandlersFireOnlyForAggregateEdges(): void {
+export function testCompositeInputButtonHandlersFireOnlyForAggregateEdges(): none {
   first := TestInputSource {}
   second := TestInputSource {}
   firstButton := first.button()
@@ -91,10 +91,10 @@ export function testCompositeInputButtonHandlersFireOnlyForAggregateEdges(): voi
   let pressed = 0
   let released = 0
 
-  composite.onPressed((): void => {
+  composite.onPressed((): none => {
     pressed += 1
   })
-  composite.onReleased((): void => {
+  composite.onReleased((): none => {
     released += 1
   })
 

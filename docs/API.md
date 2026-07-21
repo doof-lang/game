@@ -339,7 +339,7 @@ the render callback returns.
 
 ### `RenderPassDescriptor`
 
-Defaults: `Camera.screen()`, `Clear.none()`, `Depth.disabled()`,
+Defaults: `Camera.screen()`, `Clear.disabled()`, `Depth.disabled()`,
 `Blend.opaque()`, `WindingMode.CounterClockwise`, and `CullMode.None`.
 
 | Field | Type | Description |

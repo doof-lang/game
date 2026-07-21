@@ -8,7 +8,7 @@ import {
   generateSoundSamples,
 } from "../index"
 
-function assertSamplesBounded(samples: SoundSamples): void {
+function assertSamplesBounded(samples: SoundSamples): none {
   Assert.isTrue(samples.samples.length > 0)
   for sample of samples.samples {
     Assert.isTrue(sample >= -1.0)
@@ -16,7 +16,7 @@ function assertSamplesBounded(samples: SoundSamples): void {
   }
 }
 
-export function testSoundSynthGeneratesExpectedSampleCount(): void {
+export function testSoundSynthGeneratesExpectedSampleCount(): none {
   samples := generateSoundSamples(SfxrSoundConfig {
     wave: SoundWave.Sine,
     sampleRate: 1000,
@@ -32,7 +32,7 @@ export function testSoundSynthGeneratesExpectedSampleCount(): void {
   assertSamplesBounded(samples)
 }
 
-export function testSoundSynthPresetsGenerateReusableSamples(): void {
+export function testSoundSynthPresetsGenerateReusableSamples(): none {
   assertSamplesBounded(generateSoundSamples(SfxrSoundConfig.pickup()))
   assertSamplesBounded(generateSoundSamples(SfxrSoundConfig.laser()))
   assertSamplesBounded(generateSoundSamples(SfxrSoundConfig.explosion()))
@@ -40,7 +40,7 @@ export function testSoundSynthPresetsGenerateReusableSamples(): void {
   assertSamplesBounded(generateSoundSamples(SfxrSoundConfig.hit()))
 }
 
-export function testSoundSynthIsDeterministicForNoise(): void {
+export function testSoundSynthIsDeterministicForNoise(): none {
   config := SfxrSoundConfig {
     wave: SoundWave.Noise,
     seed: 123,
@@ -58,7 +58,7 @@ export function testSoundSynthIsDeterministicForNoise(): void {
   }
 }
 
-export function testSoundCanBeCreatedFromSynthSamples(): void {
+export function testSoundCanBeCreatedFromSynthSamples(): none {
   samples := generateSoundSamples(SfxrSoundConfig {
     wave: SoundWave.Sine,
     sampleRate: 8000,

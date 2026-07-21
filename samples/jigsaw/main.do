@@ -109,7 +109,7 @@ function main(args: string[]): int {
   //   return 1
   // }
 
-  serverAddress: string | null := "ws://192.168.1.120:8765/jigsaw"
+  serverAddress: string | none := "ws://192.168.1.120:8765/jigsaw"
 
   resources := try! resourcesDirectory()
   sourcePhoto := join([resources, SOURCE_PHOTO_PATH])
@@ -123,7 +123,7 @@ function main(args: string[]): int {
       yield ""
     },
   }
-  let atlasCachePath: string | null = null
+  let atlasCachePath: string | none = none
   if cacheRoot.length > 0 {
     case jigsawAtlasCachePath(cacheRoot, sourcePhoto, maskAtlas, COLUMNS, ROWS) {
       success: Success -> {
@@ -152,7 +152,7 @@ function main(args: string[]): int {
   let drawOrder = createDrawOrder()
   statePath := puzzleStatePath()
 
-  fallbackState := if serverAddress == null then
+  fallbackState := if serverAddress == none then
     createPuzzleState(pieces, drawOrder, camera)
   else
     emptyPuzzleStateForCamera(camera)
@@ -182,7 +182,7 @@ function main(args: string[]): int {
   let lastDragScreenX = 0.0
   let lastDragScreenY = 0.0
   let boardPanActive = false
-  let reconnectTimer: Timer | null = null
+  let reconnectTimer: Timer | none = none
 
   click := try! synthSound({
     wave: .Noise,
@@ -199,7 +199,7 @@ function main(args: string[]): int {
     volume: 0.3,
   })
 
-  moveDraggedGroupToPointer := (): void => {
+  moveDraggedGroupToPointer := (): none => {
     if draggedPiece < 0 {
       return
     }
@@ -208,7 +208,7 @@ function main(args: string[]): int {
     setGroupPositionFromPiece(pieces, draggedGroup, draggedPiece, worldX - dragOffsetX, worldY - dragOffsetY)
     position := groupPosition(pieces, draggedGroup)
     activeConnection := runtime.connection
-    if activeConnection != null {
+    if activeConnection != none {
       sendMoveGroup(activeConnection!, draggedGroup, position.x, position.y) else error {
         println("Failed to queue jigsaw move: ${error}")
       }
@@ -218,7 +218,7 @@ function main(args: string[]): int {
     addGroupToBatch(dragBatch, pieces, draggedGroup)
   }
 
-  dropDraggedGroup := (): void => {
+  dropDraggedGroup := (): none => {
     if draggedPiece < 0 {
       return
     }
@@ -232,7 +232,7 @@ function main(args: string[]): int {
   dragAutoPanTimer := setInterval{
     interval: Duration.ofMillis(DRAG_EDGE_AUTO_PAN_INTERVAL_MILLIS),
     keepsAlive: false,
-    handler: (): void => {
+    handler: (): none => {
       if draggedPiece < 0 || !runtime.isInteractive() {
         return
       }
@@ -251,7 +251,7 @@ function main(args: string[]): int {
   joinFlashTimer := setInterval{
     interval: Duration.ofMillis(JOIN_FLASH_INTERVAL_MILLIS),
     keepsAlive: false,
-    handler: (): void => {
+    handler: (): none => {
       if joinFlashIntensity <= 0.0 {
         return
       }
@@ -269,15 +269,15 @@ function main(args: string[]): int {
     },
   }
 
-  bindConnection := (boundConnection: JigsawClientConnection, generation: int): void => {
-    boundConnection.events.onMessage((serverEvent: JigsawServerEvent): void => {
+  bindConnection := (boundConnection: JigsawClientConnection, generation: int): none => {
+    boundConnection.events.onMessage((serverEvent: JigsawServerEvent): none => {
       if generation != runtime.connectionGeneration {
         return
       }
       if serverEvent.kind == JigsawServerEventKind.BoardSnapshot {
         runtime.state = ServerConnectionState.Connected
-        runtime.lastError = null
-        if serverEvent.state != null {
+        runtime.lastError = none
+        if serverEvent.state != none {
           pieces = serverEvent.state!.pieces
           drawOrder = serverEvent.state!.drawOrder
           if !runtime.isServerMode() {
@@ -300,7 +300,7 @@ function main(args: string[]): int {
         for pieceId of serverEvent.pieceIds {
           pieces[pieceId].group = serverEvent.groupId
         }
-        if serverEvent.position == null {
+        if serverEvent.position == none {
           println("Ignoring jigsaw join without position")
         } else {
           setGroupCanonicalPosition(pieces, serverEvent.groupId, serverEvent.position!.x, serverEvent.position!.y)
@@ -340,14 +340,14 @@ function main(args: string[]): int {
       }
       app.requestRender()
     })
-    boundConnection.events.onClosed((): void => {
+    boundConnection.events.onClosed((): none => {
       if generation != runtime.connectionGeneration {
         return
       }
       if runtime.isServerMode() {
         println("Jigsaw server connection closed; reconnecting")
         wasConnected := runtime.state == ServerConnectionState.Connected
-        runtime.connection = null
+        runtime.connection = none
         runtime.state = ServerConnectionState.Disconnected
         runtime.lastError = "Connection closed"
         draggedPiece = -1
@@ -368,7 +368,7 @@ function main(args: string[]): int {
     })
   }
 
-  attemptServerConnect := (): void => {
+  attemptServerConnect := (): none => {
     address := runtime.serverAddress else {
       return
     }
@@ -377,7 +377,7 @@ function main(args: string[]): int {
     }
     runtime.connectionGeneration = runtime.connectionGeneration + 1
     runtime.state = ServerConnectionState.Connecting
-    runtime.lastError = null
+    runtime.lastError = none
     draggedPiece = -1
     draggedGroup = -1
     boardPanActive = false
@@ -397,14 +397,14 @@ function main(args: string[]): int {
   }
 
   existingConnection := runtime.connection
-  if existingConnection != null {
+  if existingConnection != none {
     bindConnection(existingConnection!, runtime.connectionGeneration)
   }
   if runtime.isServerMode() {
     attemptServerConnect()
     reconnectTimer = setInterval{
       interval: Duration.ofMillis(RECONNECT_INTERVAL_MILLIS),
-      handler: (): void => {
+      handler: (): none => {
         attemptServerConnect()
         pumpMainEventLoop()
       },
@@ -412,7 +412,7 @@ function main(args: string[]): int {
   }
   pumpMainEventLoop()
 
-  stopApp := (): void => {
+  stopApp := (): none => {
     boardPanActive = false
     app.cancelPanGesture()
     dropDraggedGroup()
@@ -424,7 +424,7 @@ function main(args: string[]): int {
   pointer := app.screenPointer()
   gestures := app.gestures()
 
-  pointer.onPressed((point): void => {
+  pointer.onPressed((point): none => {
     app.cancelPanInertia()
     if !runtime.isInteractive() {
       boardPanActive = false
@@ -459,7 +459,7 @@ function main(args: string[]): int {
     boardPanActive = true
     app.beginPanGesture(screenX, screenY)
   })
-  pointer.onReleased((point): void => {
+  pointer.onReleased((point): none => {
     if boardPanActive {
       app.endPanGesture()
       boardPanActive = false
@@ -469,7 +469,7 @@ function main(args: string[]): int {
       joinedGroups := joinNearbyPieces(pieces, layout, draggedGroup)
       position := groupPosition(pieces, draggedGroup)
       activeConnection := runtime.connection
-      if activeConnection != null {
+      if activeConnection != none {
         if joinedGroups.length > 1 {
           click.play({}) else {}
           joinFlashPieceIds = []
@@ -504,7 +504,7 @@ function main(args: string[]): int {
       app.requestRender()
     }
   })
-  pointer.onMoved((point): void => {
+  pointer.onMoved((point): none => {
     if !runtime.isInteractive() {
       boardPanActive = false
       app.cancelPanGesture()
@@ -524,7 +524,7 @@ function main(args: string[]): int {
     }
   })
 
-  gestures.onPan((gesture): void => {
+  gestures.onPan((gesture): none => {
     if !runtime.isInteractive() {
       boardPanActive = false
       app.cancelPanGesture()
@@ -538,7 +538,7 @@ function main(args: string[]): int {
     savePuzzleStateForRuntime(runtime, statePath, pieces, drawOrder, camera)
     app.requestRender()
   })
-  gestures.onScroll((gesture): void => {
+  gestures.onScroll((gesture): none => {
     if !runtime.isInteractive() {
       boardPanActive = false
       app.cancelPanGesture()
@@ -553,7 +553,7 @@ function main(args: string[]): int {
     savePuzzleStateForRuntime(runtime, statePath, pieces, drawOrder, camera)
     app.requestRender()
   })
-  gestures.onMagnify((gesture): void => {
+  gestures.onMagnify((gesture): none => {
     if !runtime.isInteractive() {
       boardPanActive = false
       app.cancelPanGesture()
@@ -570,7 +570,7 @@ function main(args: string[]): int {
     savePuzzleStateForRuntime(runtime, statePath, pieces, drawOrder, camera)
     app.requestRender()
   })
-  gestures.onDoubleTap((gesture): void => {
+  gestures.onDoubleTap((gesture): none => {
     if !runtime.isInteractive() {
       boardPanActive = false
       app.cancelPanGesture()
@@ -588,7 +588,7 @@ function main(args: string[]): int {
   })
   app.key(Key.Escape).onPressed(stopApp)
 
-  app.onEvent((event): void => {
+  app.onEvent((event): none => {
     if event.kind() == GameEventKind.CloseRequested {
       stopApp.call()
     }

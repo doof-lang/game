@@ -43,13 +43,13 @@ function main(): int {
 
   println("Connect a controller. Move with the left stick, squeeze the right trigger, and press face buttons.")
 
-  app.controllerButton(.One, ControllerButton.South).onPressed((): void => println("South pressed"))
-  app.controllerButton(.One, ControllerButton.East).onPressed((): void => println("East pressed"))
-  app.controllerButton(.One, ControllerButton.West).onPressed((): void => println("West pressed"))
-  app.controllerButton(.One, ControllerButton.North).onPressed((): void => println("North pressed"))
-  app.key(Key.Escape).onPressed((): void => app.stop())
+  app.controllerButton(.One, ControllerButton.South).onPressed((): none => println("South pressed"))
+  app.controllerButton(.One, ControllerButton.East).onPressed((): none => println("East pressed"))
+  app.controllerButton(.One, ControllerButton.West).onPressed((): none => println("West pressed"))
+  app.controllerButton(.One, ControllerButton.North).onPressed((): none => println("North pressed"))
+  app.key(Key.Escape).onPressed((): none => app.stop())
 
-  app.onEvent((event): void => {
+  app.onEvent((event): none => {
     if event.kind() == GameEventKind.CloseRequested {
       app.stop()
     } else if event.kind() == GameEventKind.ControllerConnected {
@@ -59,7 +59,7 @@ function main(): int {
     }
   })
 
-  app.onRender((renderer): void => {
+  app.onRender((renderer): none => {
     x += move.x() * 6.0
     y += move.y() * 6.0
     scale := 1.0 + rightTrigger.value() * 0.75
@@ -75,7 +75,7 @@ function main(): int {
         depth: Depth.disabled(),
         blend: Blend.alpha(),
       },
-      (pass): void => drawSimpleModel(pass, player),
+      (pass): none => drawSimpleModel(pass, player),
     )
   })
 

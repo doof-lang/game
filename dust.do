@@ -52,7 +52,7 @@ function randomSigned(index: int, seed: double, salt: double): double {
   return randomUnit(index, seed, salt) * 2.0 - 1.0
 }
 
-export function drawSpaceDust(pass: RenderPass, dust: SpaceDust): void {
+export function drawSpaceDust(pass: RenderPass, dust: SpaceDust): none {
   matrix := pass.camera().matrix(pass.surface())
   cameraPosition := pass.camera().transform.position
   drawNativeSpaceDust(

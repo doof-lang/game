@@ -72,7 +72,7 @@ function midpointIndex(
   return cached
 }
 
-function addRawTriangle(geometry: IcosphereGeometry, a: int, b: int, c: int): void {
+function addRawTriangle(geometry: IcosphereGeometry, a: int, b: int, c: int): none {
   geometry.indices.push(a)
   geometry.indices.push(b)
   geometry.indices.push(c)
@@ -87,7 +87,7 @@ function addSubdividedTriangle(
   depth: int,
   radius: double,
   color: Color,
-): void {
+): none {
   if depth <= 0 {
     addRawTriangle(geometry, a, b, c)
     return
@@ -103,7 +103,7 @@ function addSubdividedTriangle(
   addSubdividedTriangle(geometry, midpointCache, ab, bc, ca, next, radius, color)
 }
 
-function addIcosahedronVertices(geometry: IcosphereGeometry, radius: double, color: Color): void {
+function addIcosahedronVertices(geometry: IcosphereGeometry, radius: double, color: Color): none {
   vertices := [
     Point3(-1.0, PHI, 0.0),
     Point3(1.0, PHI, 0.0),
@@ -130,7 +130,7 @@ function addIcosahedronFaces(
   subdivisions: int,
   radius: double,
   color: Color,
-): void {
+): none {
   faces := [
     0, 11, 5,
     0, 5, 1,

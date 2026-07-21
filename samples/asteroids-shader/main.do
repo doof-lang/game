@@ -16,7 +16,7 @@ import { AsteroidShaderResources, createAsteroidShaderResources, drawAsteroids }
 
 function main(): int {
   app := initGameApp{ title: "Doof Game Custom Shader Asteroids" }
-  let resources: AsteroidShaderResources | null = null
+  let resources: AsteroidShaderResources | none = none
   start := Instant.now()
   let cameraYaw = 0.0
 
@@ -29,7 +29,7 @@ function main(): int {
     time := start.durationUntil(now).toSeconds()
     cameraYaw = sin(time * 0.22) * 6.0
     surface := app.surface
-    if resources == null {
+    if resources == none {
       resources = createAsteroidShaderResources(surface)
     }
 

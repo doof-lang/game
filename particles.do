@@ -115,7 +115,7 @@ export class ParticleLayer {
 
   isActive(): bool => active > 0
 
-  clear(): void {
+  clear(): none {
     for index of 0..<states.length {
       if states[index].active {
         states[index].active = false
@@ -127,7 +127,7 @@ export class ParticleLayer {
     cursor = 0
   }
 
-  emit(config: ParticleConfig): void {
+  emit(config: ParticleConfig): none {
     if config.count <= 0 {
       return
     }
@@ -175,7 +175,7 @@ export class ParticleLayer {
     return slot
   }
 
-  private syncSlot(index: int): void {
+  private syncSlot(index: int): none {
     particle := states[index]
     if !particle.active {
       instances[index].setTransform(hiddenTransform())
@@ -217,7 +217,7 @@ export class ParticleLayer {
     return isActive()
   }
 
-  draw(pass: RenderPass): void {
+  draw(pass: RenderPass): none {
     drawSimpleModelBatch(
       pass,
       batch,

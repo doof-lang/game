@@ -3,9 +3,9 @@ import { SimpleModelBatch, drawSimpleModelBatch } from "./model_batch"
 import { RenderPass } from "./render"
 import { GameEvent } from "./event"
 
-export type SceneTickHandler = (tick: SceneTick): void
-export type SceneUpdateHandler = (update: SceneUpdate): void
-export type SceneEventHandler = (event: GameEvent): void
+export type SceneTickHandler = (tick: SceneTick): none
+export type SceneUpdateHandler = (update: SceneUpdate): none
+export type SceneEventHandler = (event: GameEvent): none
 
 enum SceneNodeKind {
   SimpleModel,
@@ -22,21 +22,21 @@ export class SceneUpdate {
   scene: Scene
   readonly deltaSeconds: double
   readonly elapsedSeconds: double
-  readonly tickAlpha: double | null
+  readonly tickAlpha: double | none
 }
 
 export class SceneNode {
-  readonly name: string | null
-  onTick: SceneTickHandler | null = null
-  onUpdate: SceneUpdateHandler | null = null
-  onEvent: SceneEventHandler | null = null
+  readonly name: string | none
+  onTick: SceneTickHandler | none = none
+  onUpdate: SceneUpdateHandler | none = none
+  onEvent: SceneEventHandler | none = none
 
   private readonly kind: SceneNodeKind
-  private model: SimpleModel | null = null
-  private batch: SimpleModelBatch | null = null
+  private model: SimpleModel | none = none
+  private batch: SimpleModelBatch | none = none
   private removed: bool = false
 
-  remove(): void {
+  remove(): none {
     removed = true
   }
 
@@ -44,7 +44,7 @@ export class SceneNode {
 }
 
 export class Scene {
-  readonly ticksPerSecond: double | null
+  readonly ticksPerSecond: double | none
   readonly maxDeltaSeconds: double
 
   private nodes: SceneNode[] = []
@@ -53,7 +53,7 @@ export class Scene {
   private elapsedSceneSeconds: double = 0.0
 
   static constructor(
-    ticksPerSecond: double | null = null,
+    ticksPerSecond: double | none = none,
     maxDeltaSeconds: double = 0.25,
   ): Scene {
     if maxDeltaSeconds <= 0.0 {
@@ -72,10 +72,10 @@ export class Scene {
 
   addSimpleModel(
     model: SimpleModel,
-    name: string | null = null,
-    onTick: SceneTickHandler | null = null,
-    onUpdate: SceneUpdateHandler | null = null,
-    onEvent: SceneEventHandler | null = null,
+    name: string | none = none,
+    onTick: SceneTickHandler | none = none,
+    onUpdate: SceneUpdateHandler | none = none,
+    onEvent: SceneEventHandler | none = none,
   ): SceneNode {
     node := SceneNode {
       name,
@@ -91,10 +91,10 @@ export class Scene {
 
   addSimpleModelBatch(
     batch: SimpleModelBatch,
-    name: string | null = null,
-    onTick: SceneTickHandler | null = null,
-    onUpdate: SceneUpdateHandler | null = null,
-    onEvent: SceneEventHandler | null = null,
+    name: string | none = none,
+    onTick: SceneTickHandler | none = none,
+    onUpdate: SceneUpdateHandler | none = none,
+    onEvent: SceneEventHandler | none = none,
   ): SceneNode {
     node := SceneNode {
       name,
@@ -122,7 +122,7 @@ export class Scene {
     return false
   }
 
-  update(deltaSeconds: double): void {
+  update(deltaSeconds: double): none {
     if deltaSeconds < 0.0 {
       panic("Scene deltaSeconds must be non-negative")
     }
@@ -149,7 +149,7 @@ export class Scene {
     compactRemovedNodes()
   }
 
-  handleEvent(event: GameEvent): void {
+  handleEvent(event: GameEvent): none {
     snapshotLength := nodes.length
     for index of 0..<snapshotLength {
       node := nodes[index]
@@ -162,7 +162,7 @@ export class Scene {
     compactRemovedNodes()
   }
 
-  draw(pass: RenderPass): void {
+  draw(pass: RenderPass): none {
     for node of nodes {
       if !node.isRemoved() {
         drawNode(pass, node)
@@ -170,12 +170,12 @@ export class Scene {
     }
   }
 
-  frame(pass: RenderPass, deltaSeconds: double): void {
+  frame(pass: RenderPass, deltaSeconds: double): none {
     update(deltaSeconds)
     draw(pass)
   }
 
-  private runFixedTicks(snapshotLength: int, frameDelta: double): void {
+  private runFixedTicks(snapshotLength: int, frameDelta: double): none {
     tickRate := ticksPerSecond as double else { return }
     tickSeconds := 1.0 / tickRate
     tickAccumulator += frameDelta
@@ -199,19 +199,19 @@ export class Scene {
     }
   }
 
-  private currentTickAlpha(): double | null {
-    tickRate := ticksPerSecond as double else { return null }
+  private currentTickAlpha(): double | none {
+    tickRate := ticksPerSecond as double else { return none }
     return tickAccumulator / (1.0 / tickRate)
   }
 
-  private drawNode(pass: RenderPass, node: SceneNode): void {
+  private drawNode(pass: RenderPass, node: SceneNode): none {
     case node.kind {
       SceneNodeKind.SimpleModel -> drawSimpleModel(pass, node.model!)
       SceneNodeKind.SimpleModelBatch -> drawSimpleModelBatch(pass, node.batch!)
     }
   }
 
-  private compactRemovedNodes(): void {
+  private compactRemovedNodes(): none {
     retained: SceneNode[] := []
     for node of nodes {
       if !node.isRemoved() {

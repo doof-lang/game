@@ -55,7 +55,7 @@ function tempStatePath(name: string): string {
   return path
 }
 
-export function testRemoteWebSocketReceivesBoardSnapshot(): void {
+export function testRemoteWebSocketReceivesBoardSnapshot(): none {
   server := try! startJigsawHttpServer(
     createDefaultJigsawServerState(),
     JigsawHttpServerOptions { port: 0 },
@@ -70,7 +70,7 @@ export function testRemoteWebSocketReceivesBoardSnapshot(): void {
 
   setTimeout{
     delay: Duration.ofMillis(100L),
-    handler: (): void => server.close(),
+    handler: (): none => server.close(),
   }
 
   runMainEventLoop()
@@ -81,7 +81,7 @@ export function testRemoteWebSocketReceivesBoardSnapshot(): void {
   Assert.isTrue(response.contains("\"kind\":\"BoardSnapshot\""), response)
 }
 
-export function testServerOverwritesSpoofedClientIdBeforeBroadcast(): void {
+export function testServerOverwritesSpoofedClientIdBeforeBroadcast(): none {
   server := try! startJigsawHttpServer(
     createDefaultJigsawServerState(),
     JigsawHttpServerOptions { port: 0 },
@@ -90,7 +90,7 @@ export function testServerOverwritesSpoofedClientIdBeforeBroadcast(): void {
   remote := server.session.connectClient()
   state := MoveState()
 
-  watcher.events.onMessage((event: JigsawServerEvent): void => {
+  watcher.events.onMessage((event: JigsawServerEvent): none => {
     if event.kind == JigsawServerEventKind.GroupMoved {
       state.movedClientId = event.clientId
       state.movedX = event.x
@@ -110,7 +110,7 @@ export function testServerOverwritesSpoofedClientIdBeforeBroadcast(): void {
   Assert.equal(state.movedY, 60.0)
 }
 
-export function testRemoteWebSocketMoveCommandsCoalesceBeforeSessionHandling(): void {
+export function testRemoteWebSocketMoveCommandsCoalesceBeforeSessionHandling(): none {
   server := try! startJigsawHttpServer(
     createDefaultJigsawServerState(),
     JigsawHttpServerOptions { port: 0, commandCapacity: 1 },
@@ -129,7 +129,7 @@ export function testRemoteWebSocketMoveCommandsCoalesceBeforeSessionHandling(): 
   Assert.equal(position.y, 40.0)
 }
 
-export function testServerPersistsStateAfterCommand(): void {
+export function testServerPersistsStateAfterCommand(): none {
   statePath := tempStatePath("doof-jigsaw-server-persist-command.json")
   server := try! startJigsawHttpServer(
     createDefaultJigsawServerState(),
@@ -149,7 +149,7 @@ export function testServerPersistsStateAfterCommand(): void {
   Assert.equal(position.y, 80.0)
 }
 
-export function testServerLoadsPersistedStateOnStartup(): void {
+export function testServerLoadsPersistedStateOnStartup(): none {
   statePath := tempStatePath("doof-jigsaw-server-persist-startup.json")
   first := try! startJigsawHttpServer(
     createDefaultJigsawServerState(),
@@ -173,7 +173,7 @@ export function testServerLoadsPersistedStateOnStartup(): void {
   Assert.equal(position.y, 100.0)
 }
 
-export function testResetStateIgnoresAndOverwritesPersistedState(): void {
+export function testResetStateIgnoresAndOverwritesPersistedState(): none {
   statePath := tempStatePath("doof-jigsaw-server-reset-startup.json")
   first := try! startJigsawHttpServer(
     createDefaultJigsawServerState(),
@@ -202,7 +202,7 @@ export function testResetStateIgnoresAndOverwritesPersistedState(): void {
   Assert.equal(savedPosition.y, position.y)
 }
 
-export function testBadPathRejectsHandshake(): void {
+export function testBadPathRejectsHandshake(): none {
   server := try! startJigsawHttpServer(
     createDefaultJigsawServerState(),
     JigsawHttpServerOptions { port: 0 },
@@ -216,7 +216,7 @@ export function testBadPathRejectsHandshake(): void {
 
   setTimeout{
     delay: Duration.ofMillis(100L),
-    handler: (): void => server.close(),
+    handler: (): none => server.close(),
   }
 
   runMainEventLoop()

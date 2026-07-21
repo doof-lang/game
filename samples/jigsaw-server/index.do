@@ -47,7 +47,7 @@ export class JigsawHttpServerOptions {
   host: string = "127.0.0.1"
   port: int = 8765
   socketPath: string = "/jigsaw"
-  statePath: string | null = null
+  statePath: string | none = none
   resetState: bool = false
   requestCapacity: int = 256
   eventCapacity: int = 256
@@ -66,7 +66,7 @@ export class JigsawHttpServer {
   private readonly server: Server
   private readonly requests: ChannelSender<Request>
 
-  close(): void {
+  close(): none {
     this.requests.close()
     ignored := this.server.close()
   }
@@ -98,7 +98,7 @@ export function loadJigsawServerState(path: string): Result<PuzzleState, string>
   return Success(state)
 }
 
-export function saveJigsawServerState(path: string, state: PuzzleState): Result<void, string> {
+export function saveJigsawServerState(path: string, state: PuzzleState): Result<none, string> {
   try validatePuzzleState(state)
   writeText(path, formatJsonValue(state.toJsonObject())) else error {
     return Failure(ioErrorMessage("write", path, error))
@@ -127,7 +127,7 @@ export function startJigsawHttpServer(
     keepsAlive: true,
   }
 
-  requestReceiver.onMessage((request: Request): void => handleJigsawHttpRequest(session, options, request))
+  requestReceiver.onMessage((request: Request): none => handleJigsawHttpRequest(session, options, request))
 
   server := Server.listen{
     options: ServerOptions {
@@ -156,17 +156,17 @@ function ioErrorMessage(operation: string, path: string, error: IoError): string
 
 function loadInitialJigsawServerState(
   fallback: PuzzleState,
-  statePath: string | null,
+  statePath: string | none,
   resetState: bool,
 ): Result<PuzzleState, string> {
   if resetState {
-    if statePath != null {
+    if statePath != none {
       try saveJigsawServerState(statePath!, fallback)
     }
     return Success(fallback)
   }
 
-  if statePath != null && exists(statePath!) {
+  if statePath != none && exists(statePath!) {
     return loadJigsawServerState(statePath!)
   }
   return Success(fallback)
@@ -174,11 +174,11 @@ function loadInitialJigsawServerState(
 
 function createJigsawHttpSession(
   state: PuzzleState,
-  statePath: string | null,
+  statePath: string | none,
   config: JigsawSessionConfig,
 ): JigsawSession {
-  if statePath != null {
-    return createJigsawSessionWithStateChanged(state, (state: PuzzleState): void => {
+  if statePath != none {
+    return createJigsawSessionWithStateChanged(state, (state: PuzzleState): none => {
       saveJigsawServerState(statePath!, state) else error {
         println("Failed to save jigsaw server state: ${error}")
       }
@@ -187,7 +187,7 @@ function createJigsawHttpSession(
   return createJigsawSession(state, config)
 }
 
-export function forwardJigsawCommandForClient(client: JigsawClientConnection, text: string): Result<void, string> {
+export function forwardJigsawCommandForClient(client: JigsawClientConnection, text: string): Result<none, string> {
   try command := decodeJigsawCommandFrame(text)
   command.clientId = client.clientId
   sent := client.commands.send(command, jigsawClientCommandKey(command))
@@ -201,7 +201,7 @@ function handleJigsawHttpRequest(
   session: JigsawSession,
   options: JigsawHttpServerOptions,
   request: Request,
-): void {
+): none {
   if request.path != options.socketPath {
     ignored := request.respond(Response.text(404, "not found\n"))
     return
@@ -218,12 +218,12 @@ function handleJigsawHttpRequest(
   })
   client := session.connectClient()
 
-  let pendingEvent: JigsawServerEvent | null = null
-  flushPendingEvent := (): void => {
+  let pendingEvent: JigsawServerEvent | none = none
+  flushPendingEvent := (): none => {
     event := pendingEvent else {
       return
     }
-    pendingEvent = null
+    pendingEvent = none
     key := jigsawServerEventKey(event) else {
       return
     }
@@ -235,23 +235,23 @@ function handleJigsawHttpRequest(
     handler: flushPendingEvent,
   }
 
-  client.events.onMessage((event: JigsawServerEvent): void => {
-    if jigsawServerEventKey(event) == null {
+  client.events.onMessage((event: JigsawServerEvent): none => {
+    if jigsawServerEventKey(event) == none {
       flushPendingEvent.call()
-      sendEventFrame(socket, event, null)
+      sendEventFrame(socket, event, none)
       return
     }
     pendingEvent = event
   })
-  client.events.onClosed((): void => {
+  client.events.onClosed((): none => {
     flushPendingEvent.call()
     eventFlushTimer.cancel()
     socket.close()
   })
   socket.events.onMessage((
     event: WebSocketOpen | WebSocketText | WebSocketBinary | WebSocketWritable | WebSocketClose | WebSocketError,
-  ): void => handleJigsawSocketEvent(client, socket, event))
-  socket.events.onClosed((): void => {
+  ): none => handleJigsawSocketEvent(client, socket, event))
+  socket.events.onClosed((): none => {
     eventFlushTimer.cancel()
     client.events.close()
   })
@@ -262,9 +262,9 @@ function handleJigsawHttpRequest(
 function sendEventFrame(
   socket: WebSocketConnection,
   event: JigsawServerEvent,
-  key: string | null,
-): void {
-  ignored := if key == null then socket.commands.send(WebSocketSendText {
+  key: string | none,
+): none {
+  ignored := if key == none then socket.commands.send(WebSocketSendText {
     text: encodeJigsawEventFrame(event),
   }) else socket.commands.send(WebSocketSendText {
     text: encodeJigsawEventFrame(event),
@@ -276,7 +276,7 @@ function handleJigsawSocketEvent(
   client: JigsawClientConnection,
   socket: WebSocketConnection,
   event: WebSocketOpen | WebSocketText | WebSocketBinary | WebSocketWritable | WebSocketClose | WebSocketError,
-): void {
+): none {
   textEvent := event as WebSocketText
   case textEvent {
     textSuccess: Success -> {

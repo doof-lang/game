@@ -2,7 +2,7 @@ import { Assert } from "std/assert"
 
 import { Color, parseObjMeshSpec } from "../index"
 
-export function testParseObjMeshSpecTriangulatesQuad(): void {
+export function testParseObjMeshSpecTriangulatesQuad(): none {
   parsed := parseObjMeshSpec(
     "v 0 0 0\n" +
     "v 1 0 0\n" +
@@ -31,7 +31,7 @@ export function testParseObjMeshSpecTriangulatesQuad(): void {
   Assert.equal(spec.positions[5].x, 0.0)
 }
 
-export function testParseObjMeshSpecReadsTexCoordsNormalsAndRelativeIndices(): void {
+export function testParseObjMeshSpecReadsTexCoordsNormalsAndRelativeIndices(): none {
   parsed := parseObjMeshSpec(
     "v 0 0 0\n" +
     "v 1 0 0\n" +

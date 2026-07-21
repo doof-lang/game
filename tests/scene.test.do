@@ -12,12 +12,12 @@ import { Scene, SceneNode, SceneTick, SceneUpdate } from "../scene"
 import { GameEvent } from "./scene_event.mock"
 import { SimpleModel } from "./scene_model.mock"
 
-function assertApprox(actual: double, expected: double, message: string | null = null): void {
+function assertApprox(actual: double, expected: double, message: string | none = none): none {
   Assert.isTrue(approxEqual(actual, expected), message)
 }
 
-export function testSceneWithoutFixedTicksRunsOnlyUpdates(): void {
-  scene := Scene { ticksPerSecond: null, maxDeltaSeconds: 10.0 }
+export function testSceneWithoutFixedTicksRunsOnlyUpdates(): none {
+  scene := Scene { ticksPerSecond: none, maxDeltaSeconds: 10.0 }
   let tickCount = 0
   let updateCount = 0
   let updateDelta = 0.0
@@ -26,14 +26,14 @@ export function testSceneWithoutFixedTicksRunsOnlyUpdates(): void {
 
   scene.addSimpleModel{
     model: SimpleModel(),
-    onTick: (tick: SceneTick): void => {
+    onTick: (tick: SceneTick): none => {
       tickCount += 1
     },
-    onUpdate: (update: SceneUpdate): void => {
+    onUpdate: (update: SceneUpdate): none => {
       updateCount += 1
       updateDelta = update.deltaSeconds
       elapsed = update.elapsedSeconds
-      sawNullAlpha = update.tickAlpha == null
+      sawNullAlpha = update.tickAlpha == none
     },
   }
 
@@ -46,7 +46,7 @@ export function testSceneWithoutFixedTicksRunsOnlyUpdates(): void {
   Assert.isTrue(sawNullAlpha)
 }
 
-export function testSceneFixedTicksAndAlpha(): void {
+export function testSceneFixedTicksAndAlpha(): none {
   scene := Scene { ticksPerSecond: 4.0, maxDeltaSeconds: 10.0 }
   tickDeltas: double[] := []
   tickIndices: long[] := []
@@ -55,11 +55,11 @@ export function testSceneFixedTicksAndAlpha(): void {
 
   scene.addSimpleModel{
     model: SimpleModel(),
-    onTick: (tick: SceneTick): void => {
+    onTick: (tick: SceneTick): none => {
       tickDeltas.push(tick.deltaSeconds)
       tickIndices.push(tick.tickIndex)
     },
-    onUpdate: (update: SceneUpdate): void => {
+    onUpdate: (update: SceneUpdate): none => {
       alpha := update.tickAlpha as double else {
         Assert.fail("expected tick alpha")
         return
@@ -80,7 +80,7 @@ export function testSceneFixedTicksAndAlpha(): void {
   assertApprox(updateElapsed[1], 0.25)
 }
 
-export function testSceneMaxDeltaSecondsCapsSceneTime(): void {
+export function testSceneMaxDeltaSecondsCapsSceneTime(): none {
   scene := Scene { ticksPerSecond: 10.0, maxDeltaSeconds: 0.15 }
   let tickCount = 0
   let updateDelta = 0.0
@@ -89,10 +89,10 @@ export function testSceneMaxDeltaSecondsCapsSceneTime(): void {
 
   scene.addSimpleModel{
     model: SimpleModel(),
-    onTick: (tick: SceneTick): void => {
+    onTick: (tick: SceneTick): none => {
       tickCount += 1
     },
-    onUpdate: (update: SceneUpdate): void => {
+    onUpdate: (update: SceneUpdate): none => {
       updateDelta = update.deltaSeconds
       elapsed = update.elapsedSeconds
       alpha = update.tickAlpha!
@@ -107,13 +107,13 @@ export function testSceneMaxDeltaSecondsCapsSceneTime(): void {
   assertApprox(alpha, 0.5)
 }
 
-export function testSceneUpdateCallbacksRunInInsertionOrder(): void {
+export function testSceneUpdateCallbacksRunInInsertionOrder(): none {
   scene := Scene { maxDeltaSeconds: 10.0 }
   order: int[] := []
 
-  scene.addSimpleModel{ model: SimpleModel(), onUpdate: (update: SceneUpdate): void => order.push(1) }
-  scene.addSimpleModel{ model: SimpleModel(), onUpdate: (update: SceneUpdate): void => order.push(2) }
-  scene.addSimpleModel{ model: SimpleModel(), onUpdate: (update: SceneUpdate): void => order.push(3) }
+  scene.addSimpleModel{ model: SimpleModel(), onUpdate: (update: SceneUpdate): none => order.push(1) }
+  scene.addSimpleModel{ model: SimpleModel(), onUpdate: (update: SceneUpdate): none => order.push(2) }
+  scene.addSimpleModel{ model: SimpleModel(), onUpdate: (update: SceneUpdate): none => order.push(3) }
 
   scene.update(0.5)
 
@@ -123,7 +123,7 @@ export function testSceneUpdateCallbacksRunInInsertionOrder(): void {
   Assert.equal(order[2], 3)
 }
 
-export function testSceneEventCallbacksReceiveForwardedEvent(): void {
+export function testSceneEventCallbacksReceiveForwardedEvent(): none {
   scene := Scene {}
   event := GameEvent { label: "pressed" }
   let receivedLabel = ""
@@ -131,13 +131,13 @@ export function testSceneEventCallbacksReceiveForwardedEvent(): void {
 
   scene.addSimpleModel{
     model: SimpleModel(),
-    onUpdate: (update: SceneUpdate): void => {
+    onUpdate: (update: SceneUpdate): none => {
       ignoredNodeUpdateCount += 1
     },
   }
   scene.addSimpleModel{
     model: SimpleModel(),
-    onEvent: (forwarded: GameEvent): void => {
+    onEvent: (forwarded: GameEvent): none => {
       receivedLabel = forwarded.label
     },
   }
@@ -148,13 +148,13 @@ export function testSceneEventCallbacksReceiveForwardedEvent(): void {
   Assert.equal(ignoredNodeUpdateCount, 0)
 }
 
-export function testSceneEventCallbacksRunInInsertionOrder(): void {
+export function testSceneEventCallbacksRunInInsertionOrder(): none {
   scene := Scene {}
   order: int[] := []
 
-  scene.addSimpleModel{ model: SimpleModel(), onEvent: (event: GameEvent): void => order.push(1) }
-  scene.addSimpleModel{ model: SimpleModel(), onEvent: (event: GameEvent): void => order.push(2) }
-  scene.addSimpleModel{ model: SimpleModel(), onEvent: (event: GameEvent): void => order.push(3) }
+  scene.addSimpleModel{ model: SimpleModel(), onEvent: (event: GameEvent): none => order.push(1) }
+  scene.addSimpleModel{ model: SimpleModel(), onEvent: (event: GameEvent): none => order.push(2) }
+  scene.addSimpleModel{ model: SimpleModel(), onEvent: (event: GameEvent): none => order.push(3) }
 
   scene.handleEvent(GameEvent {})
 
@@ -164,17 +164,17 @@ export function testSceneEventCallbacksRunInInsertionOrder(): void {
   Assert.equal(order[2], 3)
 }
 
-export function testSceneEventMutationDuringCallbacksUsesSnapshotSemantics(): void {
+export function testSceneEventMutationDuringCallbacksUsesSnapshotSemantics(): none {
   scene := Scene {}
   let lateEvents = 0
-  let first: SceneNode | null = null
+  let first: SceneNode | none = none
 
   first = scene.addSimpleModel{
     model: SimpleModel(),
-    onEvent: (event: GameEvent): void => {
+    onEvent: (event: GameEvent): none => {
       scene.addSimpleModel{
         model: SimpleModel(),
-        onEvent: (lateEvent: GameEvent): void => {
+        onEvent: (lateEvent: GameEvent): none => {
           lateEvents += 1
         },
       }
@@ -189,22 +189,22 @@ export function testSceneEventMutationDuringCallbacksUsesSnapshotSemantics(): vo
   Assert.equal(lateEvents, 1)
 }
 
-export function testSceneEventRemovalDuringCallbackSuppressesLaterCallbacks(): void {
+export function testSceneEventRemovalDuringCallbackSuppressesLaterCallbacks(): none {
   scene := Scene {}
   let firstEvents = 0
   let secondEvents = 0
-  let second: SceneNode | null = null
+  let second: SceneNode | none = none
 
   scene.addSimpleModel{
     model: SimpleModel(),
-    onEvent: (event: GameEvent): void => {
+    onEvent: (event: GameEvent): none => {
       firstEvents += 1
       second!.remove()
     },
   }
   second = scene.addSimpleModel{
     model: SimpleModel(),
-    onEvent: (event: GameEvent): void => {
+    onEvent: (event: GameEvent): none => {
       secondEvents += 1
     },
   }
@@ -215,7 +215,7 @@ export function testSceneEventRemovalDuringCallbackSuppressesLaterCallbacks(): v
   Assert.equal(secondEvents, 0)
 }
 
-export function testSceneRemoveIsIdempotent(): void {
+export function testSceneRemoveIsIdempotent(): none {
   scene := Scene {}
   node := scene.addSimpleModel{ model: SimpleModel(), name: "ship" }
 
@@ -229,27 +229,27 @@ export function testSceneRemoveIsIdempotent(): void {
   Assert.isTrue(node.isRemoved())
 }
 
-export function testSceneMutationDuringCallbacksUsesSnapshotSemantics(): void {
+export function testSceneMutationDuringCallbacksUsesSnapshotSemantics(): none {
   scene := Scene { ticksPerSecond: 10.0, maxDeltaSeconds: 10.0 }
   let lateTicks = 0
   let lateUpdates = 0
-  let first: SceneNode | null = null
+  let first: SceneNode | none = none
 
   first = scene.addSimpleModel{
     model: SimpleModel(),
-    onTick: (tick: SceneTick): void => {
+    onTick: (tick: SceneTick): none => {
       scene.addSimpleModel{
         model: SimpleModel(),
-        onTick: (lateTick: SceneTick): void => {
+        onTick: (lateTick: SceneTick): none => {
           lateTicks += 1
         },
-        onUpdate: (lateUpdate: SceneUpdate): void => {
+        onUpdate: (lateUpdate: SceneUpdate): none => {
           lateUpdates += 1
         },
       }
       first!.remove()
     },
-    onUpdate: (update: SceneUpdate): void => {
+    onUpdate: (update: SceneUpdate): none => {
       Assert.fail("removed node should not receive update")
     },
   }
@@ -263,26 +263,26 @@ export function testSceneMutationDuringCallbacksUsesSnapshotSemantics(): void {
   Assert.equal(lateUpdates, 1)
 }
 
-export function testSceneRemovalDuringCallbackSuppressesLaterCallbacks(): void {
+export function testSceneRemovalDuringCallbackSuppressesLaterCallbacks(): none {
   scene := Scene { ticksPerSecond: 10.0, maxDeltaSeconds: 10.0 }
   let firstTicks = 0
   let secondTicks = 0
   let secondUpdates = 0
-  let second: SceneNode | null = null
+  let second: SceneNode | none = none
 
   scene.addSimpleModel{
     model: SimpleModel(),
-    onTick: (tick: SceneTick): void => {
+    onTick: (tick: SceneTick): none => {
       firstTicks += 1
       second!.remove()
     },
   }
   second = scene.addSimpleModel{
     model: SimpleModel(),
-    onTick: (tick: SceneTick): void => {
+    onTick: (tick: SceneTick): none => {
       secondTicks += 1
     },
-    onUpdate: (update: SceneUpdate): void => {
+    onUpdate: (update: SceneUpdate): none => {
       secondUpdates += 1
     },
   }

@@ -21,14 +21,14 @@ class SimpleModelInstanceState {
 export class SimpleModelBatch {
   readonly surface: GameSurface
   readonly mesh: SimpleMesh
-  texture: Texture | null = null
+  texture: Texture | none = none
   readonly capacity: int
 
   private transforms: Transform[] = []
   private materials: SimpleMaterial[] = []
   private dirty: int[] = []
   private states: SimpleModelInstanceState[] = []
-  private native: NativeSimpleModelBatch | null = null
+  private native: NativeSimpleModelBatch | none = none
 
   count(): int => transforms.length
 
@@ -69,19 +69,19 @@ export class SimpleModelBatch {
     return materials[requireLive(state)]
   }
 
-  private setTransformFor(state: SimpleModelInstanceState, transform: Transform): void {
+  private setTransformFor(state: SimpleModelInstanceState, transform: Transform): none {
     slot := requireLive(state)
     transforms[slot] = transform
     dirty[slot] = 1
   }
 
-  private setMaterialFor(state: SimpleModelInstanceState, material: SimpleMaterial): void {
+  private setMaterialFor(state: SimpleModelInstanceState, material: SimpleMaterial): none {
     slot := requireLive(state)
     materials[slot] = material
     dirty[slot] = 1
   }
 
-  private remove(state: SimpleModelInstanceState): void {
+  private remove(state: SimpleModelInstanceState): none {
     slot := requireLive(state)
     state.live = false
 
@@ -103,7 +103,7 @@ export class SimpleModelBatch {
   }
 
   private syncNative(): NativeSimpleModelBatch {
-    if native == null {
+    if native == none {
       native = try! NativeSimpleModelBatch.create(surface.metalDeviceHandle(), capacity)
     }
 
@@ -242,7 +242,7 @@ export class SimpleModelInstance {
     return setTransform(transform().scaledByVec(factor))
   }
 
-  remove(): void {
+  remove(): none {
     batch.remove(state)
   }
 }
@@ -251,7 +251,7 @@ export function drawSimpleModelBatch(
   pass: RenderPass,
   batch: SimpleModelBatch,
   lighting: SimpleMeshLighting = SimpleMeshLighting {},
-): void {
+): none {
   if batch.count() == 0 {
     return
   }
@@ -262,8 +262,8 @@ export function drawSimpleModelBatch(
   drawNativeSimpleModelBatch(
     batch.mesh.nativeSimpleMesh(),
     nativeBatch,
-    if batch.texture != null then batch.texture!.metalTextureHandle() else 0L,
-    batch.texture != null,
+    if batch.texture != none then batch.texture!.metalTextureHandle() else 0L,
+    batch.texture != none,
     pass.metalRenderCommandEncoderHandle(),
     pass.metalDeviceHandle(),
     pass.nativeBlendModeCode(),

@@ -21,17 +21,17 @@ function approxEqual(actual: double, expected: double): bool {
   return delta < 0.00001
 }
 
-function assertApprox(actual: double, expected: double, message: string | null = null): void {
+function assertApprox(actual: double, expected: double, message: string | none = none): none {
   Assert.isTrue(approxEqual(actual, expected), message)
 }
 
-function assertVec3Approx(actual: Vec3, expected: Vec3, message: string | null = null): void {
+function assertVec3Approx(actual: Vec3, expected: Vec3, message: string | none = none): none {
   assertApprox(actual.x, expected.x, message)
   assertApprox(actual.y, expected.y, message)
   assertApprox(actual.z, expected.z, message)
 }
 
-function assertPoint3Approx(actual: Point3, expected: Point3, message: string | null = null): void {
+function assertPoint3Approx(actual: Point3, expected: Point3, message: string | none = none): none {
   assertApprox(actual.x, expected.x, message)
   assertApprox(actual.y, expected.y, message)
   assertApprox(actual.z, expected.z, message)
@@ -279,7 +279,7 @@ function fullAnimationJson(bufferLength: int): string {
     "}"
 }
 
-export function testParseGlbConvertsMinimalTriangleAndComputesNormals(): void {
+export function testParseGlbConvertsMinimalTriangleAndComputesNormals(): none {
   bin := trianglePositionBin()
   asset := try! parseGlb(buildGlb(minimalTriangleJson(bin.length), bin), "triangle.glb")
   specs := try! glbAssetToSimpleMeshSpecs(asset, Color.red)
@@ -296,7 +296,7 @@ export function testParseGlbConvertsMinimalTriangleAndComputesNormals(): void {
   Assert.equal(spec.normals[0].z, 1.0)
 }
 
-export function testParseGlbConvertsIndexedAttributes(): void {
+export function testParseGlbConvertsIndexedAttributes(): none {
   bin := richTriangleBin()
   asset := try! parseGlb(buildGlb(richTriangleJson(bin.length), bin), "rich.glb")
   specs := try! glbAssetToSimpleMeshSpecs(asset)
@@ -312,7 +312,7 @@ export function testParseGlbConvertsIndexedAttributes(): void {
   Assert.equal(spec.normals[0].z, -1.0)
 }
 
-export function testParseGlbWarningsStillAllowStaticConversion(): void {
+export function testParseGlbWarningsStillAllowStaticConversion(): none {
   bin := trianglePositionBin()
   json := "{" +
     "\"asset\":{\"version\":\"2.0\"}," +
@@ -365,7 +365,7 @@ export function testParseGlbWarningsStillAllowStaticConversion(): void {
   Assert.isTrue(asset.warnings.length >= 5, "expected unsupported features to be reported as warnings")
 }
 
-export function testLoadGlbReadsFile(): void {
+export function testLoadGlbReadsFile(): none {
   bin := trianglePositionBin()
   path := join([tempDirectory(), "doof-game-gltf-test.glb"])
   try! writeBlob(path, buildGlb(minimalTriangleJson(bin.length), bin))
@@ -377,7 +377,7 @@ export function testLoadGlbReadsFile(): void {
   Assert.equal(specs[0].spec.vertexCount(), 3)
 }
 
-export function testParseGltfWithSuppliedBinConvertsTriangle(): void {
+export function testParseGltfWithSuppliedBinConvertsTriangle(): none {
   bin := trianglePositionBin()
   asset := try! parseGltf(minimalTriangleJson(bin.length), "triangle.gltf", bin)
   specs := try! glbAssetToSimpleMeshSpecs(asset)
@@ -388,7 +388,7 @@ export function testParseGltfWithSuppliedBinConvertsTriangle(): void {
   Assert.equal(specs[0].spec.positions[1].x, 1.0)
 }
 
-export function testLoadGltfReadsAssociatedBinFile(): void {
+export function testLoadGltfReadsAssociatedBinFile(): none {
   bin := trianglePositionBin()
   root := tempDirectory()
   gltfPath := join([root, "doof-game-gltf-test.gltf"])
@@ -403,7 +403,7 @@ export function testLoadGltfReadsAssociatedBinFile(): void {
   Assert.equal(specs[0].spec.vertexCount(), 3)
 }
 
-export function testLoadGltfRejectsMissingBinFile(): void {
+export function testLoadGltfRejectsMissingBinFile(): none {
   bin := trianglePositionBin()
   path := join([tempDirectory(), "doof-game-gltf-missing-bin.gltf"])
   try! writeText(path, minimalTriangleGltfJson(bin.length, "missing.bin"))
@@ -411,7 +411,7 @@ export function testLoadGltfRejectsMissingBinFile(): void {
   Assert.isTrue(isFailure(loadGltf(path)), "expected missing .bin to fail")
 }
 
-export function testParseGltfRejectsUnsupportedBufferLayouts(): void {
+export function testParseGltfRejectsUnsupportedBufferLayouts(): none {
   bin := trianglePositionBin()
   multipleBuffersJson := "{" +
     "\"asset\":{\"version\":\"2.0\"}," +
@@ -434,7 +434,7 @@ export function testParseGltfRejectsUnsupportedBufferLayouts(): void {
   Assert.isTrue(isFailure(parseGltf(overrunJson, "overrun.gltf", bin)), "expected short bin to fail")
 }
 
-export function testLoadGltfRejectsUnsupportedBufferUri(): void {
+export function testLoadGltfRejectsUnsupportedBufferUri(): none {
   bin := trianglePositionBin()
   dataUriPath := join([tempDirectory(), "doof-game-gltf-data-uri.gltf"])
   try! writeText(dataUriPath, minimalTriangleGltfJson(bin.length, "data:application/octet-stream;base64,AAAA"))
@@ -445,7 +445,7 @@ export function testLoadGltfRejectsUnsupportedBufferUri(): void {
   Assert.isTrue(isFailure(loadGltf(remoteUriPath)), "expected remote URI buffer to fail")
 }
 
-export function testGltfPoseSamplesAnimationChannelsAndResolvesWorldTransforms(): void {
+export function testGltfPoseSamplesAnimationChannelsAndResolvesWorldTransforms(): none {
   bin := animationBin()
   asset := try! parseGlb(buildGlb(fullAnimationJson(bin.length), bin), "animated.glb")
   pose := asset.createPose()
@@ -483,7 +483,7 @@ export function testGltfPoseSamplesAnimationChannelsAndResolvesWorldTransforms()
   assertPoint3Approx(pose.local[1].position, Point3(7.5, 0.0, 0.0), "negative time should loop from the end")
 }
 
-export function testGltfAnimationSamplingFailsFastForUnsupportedData(): void {
+export function testGltfAnimationSamplingFailsFastForUnsupportedData(): none {
   bin := animationBin()
 
   cubic := try! parseGlb(buildGlb(animationJson(bin.length, "CUBICSPLINE"), bin), "cubic.glb")
@@ -502,7 +502,7 @@ export function testGltfAnimationSamplingFailsFastForUnsupportedData(): void {
   Assert.isTrue(isFailure(other.createPose().applyLooping((try! sparse.getAnimation()), 0.5)), "expected animation/pose asset mismatch to fail")
 }
 
-export function testParseGlbRejectsMalformedContainers(): void {
+export function testParseGlbRejectsMalformedContainers(): none {
   badMagicBuilder := BlobBuilder()
   badMagicBuilder.writeInt(0)
   badMagicBuilder.writeInt(2)
@@ -519,7 +519,7 @@ export function testParseGlbRejectsMalformedContainers(): void {
   Assert.isTrue(isFailure(parseGlb(invalidJson, "invalid-json.glb")), "expected invalid JSON to fail")
 }
 
-export function testGlbConversionRejectsInvalidAccessorsAndBufferOverruns(): void {
+export function testGlbConversionRejectsInvalidAccessorsAndBufferOverruns(): none {
   noSupported := try! parseGlb(buildGlb("{\"asset\":{\"version\":\"2.0\"},\"meshes\":[{\"primitives\":[{\"mode\":1}]}]}"))
   Assert.isTrue(isFailure(glbAssetToSimpleMeshSpecs(noSupported)), "expected no supported primitives to fail")
 

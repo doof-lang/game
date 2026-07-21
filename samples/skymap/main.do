@@ -79,7 +79,7 @@ function main(): int {
     app.stop()
   }
 
-  app.onEvent((event): void => {
+  app.onEvent((event): none => {
     if event.kind() == GameEventKind.CloseRequested {
       app.stop()
     }
@@ -89,7 +89,7 @@ function main(): int {
     }
   })
 
-  app.onRender((renderer): void => {
+  app.onRender((renderer): none => {
     now := Instant.now()
     elapsed := lastFrameAt.durationUntil(now)
     lastFrameAt = now
@@ -116,7 +116,7 @@ function main(): int {
         blend: Blend.opaque(),
         cull: .Back,
       },
-      (pass): void => {
+      (pass): none => {
         marker.rotateLocalY(1)
         planet.rotateLocalY(0.15)
         drawEquirectangularSkyMap(pass, skyMap, fovY, 1.0)
@@ -128,11 +128,11 @@ function main(): int {
     renderer.pass(
       RenderPassDescriptor {
         camera: sceneCamera,
-        clear: Clear.none(),
+        clear: Clear.disabled(),
         depth: Depth.readOnly(),
         blend: Blend.alpha(),
       },
-      (pass): void => {
+      (pass): none => {
         drawSpaceDust(pass, dust)
       },
     )

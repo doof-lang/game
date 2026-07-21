@@ -13,7 +13,7 @@ export function drawEquirectangularSkyMap(
   skyMap: SkyMap,
   fovYRadians: double = 1.0471975512,
   exposure: double = 1.0,
-): void {
+): none {
   cameraRotation := pass.camera().transform.rotation.toMat3()
   drawNativeEquirectangularSkyMap(
     skyMap.texture.metalTextureHandle(),

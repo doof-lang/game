@@ -90,27 +90,27 @@ import {
   controllerSlotFromCode,
 } from "../index"
 
-function assertApprox(actual: double, expected: double, message: string | null = null): void {
+function assertApprox(actual: double, expected: double, message: string | none = none): none {
   Assert.isTrue(approxEqual(actual, expected), message)
 }
 
-function assertVec3Approx(actual: Vec3, expected: Vec3, message: string | null = null): void {
+function assertVec3Approx(actual: Vec3, expected: Vec3, message: string | none = none): none {
   assertApprox(actual.x, expected.x, message)
   assertApprox(actual.y, expected.y, message)
   assertApprox(actual.z, expected.z, message)
 }
 
-function assertPoint3Approx(actual: Point3, expected: Point3): void {
+function assertPoint3Approx(actual: Point3, expected: Point3): none {
   assertApprox(actual.x, expected.x)
   assertApprox(actual.y, expected.y)
   assertApprox(actual.z, expected.z)
 }
 
-function assertReaderFloatApprox(reader: BlobReader, expected: double): void {
+function assertReaderFloatApprox(reader: BlobReader, expected: double): none {
   assertApprox(double(reader.readFloat()), expected)
 }
 
-export function testShaderBytesBuilderPacksGameTypes(): void {
+export function testShaderBytesBuilderPacksGameTypes(): none {
   bytes := ShaderBytesBuilder()
     .float2(1.0, 2.0)
     .point3(Point3(3.0, 4.0, 5.0))
@@ -138,7 +138,7 @@ export function testShaderBytesBuilderPacksGameTypes(): void {
   Assert.equal(reader.remaining(), 0L)
 }
 
-function verifyGameAppPanGestureApi(app: GameApp): void {
+function verifyGameAppPanGestureApi(app: GameApp): none {
   app.beginPanGesture(10.0, 20.0)
   app.updatePanGesture(12.0, 24.0)
   app.endPanGesture()
@@ -146,7 +146,7 @@ function verifyGameAppPanGestureApi(app: GameApp): void {
   app.cancelPanGesture()
 }
 
-function verifyGameAppControllerApi(app: GameApp): void {
+function verifyGameAppControllerApi(app: GameApp): none {
   connected := app.input.isControllerConnected(ControllerSlot.One)
   queryConnected := app.input.controllers().connected(ControllerSlot.One)
   name := app.input.controllers().name(ControllerSlot.One)
@@ -178,7 +178,7 @@ function dotPoint3(a: Point3, b: Point3): double {
   return a.x * b.x + a.y * b.y + a.z * b.z
 }
 
-function compileMeshSmoke(surface: GameSurface, pass: RenderPass): void {
+function compileMeshSmoke(surface: GameSurface, pass: RenderPass): none {
   builder := SimpleMeshBuilder()
   a := builder.vertex{
     position: Point3(-0.5, -0.5, 0.0),
@@ -223,7 +223,7 @@ function compileMeshSmoke(surface: GameSurface, pass: RenderPass): void {
   drawSimpleModel(pass, model, lighting)
 }
 
-function compileTexturedSimpleMeshSmoke(texture: Texture, surface: GameSurface, pass: RenderPass): void {
+function compileTexturedSimpleMeshSmoke(texture: Texture, surface: GameSurface, pass: RenderPass): none {
   builder := SimpleMeshBuilder()
   builder.quad{
     a: Point3(-0.5, -0.5, 0.0),
@@ -256,20 +256,20 @@ function compileTexturedSimpleMeshSmoke(texture: Texture, surface: GameSurface, 
   drawSimpleModel(pass, SimpleModel(mesh, texture).setMaterial(material), lighting)
 }
 
-function compileUiLayerSmoke(font: BitmapFont, texture: Texture, surface: GameSurface, pass: RenderPass): void {
+function compileUiLayerSmoke(font: BitmapFont, texture: Texture, surface: GameSurface, pass: RenderPass): none {
   ui := UiLayer(surface)
   ui.addPanel(Rect(16.0, 16.0, 240.0, 124.0), {})
   ui.addLabel("Score 1200", Rect(24.0, 24.0, 220.0, 40.0), {})
-  ui.addButton("Start", Rect(24.0, 76.0, 160.0, 44.0), { font }, (): void => {})
+  ui.addButton("Start", Rect(24.0, 76.0, 160.0, 44.0), { font }, (): none => {})
   ui.draw(pass)
 }
 
-function compileSkyMapSmoke(texture: Texture, pass: RenderPass): void {
+function compileSkyMapSmoke(texture: Texture, pass: RenderPass): none {
   skyMap := SkyMap { texture: texture }
   drawEquirectangularSkyMap(pass, skyMap, 1.0471975512, 1.0)
 }
 
-function compileSimpleModelBatchSmoke(texture: Texture, surface: GameSurface, pass: RenderPass): void {
+function compileSimpleModelBatchSmoke(texture: Texture, surface: GameSurface, pass: RenderPass): none {
   builder := SimpleMeshBuilder()
   builder.quad{
     a: Point3(0.0, 0.0, 0.0),
@@ -332,7 +332,7 @@ function compileSimpleModelBatchSmoke(texture: Texture, surface: GameSurface, pa
   scene.draw(pass)
 }
 
-function compileParticleLayerSmoke(surface: GameSurface, pass: RenderPass): void {
+function compileParticleLayerSmoke(surface: GameSurface, pass: RenderPass): none {
   particles := ParticleLayer(surface, ParticleLayerConfig { capacity: 8 })
   particles.emit(
     ParticleConfig {
@@ -366,7 +366,7 @@ function customShaderSource(): string {
     "}\n"
 }
 
-function writeShaderVertex(builder: BlobBuilder, x: float, y: float, r: float, g: float, b: float, a: float): void {
+function writeShaderVertex(builder: BlobBuilder, x: float, y: float, r: float, g: float, b: float, a: float): none {
   builder.writeFloat(x)
   builder.writeFloat(y)
   builder.writeFloat(r)
@@ -504,21 +504,21 @@ function createInstancedShaderPipeline(surface: GameSurface): ShaderPipeline {
   )
 }
 
-function assertShaderDrawFailure(result: Result<void, string>): void {
+function assertShaderDrawFailure(result: Result<none, string>): none {
   case result {
     s: Success -> Assert.isTrue(false, "expected shader draw to fail")
     f: Failure -> Assert.isTrue(f.error.length > 0)
   }
 }
 
-function assertShaderPipelineFailure(result: Result<ShaderPipeline, string>): void {
+function assertShaderPipelineFailure(result: Result<ShaderPipeline, string>): none {
   case result {
     s: Success -> Assert.isTrue(false, "expected shader pipeline creation to fail")
     f: Failure -> Assert.isTrue(f.error.length > 0)
   }
 }
 
-function compileShaderSmoke(texture: Texture, surface: GameSurface, pass: RenderPass): void {
+function compileShaderSmoke(texture: Texture, surface: GameSurface, pass: RenderPass): none {
   pipeline := createShaderPipeline(surface)
   vertexBuffer := try! ShaderBuffer.create(surface, shaderVertexBytes())
   instanceBuffer := try! ShaderBuffer.create(surface, shaderInstanceBytes())
@@ -670,7 +670,7 @@ function compileShaderSmoke(texture: Texture, surface: GameSurface, pass: Render
   assertShaderDrawFailure(badInstanceDraw)
 }
 
-function compileGameAppSmoke(): Result<void, string> {
+function compileGameAppSmoke(): Result<none, string> {
   app := initGameApp{ title: "Doof Game Smoke" }
   Assert.equal(app.renderMode, GameRenderMode.Continuous)
   requestedApp := initGameApp{ title: "Doof Game Requested Smoke", renderMode: GameRenderMode.Requested }
@@ -700,7 +700,7 @@ function compileGameAppSmoke(): Result<void, string> {
 
   simulationTimer := setInterval{
     interval: Duration.ofMillis(16L),
-    handler: (): void => {
+    handler: (): none => {
       held = app.input.isKeyDown(Key.Space)
       app.requestRender()
     },
@@ -708,18 +708,18 @@ function compileGameAppSmoke(): Result<void, string> {
 
   heartbeatTimer := setInterval{
     interval: Duration.ofMillis(250L),
-    handler: (): void => {},
+    handler: (): none => {},
   }
 
-  app.key(Key.Escape).onPressed((): void => app.stop())
+  app.key(Key.Escape).onPressed((): none => app.stop())
 
-  app.onEvent((event): void => {
+  app.onEvent((event): none => {
     if event.kind() == GameEventKind.CloseRequested {
       app.stop()
     }
   })
 
-  app.onRender((renderer): void => {
+  app.onRender((renderer): none => {
     rendererTexture := try! renderer.createTexture(inMemoryImage)
     rendererPixelTexture := try! renderer.createTextureFromPixels(inMemoryPixels)
     depthTexture := try! renderer.createDepthTexture(64, 64)
@@ -737,7 +737,7 @@ function compileGameAppSmoke(): Result<void, string> {
         blend: Blend.opaque(),
         cull: CullMode.Back,
       },
-      (pass): void => {
+      (pass): none => {
         Assert.isFalse(pass.hasColorAttachment())
         Assert.isTrue(pass.hasDepthAttachment())
         compileMeshSmoke(surface, pass)
@@ -749,7 +749,7 @@ function compileGameAppSmoke(): Result<void, string> {
         depth: Depth.readWrite(),
         blend: Blend.opaque(),
       },
-      (pass): void => {
+      (pass): none => {
         passSurface := pass.surface()
         surfaceWidth := passSurface.width()
         surfaceHeight := passSurface.height()
@@ -789,11 +789,11 @@ function compileGameAppSmoke(): Result<void, string> {
     )
     renderer.pass(
       RenderPassDescriptor {
-        clear: Clear.none(),
+        clear: Clear.disabled(),
         depth: Depth.readOnly(),
         blend: Blend.alpha(),
       },
-      (pass): void => {
+      (pass): none => {
         passCamera := pass.camera()
         commandBufferHandle := pass.metalCommandBufferHandle()
       },
@@ -803,7 +803,7 @@ function compileGameAppSmoke(): Result<void, string> {
   return app.run()
 }
 
-export function testKeyCodeRoundTripsCommonKeys(): void {
+export function testKeyCodeRoundTripsCommonKeys(): none {
   Assert.equal(keyFromCode(keyCode(Key.A)), Key.A)
   Assert.equal(keyFromCode(keyCode(Key.Z)), Key.Z)
   Assert.equal(keyFromCode(keyCode(Key.Digit0)), Key.Digit0)
@@ -825,13 +825,13 @@ export function testKeyCodeRoundTripsCommonKeys(): void {
   Assert.equal(keyFromCode(keyCode(Key.F12)), Key.F12)
 }
 
-export function testUnknownKeyCodeMapsToUnknown(): void {
+export function testUnknownKeyCodeMapsToUnknown(): none {
   Assert.equal(keyCode(Key.Unknown), 0)
   Assert.equal(keyFromCode(-1), Key.Unknown)
   Assert.equal(keyFromCode(999), Key.Unknown)
 }
 
-export function testMouseButtonCodeRoundTrips(): void {
+export function testMouseButtonCodeRoundTrips(): none {
   Assert.equal(mouseButtonFromCode(mouseButtonCode(MouseButton.Left)), MouseButton.Left)
   Assert.equal(mouseButtonFromCode(mouseButtonCode(MouseButton.Right)), MouseButton.Right)
   Assert.equal(mouseButtonFromCode(mouseButtonCode(MouseButton.Middle)), MouseButton.Middle)
@@ -839,7 +839,7 @@ export function testMouseButtonCodeRoundTrips(): void {
   Assert.equal(mouseButtonFromCode(999), MouseButton.Other)
 }
 
-export function testControllerCodeRoundTrips(): void {
+export function testControllerCodeRoundTrips(): none {
   Assert.equal(controllerSlotFromCode(controllerSlotCode(ControllerSlot.One)), ControllerSlot.One)
   Assert.equal(controllerSlotFromCode(controllerSlotCode(ControllerSlot.Four)), ControllerSlot.Four)
   Assert.equal(controllerButtonFromCode(controllerButtonCode(ControllerButton.South)), ControllerButton.South)
@@ -849,13 +849,13 @@ export function testControllerCodeRoundTrips(): void {
   Assert.equal(controllerAxisFromCode(controllerAxisCode(ControllerAxis.RightTrigger)), ControllerAxis.RightTrigger)
 }
 
-export function testUnknownControllerCodesMapToSafeDefaults(): void {
+export function testUnknownControllerCodesMapToSafeDefaults(): none {
   Assert.equal(controllerSlotFromCode(999), ControllerSlot.One)
   Assert.equal(controllerButtonFromCode(999), ControllerButton.South)
   Assert.equal(controllerAxisFromCode(999), ControllerAxis.LeftX)
 }
 
-export function testGameEventKindMapping(): void {
+export function testGameEventKindMapping(): none {
   Assert.equal(gameEventKindFromCode(0), GameEventKind.CloseRequested)
   Assert.equal(gameEventKindFromCode(1), GameEventKind.Resized)
   Assert.equal(gameEventKindFromCode(2), GameEventKind.KeyDown)
@@ -871,7 +871,7 @@ export function testGameEventKindMapping(): void {
   Assert.equal(gameEventKindFromCode(12), GameEventKind.ControllerDisconnected)
 }
 
-export function testRenderPassDescriptorDefaults(): void {
+export function testRenderPassDescriptorDefaults(): none {
   desc := RenderPassDescriptor {}
 
   Assert.equal(desc.camera.kind, CameraKind.Screen)
@@ -883,14 +883,14 @@ export function testRenderPassDescriptorDefaults(): void {
   Assert.equal(desc.cull, CullMode.None)
 }
 
-export function testCameraHelpersBuildExpectedKinds(): void {
+export function testCameraHelpersBuildExpectedKinds(): none {
   Assert.equal(Camera.screen().kind, CameraKind.Screen)
   Assert.equal(Camera.identity().kind, CameraKind.Identity)
   Assert.equal(Camera.orthographic(-1.0, 1.0, -1.0, 1.0).kind, CameraKind.Orthographic)
   Assert.equal(Camera.perspective(1.0, 0.1, 100.0).kind, CameraKind.Perspective)
 }
 
-export function testCameraLookAtPointsForwardAtTarget(): void {
+export function testCameraLookAtPointsForwardAtTarget(): none {
   camera := Camera
     .perspective(1.0, 0.1, 100.0)
     .withPosition(Point3(2.0, 3.0, 4.0))
@@ -908,7 +908,7 @@ export function testCameraLookAtPointsForwardAtTarget(): void {
   assertVec3Approx(angled.transform.rotation.apply(Vec3.forward), expected)
 }
 
-export function testMat4IdentityTranslationAndScale(): void {
+export function testMat4IdentityTranslationAndScale(): none {
   point := Point3(1.0, 2.0, 3.0)
   moved := Mat4.translation(4.0, 5.0, 6.0).transformPoint(point)
   scaled := Mat4.scale(2.0, 3.0, 4.0).transformPoint(point)
@@ -927,7 +927,7 @@ export function testMat4IdentityTranslationAndScale(): void {
   Assert.equal(combined.w, 1.0)
 }
 
-export function testMat4Rotations(): void {
+export function testMat4Rotations(): none {
   quarterTurn := 1.5707963267948966
 
   rotatedX := Mat4.rotationX(quarterTurn).transformPoint(Point3(0.0, 1.0, 0.0))
@@ -942,7 +942,7 @@ export function testMat4Rotations(): void {
   Assert.isTrue(approxEqual(rotatedZ.y, 1.0))
 }
 
-export function testMat4OrthographicMapsBoundsToClipSpace(): void {
+export function testMat4OrthographicMapsBoundsToClipSpace(): none {
   matrix := Mat4.orthographic(10.0, 30.0, 20.0, 60.0, -1.0, 1.0)
   bottomLeft := matrix.transformPoint(Point3(10.0, 20.0, 0.0))
   topRight := matrix.transformPoint(Point3(30.0, 60.0, 0.0))
@@ -954,7 +954,7 @@ export function testMat4OrthographicMapsBoundsToClipSpace(): void {
   Assert.equal(bottomLeft.w, 1.0)
 }
 
-export function testMat4PerspectiveProducesPerspectiveDivideW(): void {
+export function testMat4PerspectiveProducesPerspectiveDivideW(): none {
   matrix := Mat4.perspective(1.5707963267948966, 1.0, 1.0, 10.0)
   projected := matrix.transformPoint(Point3(0.0, 0.0, -5.0))
 
@@ -963,7 +963,7 @@ export function testMat4PerspectiveProducesPerspectiveDivideW(): void {
   Assert.equal(projected.w, 5.0)
 }
 
-export function testMat4InverseRestoresTransformedPoint(): void {
+export function testMat4InverseRestoresTransformedPoint(): none {
   matrix := Mat4
     .translation(3.0, -2.0, 5.0)
     .multiply(Mat4.rotationY(0.35))
@@ -978,7 +978,7 @@ export function testMat4InverseRestoresTransformedPoint(): void {
   assertPoint3Approx(identityPoint, point)
 }
 
-export function testMat4NormalMatrixUsesInverseTranspose(): void {
+export function testMat4NormalMatrixUsesInverseTranspose(): none {
   matrix := Mat4
     .rotationY(0.35)
     .multiply(Mat4.scale(2.0, 3.0, 4.0))
@@ -1001,7 +1001,7 @@ export function testMat4NormalMatrixUsesInverseTranspose(): void {
   assertVec3Approx(normalMatrix.transformVector(Vec3.zAxis).normalized(), expected.transformVector(Vec3.zAxis).normalized())
 }
 
-export function testMat4ProjectPointDividesByClipW(): void {
+export function testMat4ProjectPointDividesByClipW(): none {
   matrix := Mat4.perspective(1.5707963267948966, 1.0, 1.0, 10.0)
   projected := matrix.projectPoint(Point3(2.0, 4.0, -5.0))
 
@@ -1009,7 +1009,7 @@ export function testMat4ProjectPointDividesByClipW(): void {
   Assert.isTrue(approxEqual(projected.y, 0.8))
 }
 
-export function testVec3Helpers(): void {
+export function testVec3Helpers(): none {
   value := Vec3.xyz(3.0, 4.0, 0.0)
   unit := value.normalized()
   cross := Vec3.right.cross(Vec3.up)
@@ -1020,7 +1020,7 @@ export function testVec3Helpers(): void {
   Assert.equal(Vec3.fromPoint(Point3(1.0, 2.0, 3.0)).z, 3.0)
 }
 
-export function testRotationCompositionInverseAndSlerp(): void {
+export function testRotationCompositionInverseAndSlerp(): none {
   yaw := Rotation.y(90.0)
   pitch := Rotation.x(90.0)
   yawThenPitch := yaw.andThen(pitch)
@@ -1040,7 +1040,7 @@ export function testRotationCompositionInverseAndSlerp(): void {
   assertApprox(halfway.z, -0.7071067811865476)
 }
 
-export function testRotationLookAtAndEuler(): void {
+export function testRotationLookAtAndEuler(): none {
   aim := Rotation.lookAt{ direction: Vec3.forward, up: Vec3.up }
   euler := Rotation.euler{
     yaw: 90.0,
@@ -1054,7 +1054,7 @@ export function testRotationLookAtAndEuler(): void {
   Assert.isTrue(approxEqual(free.apply(Vec3.forward).length(), 1.0))
 }
 
-export function testTransformReplacementRelativeMotionAndMatrices(): void {
+export function testTransformReplacementRelativeMotionAndMatrices(): none {
   t1 := Transform {
     position: Point3(0.0, 0.0, -4.0),
     rotation: Rotation.y(90.0),
@@ -1097,7 +1097,7 @@ export function testTransformReplacementRelativeMotionAndMatrices(): void {
   assertApprox(normalMatrix.m00, 0.5)
 }
 
-export function testClearHelpers(): void {
+export function testClearHelpers(): none {
   color := Color(0.1, 0.2, 0.3, 0.4)
   clearColor := Clear.color(color)
   clearDepth := Clear.depth(0.5)
@@ -1114,7 +1114,7 @@ export function testClearHelpers(): void {
   Assert.equal(clearColorDepth.depthValue, 0.25)
 }
 
-export function testDepthAndBlendHelpers(): void {
+export function testDepthAndBlendHelpers(): none {
   Assert.equal(Depth.disabled().mode, DepthMode.Disabled)
   Assert.equal(Depth.readOnly().mode, DepthMode.ReadOnly)
   Assert.equal(Depth.readWrite().mode, DepthMode.ReadWrite)
@@ -1122,7 +1122,7 @@ export function testDepthAndBlendHelpers(): void {
   Assert.equal(Blend.alpha().mode, BlendMode.Alpha)
 }
 
-export function testPointRectAndColorHelpers(): void {
+export function testPointRectAndColorHelpers(): none {
   point := Point(3.0, 4.0)
   rect := Rect(10.0, 20.0, 30.0, 40.0)
   white := Color.white
@@ -1144,7 +1144,7 @@ export function testPointRectAndColorHelpers(): void {
   Assert.equal(red.a, 1.0)
 }
 
-export function testSimpleMeshBuilderVertexDefaults(): void {
+export function testSimpleMeshBuilderVertexDefaults(): none {
   builder := SimpleMeshBuilder()
   index := builder.vertex{ position: Point3(1.0, 2.0, 3.0) }
   spec := builder.buildSpec()
@@ -1166,7 +1166,7 @@ export function testSimpleMeshBuilderVertexDefaults(): void {
   Assert.equal(spec.normals[0].z, 1.0)
 }
 
-export function testSimpleMeshBuilderTriangleAndQuadSpec(): void {
+export function testSimpleMeshBuilderTriangleAndQuadSpec(): none {
   builder := SimpleMeshBuilder()
   i0 := builder.vertex{
     position: Point3(0.0, 0.0, 0.0),
@@ -1213,7 +1213,7 @@ export function testSimpleMeshBuilderTriangleAndQuadSpec(): void {
   Assert.equal(spec.uvs[5].y, 0.0)
 }
 
-function assertTriangleFaces(spec: SimpleMeshSpec, triangleOffset: int, expected: Point3): void {
+function assertTriangleFaces(spec: SimpleMeshSpec, triangleOffset: int, expected: Point3): none {
   first := spec.positions[spec.indices[triangleOffset]]
   second := spec.positions[spec.indices[triangleOffset + 1]]
   third := spec.positions[spec.indices[triangleOffset + 2]]
@@ -1221,7 +1221,7 @@ function assertTriangleFaces(spec: SimpleMeshSpec, triangleOffset: int, expected
   Assert.isTrue(dotPoint3(actual, expected) > 0.0)
 }
 
-export function testSimpleMeshBuilderBoxBuildsUvMappedFaces(): void {
+export function testSimpleMeshBuilderBoxBuildsUvMappedFaces(): none {
   spec := SimpleMeshBuilder()
     .box{
       center: Point3(1.0, 2.0, 3.0),
@@ -1262,7 +1262,7 @@ export function testSimpleMeshBuilderBoxBuildsUvMappedFaces(): void {
   Assert.equal(spec.uvs[3].y, 1.0)
 }
 
-export function testSimpleMeshBuilderBoxSupportsUvRects(): void {
+export function testSimpleMeshBuilderBoxSupportsUvRects(): none {
   spec := SimpleMeshBuilder()
     .boxFromBounds{
       min: Point3(-1.0, -1.0, -1.0),
@@ -1279,7 +1279,7 @@ export function testSimpleMeshBuilderBoxSupportsUvRects(): void {
   Assert.equal(spec.uvs[22].x, 0.75)
 }
 
-export function testSimpleMeshBuilderAppendCopiesAndOffsetsSpecs(): void {
+export function testSimpleMeshBuilderAppendCopiesAndOffsetsSpecs(): none {
   source := SimpleMeshBuilder()
   source.vertex{
     position: Point3(0.0, 0.0, 0.0),
@@ -1315,7 +1315,7 @@ export function testSimpleMeshBuilderAppendCopiesAndOffsetsSpecs(): void {
   Assert.equal(combined.normals[3].y, 1.0)
 }
 
-export function testCreateSphereMeshSpecBuildsEquirectangularSphere(): void {
+export function testCreateSphereMeshSpecBuildsEquirectangularSphere(): none {
   spec := createSphereMeshSpec{
     radius: 2.0,
     tessellation: 4,
@@ -1354,7 +1354,7 @@ export function testCreateSphereMeshSpecBuildsEquirectangularSphere(): void {
   Assert.isTrue(normal.x * outward.x + normal.y * outward.y + normal.z * outward.z > 0.0)
 }
 
-export function testCreateIcosphereMeshSpecBuildsSubdividedIcosahedron(): void {
+export function testCreateIcosphereMeshSpecBuildsSubdividedIcosahedron(): none {
   spec := createIcosphereMeshSpec{
     radius: 2.0,
     subdivisions: 1,

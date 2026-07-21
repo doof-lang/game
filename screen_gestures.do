@@ -38,7 +38,7 @@ export class ScreenGesture {
   }
 }
 
-type ScreenGestureHandler = (gesture: ScreenGesture): void
+type ScreenGestureHandler = (gesture: ScreenGesture): none
 
 export class ScreenGestures {
   private panHandlers: ScreenGestureHandler[] = []
@@ -66,24 +66,24 @@ export class ScreenGestures {
     return this
   }
 
-  emitPan(gesture: ScreenGesture): void {
+  emitPan(gesture: ScreenGesture): none {
     emit(panHandlers, gesture)
   }
 
-  emitScroll(gesture: ScreenGesture): void {
+  emitScroll(gesture: ScreenGesture): none {
     emit(scrollHandlers, gesture)
   }
 
-  emitMagnify(gesture: ScreenGesture): void {
+  emitMagnify(gesture: ScreenGesture): none {
     emit(magnifyHandlers, gesture)
   }
 
-  emitDoubleTap(gesture: ScreenGesture): void {
+  emitDoubleTap(gesture: ScreenGesture): none {
     emit(doubleTapHandlers, gesture)
   }
 }
 
-function emit(handlers: ScreenGestureHandler[], gesture: ScreenGesture): void {
+function emit(handlers: ScreenGestureHandler[], gesture: ScreenGesture): none {
   for handler of handlers {
     handler.call(gesture)
   }

@@ -165,7 +165,7 @@ export function createPuzzleState(pieces: Piece[], drawOrder: int[], camera: Puz
   }
 }
 
-export function validatePuzzleState(state: PuzzleState): Result<void, string> {
+export function validatePuzzleState(state: PuzzleState): Result<none, string> {
   pieceCount := COLUMNS * ROWS
   if state.version != PUZZLE_STATE_VERSION {
     return Failure("Unsupported puzzle state version ${state.version}")
@@ -257,7 +257,7 @@ export function bringGroupToFront(pieces: Piece[], drawOrder: int[], group: int)
   return next
 }
 
-export function moveGroup(pieces: Piece[], group: int, dx: double, dy: double): void {
+export function moveGroup(pieces: Piece[], group: int, dx: double, dy: double): none {
   for id of 0..<COLUMNS * ROWS {
     if pieces[id].group == group {
       pieces[id].x = pieces[id].x + dx
@@ -284,14 +284,14 @@ export function groupPosition(pieces: Piece[], group: int): GroupPosition {
   return GroupPosition { groupId: group, x: piece.x, y: piece.y }
 }
 
-export function setGroupPosition(pieces: Piece[], group: int, x: double, y: double): void {
+export function setGroupPosition(pieces: Piece[], group: int, x: double, y: double): none {
   pieceId := firstPieceInGroup(pieces, group)
   if pieceId >= 0 {
     setGroupPositionFromPiece(pieces, group, pieceId, x, y)
   }
 }
 
-export function setGroupCanonicalPosition(pieces: Piece[], group: int, x: double, y: double): void {
+export function setGroupCanonicalPosition(pieces: Piece[], group: int, x: double, y: double): none {
   anchorPieceId := firstPieceInGroup(pieces, group)
   if anchorPieceId < 0 {
     return
@@ -307,13 +307,13 @@ export function setGroupCanonicalPosition(pieces: Piece[], group: int, x: double
   }
 }
 
-export function setGroupPositionFromPiece(pieces: Piece[], group: int, pieceId: int, x: double, y: double): void {
+export function setGroupPositionFromPiece(pieces: Piece[], group: int, pieceId: int, x: double, y: double): none {
   dx := x - pieces[pieceId].x
   dy := y - pieces[pieceId].y
   moveGroup(pieces, group, dx, dy)
 }
 
-export function mergeGroups(pieces: Piece[], fromGroup: int, intoGroup: int): void {
+export function mergeGroups(pieces: Piece[], fromGroup: int, intoGroup: int): none {
   for id of 0..<COLUMNS * ROWS {
     if pieces[id].group == fromGroup {
       pieces[id].group = intoGroup
@@ -331,7 +331,7 @@ export function groupPieceIds(pieces: Piece[], group: int): int[] {
   return ids
 }
 
-function snapMatchIfClose(piece: Piece, neighbor: Piece, layout: PuzzleLayout, dx: double, dy: double): SnapMatch | null {
+function snapMatchIfClose(piece: Piece, neighbor: Piece, layout: PuzzleLayout, dx: double, dy: double): SnapMatch | none {
   threshold := layout.step * 0.32
   if abs(dx) <= threshold && abs(dy) <= threshold {
     return SnapMatch {
@@ -340,10 +340,10 @@ function snapMatchIfClose(piece: Piece, neighbor: Piece, layout: PuzzleLayout, d
       dy: dy,
     }
   }
-  return null
+  return none
 }
 
-export function findSnapMatch(pieces: Piece[], layout: PuzzleLayout, group: int): SnapMatch | null {
+export function findSnapMatch(pieces: Piece[], layout: PuzzleLayout, group: int): SnapMatch | none {
   for id of 0..<COLUMNS * ROWS {
     piece := pieces[id]
     if piece.group == group {
@@ -351,7 +351,7 @@ export function findSnapMatch(pieces: Piece[], layout: PuzzleLayout, group: int)
         neighbor := pieces[piece.id + 1]
         if neighbor.group != group {
           match := snapMatchIfClose(piece, neighbor, layout, neighbor.x - layout.step - piece.x, neighbor.y - piece.y)
-          if match != null {
+          if match != none {
             return match
           }
         }
@@ -361,7 +361,7 @@ export function findSnapMatch(pieces: Piece[], layout: PuzzleLayout, group: int)
         neighbor := pieces[piece.id - 1]
         if neighbor.group != group {
           match := snapMatchIfClose(piece, neighbor, layout, neighbor.x + layout.step - piece.x, neighbor.y - piece.y)
-          if match != null {
+          if match != none {
             return match
           }
         }
@@ -371,7 +371,7 @@ export function findSnapMatch(pieces: Piece[], layout: PuzzleLayout, group: int)
         neighbor := pieces[piece.id + COLUMNS]
         if neighbor.group != group {
           match := snapMatchIfClose(piece, neighbor, layout, neighbor.x - piece.x, neighbor.y - layout.step - piece.y)
-          if match != null {
+          if match != none {
             return match
           }
         }
@@ -381,14 +381,14 @@ export function findSnapMatch(pieces: Piece[], layout: PuzzleLayout, group: int)
         neighbor := pieces[piece.id - COLUMNS]
         if neighbor.group != group {
           match := snapMatchIfClose(piece, neighbor, layout, neighbor.x - piece.x, neighbor.y + layout.step - piece.y)
-          if match != null {
+          if match != none {
             return match
           }
         }
       }
     }
   }
-  return null
+  return none
 }
 
 export function joinNearbyPieces(pieces: Piece[], layout: PuzzleLayout, group: int): int[] {
@@ -396,7 +396,7 @@ export function joinNearbyPieces(pieces: Piece[], layout: PuzzleLayout, group: i
   let searching = true
   while searching {
     match := findSnapMatch(pieces, layout, group)
-    if match != null {
+    if match != none {
       if !joinedGroups.contains(match!.targetGroup) {
         joinedGroups.push(match!.targetGroup)
       }

@@ -44,9 +44,9 @@ import { BitmapFont, loadBitmapFontForSurface } from "./text"
 import { ControllerAxis, ControllerButton, ControllerSlot, ControllerStick, GameEventKind, GameRenderMode, Key, MouseButton } from "./types"
 import { resourcePath } from "std/path"
 
-function defaultGameEventHandler(event: GameEvent): void {}
+function defaultGameEventHandler(event: GameEvent): none {}
 
-function defaultGameRenderHandler(renderer: Renderer): void {}
+function defaultGameRenderHandler(renderer: Renderer): none {}
 
 export class GameApp {
   readonly title: string
@@ -58,8 +58,8 @@ export class GameApp {
   private inputButtons: InputButton[] = []
   private screenGestures: ScreenGestures[] = []
   private screenPointers: ScreenPointer[] = []
-  private onEventHandler: (event: GameEvent): void
-  private onRenderHandler: (renderer: Renderer): void
+  private onEventHandler: (event: GameEvent): none
+  private onRenderHandler: (renderer: Renderer): none
 
   static constructor(
     title: string,
@@ -82,12 +82,12 @@ export class GameApp {
     }
   }
 
-  onEvent(handler: (event: GameEvent): void): GameApp {
+  onEvent(handler: (event: GameEvent): none): GameApp {
     this.onEventHandler = handler
     return this
   }
 
-  onRender(handler: (renderer: Renderer): void): GameApp {
+  onRender(handler: (renderer: Renderer): none): GameApp {
     this.onRenderHandler = handler
     return this
   }
@@ -133,7 +133,7 @@ export class GameApp {
     return screenGesture
   }
 
-  requestRender(): void {
+  requestRender(): none {
     requestGameAppRender()
   }
 
@@ -179,36 +179,36 @@ export class GameApp {
     return loadSoundResourceFile(path)
   }
 
-  stop(): void {
+  stop(): none {
     requestGameAppStop()
   }
 
-  beginPanGesture(x: double, y: double): void {
+  beginPanGesture(x: double, y: double): none {
     beginGameAppPanGesture(x, y)
   }
 
-  updatePanGesture(x: double, y: double): void {
+  updatePanGesture(x: double, y: double): none {
     updateGameAppPanGesture(x, y)
   }
 
-  endPanGesture(): void {
+  endPanGesture(): none {
     endGameAppPanGesture()
   }
 
-  cancelPanGesture(): void {
+  cancelPanGesture(): none {
     cancelGameAppPanGesture()
   }
 
-  cancelPanInertia(): void {
+  cancelPanInertia(): none {
     cancelGameAppPanInertia()
   }
 
-  run(): Result<void, string> {
-    setMainEventWakeHandler((): void => requestGameAppWake())
+  run(): Result<none, string> {
+    setMainEventWakeHandler((): none => requestGameAppWake())
 
     result := native.run(
       this.renderMode == GameRenderMode.Continuous,
-      (event: NativeGameEvent, input: NativeInputState): void => {
+      (event: NativeGameEvent, input: NativeInputState): none => {
         this.input = InputState(input)
         gameEvent := GameEvent(event)
         updateInputButtons()
@@ -218,7 +218,7 @@ export class GameApp {
           this.onEventHandler(gameEvent)
         }
       },
-      (surface: NativeGameSurface, input: NativeInputState): void => {
+      (surface: NativeGameSurface, input: NativeInputState): none => {
         this.input = InputState(input)
         gameSurface := GameSurface(surface)
         this.surface = gameSurface
@@ -233,13 +233,13 @@ export class GameApp {
     return result
   }
 
-  private updateInputButtons(): void {
+  private updateInputButtons(): none {
     for button of inputButtons {
       button.update()
     }
   }
 
-  private updateScreenPointers(event: GameEvent): void {
+  private updateScreenPointers(event: GameEvent): none {
     kind := event.kind()
     if kind != GameEventKind.MouseDown && kind != GameEventKind.MouseUp && kind != GameEventKind.MouseMove {
       return
@@ -257,7 +257,7 @@ export class GameApp {
     }
   }
 
-  private updateScreenGestures(event: GameEvent): void {
+  private updateScreenGestures(event: GameEvent): none {
     kind := event.kind()
     if kind != GameEventKind.Pan
       && kind != GameEventKind.Scroll

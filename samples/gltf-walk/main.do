@@ -82,7 +82,7 @@ function drawAnimatedPart(
   poseWorld: Mat4[],
   sceneTransform: Transform,
   lighting: SimpleMeshLighting,
-): void {
+): none {
   let model = sceneTransform.toMat4()
   if part.nodeIndex >= 0 && part.nodeIndex < poseWorld.length {
     model = model.multiply(poseWorld[part.nodeIndex])
@@ -97,7 +97,7 @@ function main(): int {
     app.stop()
   }
 
-  app.onEvent((event): void => {
+  app.onEvent((event): none => {
     if event.kind() == GameEventKind.CloseRequested {
       app.stop()
     }
@@ -147,7 +147,7 @@ function main(): int {
     direction: Point3(-0.35, 0.72, 0.45),
   }
 
-  app.onRender((renderer): void => {
+  app.onRender((renderer): none => {
     now := Instant.now()
     elapsed := lastFrameAt.durationUntil(now)
     lastFrameAt = now
@@ -177,7 +177,7 @@ function main(): int {
       .withPosition(Point3(-1.15, 0.0, trackOffset))
       .withScale(Vec3.xyz(0.72, 0.72, 0.72))
 
-    renderer.pass(renderPassDescriptor, (pass): void => {
+    renderer.pass(renderPassDescriptor, (pass): none => {
       drawSimpleMesh(pass, ground, Mat4.identity, SimpleMaterial {}, lighting)
       for part of parts {
         drawAnimatedPart(pass, part, texture, pose.world, sceneTransform, lighting)

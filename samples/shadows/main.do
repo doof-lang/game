@@ -185,7 +185,7 @@ function drawShadowedScene(
   viewProjection: Mat4,
   lightViewProjection: Mat4,
   lightDirection: Vec3,
-): void {
+): none {
   uniforms := try! ShaderBytesBinding.create(pass.surface(), 1, sceneUniformBytes(viewProjection, lightViewProjection, lightDirection))
   fragmentUniforms := try! ShaderBytesBinding.create(pass.surface(), 0, sceneUniformBytes(viewProjection, lightViewProjection, lightDirection))
   try! drawShader(
@@ -205,14 +205,14 @@ function drawShadowedScene(
 function main(): int {
   app := initGameApp{ title: "Doof Game Shadow Maps" }
   start := Instant.now()
-  let resources: ShadowResources | null = null
+  let resources: ShadowResources | none = none
 
   app.key(.Escape).onPressed() {
     app.stop()
   }
 
-  app.onRender((renderer): void => {
-    if resources == null {
+  app.onRender((renderer): none => {
+    if resources == none {
       resources = createShadowResources(renderer)
     }
     surface := renderer.surface()
@@ -242,7 +242,7 @@ function main(): int {
         blend: Blend.opaque(),
         cull: .None,
       },
-      (pass): void => {
+      (pass): none => {
         drawSimpleMesh(pass, resources!.depthMesh)
       },
     )
@@ -255,7 +255,7 @@ function main(): int {
         blend: Blend.opaque(),
         cull: .Back,
       },
-      (pass): void => {
+      (pass): none => {
         drawShadowedScene(
           pass,
           resources!,

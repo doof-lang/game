@@ -214,7 +214,7 @@ applies blending through render pipeline state, so actual mesh/sprite helpers
 will use it when they create pipelines.
 
 `RenderPassDescriptor` defaults to the current window surface,
-`Camera.screen()`, `Clear.none`, `Depth.disabled()`, `Blend.opaque()`,
+`Camera.screen()`, `Clear.disabled()`, `Depth.disabled()`, `Blend.opaque()`,
 `WindingMode.CounterClockwise`, and `CullMode.None`. Built-in 3D mesh generators use
 counter-clockwise front faces. Offscreen render targets are reserved for a later
 version.

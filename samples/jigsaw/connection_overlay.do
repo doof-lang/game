@@ -23,7 +23,7 @@ export class JigsawConnectionOverlay {
   ui: UiLayer
   statusLabel: UiLabel
 
-  configure(surface: GameSurface): void {
+  configure(surface: GameSurface): none {
     x := (surface.width() - OVERLAY_WIDTH) * 0.5
     y := (surface.height() - OVERLAY_HEIGHT) * 0.5
     this.ui.setTransform(
@@ -34,7 +34,7 @@ export class JigsawConnectionOverlay {
     )
   }
 
-  update(runtime: JigsawRuntime): void {
+  update(runtime: JigsawRuntime): none {
     if runtime.state == ServerConnectionState.Connecting {
       address := runtime.serverAddress else {
         this.statusLabel.setText("Connecting to jigsaw server...")
@@ -52,7 +52,7 @@ export class JigsawConnectionOverlay {
     }
   }
 
-  draw(pass: RenderPass): void {
+  draw(pass: RenderPass): none {
     this.ui.draw(pass)
   }
 }

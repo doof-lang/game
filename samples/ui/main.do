@@ -43,7 +43,7 @@ function positionSampleUi(
   ui: UiLayer,
   body: UiLabel,
   clicks: int,
-): void {
+): none {
   screenWidth := surface.width()
   screenHeight := surface.height()
   scale := transformedPanelScale(surface)
@@ -59,7 +59,7 @@ function positionSampleUi(
   updateSampleBody(surface, scale, body, clicks)
 }
 
-function updateSampleBody(surface: GameSurface, scale: double, body: UiLabel, clicks: int): void {
+function updateSampleBody(surface: GameSurface, scale: double, body: UiLabel, clicks: int): none {
   body.setText(
     "The retained UI layer can read the render surface dimensions, then resize " +
     "and center this fixed local panel with one transform.\n\n" +

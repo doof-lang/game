@@ -33,7 +33,7 @@ export class GltfWarning {
 
 export class GltfBuffer {
   byteLength: int = 0
-  uri: string | null = null
+  uri: string | none = none
 }
 
 export class GltfBufferView {
@@ -62,28 +62,28 @@ export class GltfPrimitive {
 }
 
 export class GltfMesh {
-  name: string | null = null
+  name: string | none = none
   primitives: GltfPrimitive[] = []
 }
 
 export class GltfNode {
-  name: string | null = null
+  name: string | none = none
   mesh: int = -1
   children: int[] = []
   translation: Point3 = Point3(0.0, 0.0, 0.0)
   rotation: Rotation = Rotation { qx: 0.0, qy: 0.0, qz: 0.0, qw: 1.0 }
   scale: Vec3 = Vec3 { x: 1.0, y: 1.0, z: 1.0 }
-  matrix: Mat4 | null = null
+  matrix: Mat4 | none = none
   weights: double[] = []
 }
 
 export class GltfScene {
-  name: string | null = null
+  name: string | none = none
   nodes: int[] = []
 }
 
 export class GltfSampler {
-  name: string | null = null
+  name: string | none = none
   magFilter: int = -1
   minFilter: int = -1
   wrapS: int = 10497
@@ -91,14 +91,14 @@ export class GltfSampler {
 }
 
 export class GltfImage {
-  name: string | null = null
-  uri: string | null = null
-  mimeType: string | null = null
+  name: string | none = none
+  uri: string | none = none
+  mimeType: string | none = none
   bufferView: int = -1
 }
 
 export class GltfTexture {
-  name: string | null = null
+  name: string | none = none
   sampler: int = -1
   source: int = -1
 }
@@ -111,15 +111,15 @@ export class GltfTextureInfo {
 }
 
 export class GltfMaterial {
-  name: string | null = null
+  name: string | none = none
   baseColorFactor: Color = Color { r: 1.0, g: 1.0, b: 1.0, a: 1.0 }
-  baseColorTexture: GltfTextureInfo | null = null
+  baseColorTexture: GltfTextureInfo | none = none
   metallicFactor: double = 1.0
   roughnessFactor: double = 1.0
-  metallicRoughnessTexture: GltfTextureInfo | null = null
-  normalTexture: GltfTextureInfo | null = null
-  occlusionTexture: GltfTextureInfo | null = null
-  emissiveTexture: GltfTextureInfo | null = null
+  metallicRoughnessTexture: GltfTextureInfo | none = none
+  normalTexture: GltfTextureInfo | none = none
+  occlusionTexture: GltfTextureInfo | none = none
+  emissiveTexture: GltfTextureInfo | none = none
   emissiveFactor: Color = Color { r: 0.0, g: 0.0, b: 0.0, a: 1.0 }
   alphaMode: string = "OPAQUE"
   alphaCutoff: double = 0.5
@@ -143,7 +143,7 @@ export class GltfAnimationChannel {
 }
 
 export class GltfAnimation {
-  name: string | null = null
+  name: string | none = none
   samplers: GltfAnimationSampler[] = []
   channels: GltfAnimationChannel[] = []
   duration: double = 0.0
@@ -201,7 +201,7 @@ export class GltfPose {
     return pose
   }
 
-  reset(): void {
+  reset(): none {
     local = []
     world = []
     weights = []
@@ -220,11 +220,11 @@ export class GltfPose {
     }
   }
 
-  resolveWorldTransforms(): Result<void, GltfError> {
+  resolveWorldTransforms(): Result<none, GltfError> {
     return resolvePoseWorldTransforms(this)
   }
 
-  applyLooping(animation: GltfAnimation, time: double): Result<void, GltfError> {
+  applyLooping(animation: GltfAnimation, time: double): Result<none, GltfError> {
     return applyAnimation(animation, time, this)
   }
 
@@ -233,7 +233,7 @@ export class GltfPose {
 export class GltfSimpleMeshSpec {
   meshIndex: int = 0
   primitiveIndex: int = 0
-  name: string | null = null
+  name: string | none = none
   spec: SimpleMeshSpec
 }
 
@@ -245,17 +245,17 @@ function gltfWarning(stage: string, path: string, message: string): GltfWarning 
   return GltfWarning { stage, path, message }
 }
 
-function jsonField(object: JsonObject, name: string): JsonValue | null {
+function jsonField(object: JsonObject, name: string): JsonValue | none {
   return case object.get(name) {
     s: Success -> s.value,
-    _: Failure -> null,
+    _: Failure -> none,
   }
 }
 
-function jsonArrayField(object: JsonObject, name: string, path: string): Result<JsonValue[] | null, GltfError> {
+function jsonArrayField(object: JsonObject, name: string, path: string): Result<JsonValue[] | none, GltfError> {
   value := jsonField(object, name)
-  if value == null {
-    return Success(null)
+  if value == none {
+    return Success(none)
   }
 
   array := value! as JsonValue[] else {
@@ -264,10 +264,10 @@ function jsonArrayField(object: JsonObject, name: string, path: string): Result<
   return Success(array)
 }
 
-function jsonObjectField(object: JsonObject, name: string, path: string): Result<JsonObject | null, GltfError> {
+function jsonObjectField(object: JsonObject, name: string, path: string): Result<JsonObject | none, GltfError> {
   value := jsonField(object, name)
-  if value == null {
-    return Success(null)
+  if value == none {
+    return Success(none)
   }
 
   child := value! as JsonObject else {
@@ -276,10 +276,10 @@ function jsonObjectField(object: JsonObject, name: string, path: string): Result
   return Success(child)
 }
 
-function jsonStringField(object: JsonObject, name: string, path: string): Result<string | null, GltfError> {
+function jsonStringField(object: JsonObject, name: string, path: string): Result<string | none, GltfError> {
   value := jsonField(object, name)
-  if value == null {
-    return Success(null)
+  if value == none {
+    return Success(none)
   }
 
   text := value! as string else {
@@ -290,7 +290,7 @@ function jsonStringField(object: JsonObject, name: string, path: string): Result
 
 function jsonBoolField(object: JsonObject, name: string, defaultValue: bool, path: string): Result<bool, GltfError> {
   value := jsonField(object, name)
-  if value == null {
+  if value == none {
     return Success(defaultValue)
   }
 
@@ -309,7 +309,7 @@ function jsonIntValue(value: JsonValue, path: string): Result<int, GltfError> {
 
 function jsonIntField(object: JsonObject, name: string, defaultValue: int, path: string): Result<int, GltfError> {
   value := jsonField(object, name)
-  if value == null {
+  if value == none {
     return Success(defaultValue)
   }
 
@@ -325,7 +325,7 @@ function jsonDoubleValue(value: JsonValue, path: string): Result<double, GltfErr
 
 function jsonDoubleField(object: JsonObject, name: string, defaultValue: double, path: string): Result<double, GltfError> {
   value := jsonField(object, name)
-  if value == null {
+  if value == none {
     return Success(defaultValue)
   }
 
@@ -335,7 +335,7 @@ function jsonDoubleField(object: JsonObject, name: string, defaultValue: double,
 function jsonIntArrayField(object: JsonObject, name: string, path: string): Result<int[], GltfError> {
   result: int[] := []
   try maybeArray := jsonArrayField(object, name, path)
-  if maybeArray == null {
+  if maybeArray == none {
     return Success(result)
   }
 
@@ -350,7 +350,7 @@ function jsonIntArrayField(object: JsonObject, name: string, path: string): Resu
 function jsonDoubleArrayField(object: JsonObject, name: string, path: string): Result<double[], GltfError> {
   result: double[] := []
   try maybeArray := jsonArrayField(object, name, path)
-  if maybeArray == null {
+  if maybeArray == none {
     return Success(result)
   }
 
@@ -363,7 +363,7 @@ function jsonDoubleArrayField(object: JsonObject, name: string, path: string): R
 }
 
 function parsePoint3Field(object: JsonObject, name: string, defaultValue: Point3, path: string): Result<Point3, GltfError> {
-  if jsonField(object, name) == null {
+  if jsonField(object, name) == none {
     return Success(defaultValue)
   }
   try values := jsonDoubleArrayField(object, name, path)
@@ -374,7 +374,7 @@ function parsePoint3Field(object: JsonObject, name: string, defaultValue: Point3
 }
 
 function parseVec3Field(object: JsonObject, name: string, defaultValue: Vec3, path: string): Result<Vec3, GltfError> {
-  if jsonField(object, name) == null {
+  if jsonField(object, name) == none {
     return Success(defaultValue)
   }
   try values := jsonDoubleArrayField(object, name, path)
@@ -385,7 +385,7 @@ function parseVec3Field(object: JsonObject, name: string, defaultValue: Vec3, pa
 }
 
 function parseRotationField(object: JsonObject, name: string, defaultValue: Rotation, path: string): Result<Rotation, GltfError> {
-  if jsonField(object, name) == null {
+  if jsonField(object, name) == none {
     return Success(defaultValue)
   }
   try values := jsonDoubleArrayField(object, name, path)
@@ -395,9 +395,9 @@ function parseRotationField(object: JsonObject, name: string, defaultValue: Rota
   return Success(Rotation { qx: values[0], qy: values[1], qz: values[2], qw: values[3] }.normalized())
 }
 
-function parseMat4Field(object: JsonObject, name: string, path: string): Result<Mat4 | null, GltfError> {
-  if jsonField(object, name) == null {
-    return Success(null)
+function parseMat4Field(object: JsonObject, name: string, path: string): Result<Mat4 | none, GltfError> {
+  if jsonField(object, name) == none {
+    return Success(none)
   }
   try values := jsonDoubleArrayField(object, name, path)
   if values.length != 16 {
@@ -414,7 +414,7 @@ function parseMat4Field(object: JsonObject, name: string, path: string): Result<
 function parseBuffers(root: JsonObject, warnings: GltfWarning[]): Result<GltfBuffer[], GltfError> {
   result: GltfBuffer[] := []
   try maybeBuffers := jsonArrayField(root, "buffers", "$")
-  if maybeBuffers == null {
+  if maybeBuffers == none {
     return Success(result)
   }
 
@@ -437,7 +437,7 @@ function parseBuffers(root: JsonObject, warnings: GltfWarning[]): Result<GltfBuf
 function parseBufferViews(root: JsonObject): Result<GltfBufferView[], GltfError> {
   result: GltfBufferView[] := []
   try maybeViews := jsonArrayField(root, "bufferViews", "$")
-  if maybeViews == null {
+  if maybeViews == none {
     return Success(result)
   }
 
@@ -459,7 +459,7 @@ function parseBufferViews(root: JsonObject): Result<GltfBufferView[], GltfError>
 function parseAccessors(root: JsonObject, warnings: GltfWarning[]): Result<GltfAccessor[], GltfError> {
   result: GltfAccessor[] := []
   try maybeAccessors := jsonArrayField(root, "accessors", "$")
-  if maybeAccessors == null {
+  if maybeAccessors == none {
     return Success(result)
   }
 
@@ -469,7 +469,7 @@ function parseAccessors(root: JsonObject, warnings: GltfWarning[]): Result<GltfA
     object := accessors[index] as JsonObject else {
       return Failure(gltfError("json", path, "Expected accessor object"))
     }
-    sparse := jsonField(object, "sparse") != null
+    sparse := jsonField(object, "sparse") != none
     if sparse {
       warnings.push(gltfWarning("json", path + ".sparse", "Sparse accessors are preserved as metadata but are not converted to SimpleMeshSpec"))
     }
@@ -496,7 +496,7 @@ function parseAccessors(root: JsonObject, warnings: GltfWarning[]): Result<GltfA
 function parsePrimitive(object: JsonObject, path: string, warnings: GltfWarning[]): Result<GltfPrimitive, GltfError> {
   try attributesObject := jsonObjectField(object, "attributes", path)
   attributes: Map<string, int> := {}
-  if attributesObject != null {
+  if attributesObject != none {
     for key, value of attributesObject! {
       try attributeIndex := jsonIntValue(value, path + ".attributes." + key)
       attributes.set(key, attributeIndex)
@@ -508,11 +508,11 @@ function parsePrimitive(object: JsonObject, path: string, warnings: GltfWarning[
     warnings.push(gltfWarning("convert", path + ".mode", "Only triangle primitives are converted to SimpleMeshSpec"))
   }
 
-  if jsonField(object, "targets") != null {
+  if jsonField(object, "targets") != none {
     warnings.push(gltfWarning("convert", path + ".targets", "Morph targets are preserved as metadata but are not converted to SimpleMeshSpec"))
   }
 
-  if jsonField(object, "material") != null {
+  if jsonField(object, "material") != none {
     warnings.push(gltfWarning("convert", path + ".material", "Materials are preserved as metadata but are not applied to SimpleMeshSpec"))
   }
 
@@ -523,14 +523,14 @@ function parsePrimitive(object: JsonObject, path: string, warnings: GltfWarning[
     indices,
     mode,
     material,
-    hasTargets: jsonField(object, "targets") != null,
+    hasTargets: jsonField(object, "targets") != none,
   })
 }
 
 function parseMeshes(root: JsonObject, warnings: GltfWarning[]): Result<GltfMesh[], GltfError> {
   result: GltfMesh[] := []
   try maybeMeshes := jsonArrayField(root, "meshes", "$")
-  if maybeMeshes == null {
+  if maybeMeshes == none {
     return Success(result)
   }
 
@@ -542,7 +542,7 @@ function parseMeshes(root: JsonObject, warnings: GltfWarning[]): Result<GltfMesh
     }
     primitives: GltfPrimitive[] := []
     try maybePrimitives := jsonArrayField(object, "primitives", path)
-    if maybePrimitives != null {
+    if maybePrimitives != none {
       values := maybePrimitives!
       for primitiveIndex of 0..<values.length {
         primitivePath := `${path}.primitives[${primitiveIndex}]`
@@ -562,7 +562,7 @@ function parseMeshes(root: JsonObject, warnings: GltfWarning[]): Result<GltfMesh
 function parseNodes(root: JsonObject): Result<GltfNode[], GltfError> {
   result: GltfNode[] := []
   try maybeNodes := jsonArrayField(root, "nodes", "$")
-  if maybeNodes == null {
+  if maybeNodes == none {
     return Success(result)
   }
 
@@ -597,7 +597,7 @@ function parseNodes(root: JsonObject): Result<GltfNode[], GltfError> {
 function parseScenes(root: JsonObject): Result<GltfScene[], GltfError> {
   result: GltfScene[] := []
   try maybeScenes := jsonArrayField(root, "scenes", "$")
-  if maybeScenes == null {
+  if maybeScenes == none {
     return Success(result)
   }
 
@@ -617,7 +617,7 @@ function parseScenes(root: JsonObject): Result<GltfScene[], GltfError> {
 function parseSamplers(root: JsonObject): Result<GltfSampler[], GltfError> {
   result: GltfSampler[] := []
   try maybeSamplers := jsonArrayField(root, "samplers", "$")
-  if maybeSamplers == null {
+  if maybeSamplers == none {
     return Success(result)
   }
 
@@ -640,7 +640,7 @@ function parseSamplers(root: JsonObject): Result<GltfSampler[], GltfError> {
 function parseImages(root: JsonObject, warnings: GltfWarning[]): Result<GltfImage[], GltfError> {
   result: GltfImage[] := []
   try maybeImages := jsonArrayField(root, "images", "$")
-  if maybeImages == null {
+  if maybeImages == none {
     return Success(result)
   }
 
@@ -654,7 +654,7 @@ function parseImages(root: JsonObject, warnings: GltfWarning[]): Result<GltfImag
     try uri := jsonStringField(object, "uri", path)
     try mimeType := jsonStringField(object, "mimeType", path)
     try bufferView := jsonIntField(object, "bufferView", -1, path)
-    if uri != null {
+    if uri != none {
       warnings.push(gltfWarning("json", path + ".uri", "External glTF images are recorded but not decoded"))
     }
     result.push(GltfImage { name, uri, mimeType, bufferView })
@@ -665,7 +665,7 @@ function parseImages(root: JsonObject, warnings: GltfWarning[]): Result<GltfImag
 function parseTextures(root: JsonObject): Result<GltfTexture[], GltfError> {
   result: GltfTexture[] := []
   try maybeTextures := jsonArrayField(root, "textures", "$")
-  if maybeTextures == null {
+  if maybeTextures == none {
     return Success(result)
   }
 
@@ -683,10 +683,10 @@ function parseTextures(root: JsonObject): Result<GltfTexture[], GltfError> {
   return Success(result)
 }
 
-function parseTextureInfo(object: JsonObject, name: string, path: string): Result<GltfTextureInfo | null, GltfError> {
+function parseTextureInfo(object: JsonObject, name: string, path: string): Result<GltfTextureInfo | none, GltfError> {
   try maybeInfo := jsonObjectField(object, name, path)
-  if maybeInfo == null {
-    return Success(null)
+  if maybeInfo == none {
+    return Success(none)
   }
 
   info := maybeInfo!
@@ -713,7 +713,7 @@ function parseFactorColor(object: JsonObject, name: string, defaultColor: Color,
 function parseMaterials(root: JsonObject): Result<GltfMaterial[], GltfError> {
   result: GltfMaterial[] := []
   try maybeMaterials := jsonArrayField(root, "materials", "$")
-  if maybeMaterials == null {
+  if maybeMaterials == none {
     return Success(result)
   }
 
@@ -774,7 +774,7 @@ function parseAnimationTarget(object: JsonObject, path: string): Result<GltfAnim
 function parseAnimations(root: JsonObject): Result<GltfAnimation[], GltfError> {
   result: GltfAnimation[] := []
   try maybeAnimations := jsonArrayField(root, "animations", "$")
-  if maybeAnimations == null {
+  if maybeAnimations == none {
     return Success(result)
   }
 
@@ -787,7 +787,7 @@ function parseAnimations(root: JsonObject): Result<GltfAnimation[], GltfError> {
     try name := jsonStringField(object, "name", path)
     animationSamplers: GltfAnimationSampler[] := []
     try maybeSamplers := jsonArrayField(object, "samplers", path)
-    if maybeSamplers != null {
+    if maybeSamplers != none {
       samplers := maybeSamplers!
       for samplerIndex of 0..<samplers.length {
         samplerPath := `${path}.samplers[${samplerIndex}]`
@@ -804,7 +804,7 @@ function parseAnimations(root: JsonObject): Result<GltfAnimation[], GltfError> {
 
     channels: GltfAnimationChannel[] := []
     try maybeChannels := jsonArrayField(object, "channels", path)
-    if maybeChannels != null {
+    if maybeChannels != none {
       channelValues := maybeChannels!
       for channelIndex of 0..<channelValues.length {
         channelPath := `${path}.channels[${channelIndex}]`
@@ -823,14 +823,14 @@ function parseAnimations(root: JsonObject): Result<GltfAnimation[], GltfError> {
 
 function arrayLength(root: JsonObject, name: string): Result<int, GltfError> {
   try maybeArray := jsonArrayField(root, name, "$")
-  if maybeArray == null {
+  if maybeArray == none {
     return Success(0)
   }
   array := maybeArray!
   return Success(array.length)
 }
 
-function validateRead(offset: int, length: int, totalLength: int, path: string): Result<void, GltfError> {
+function validateRead(offset: int, length: int, totalLength: int, path: string): Result<none, GltfError> {
   if offset < 0 || length < 0 || offset > totalLength || offset + length > totalLength {
     return Failure(gltfError("binary", path, `Read of ${length} bytes at offset ${offset} exceeds ${totalLength} bytes`))
   }
@@ -1150,7 +1150,7 @@ function readAnimationRotation(asset: GltfAsset, accessorIndex: int, elementInde
   return Success(Rotation { qx: x, qy: y, qz: z, qw: w }.normalized())
 }
 
-function applyAnimationChannel(asset: GltfAsset, sampler: GltfAnimationSampler, channel: GltfAnimationChannel, time: double, pose: GltfPose, path: string): Result<void, GltfError> {
+function applyAnimationChannel(asset: GltfAsset, sampler: GltfAnimationSampler, channel: GltfAnimationChannel, time: double, pose: GltfPose, path: string): Result<none, GltfError> {
   if sampler.interpolation != "STEP" && sampler.interpolation != "LINEAR" {
     return Failure(gltfError("animation", path + ".sampler.interpolation", "Unsupported animation interpolation '" + sampler.interpolation + "'"))
   }
@@ -1206,7 +1206,7 @@ function applyAnimationChannel(asset: GltfAsset, sampler: GltfAnimationSampler, 
   return Failure(gltfError("animation", path + ".target.path", "Unsupported animation target path '" + targetPath + "'"))
 }
 
-function applyAnimation(animation: GltfAnimation, time: double, pose: GltfPose): Result<void, GltfError> {
+function applyAnimation(animation: GltfAnimation, time: double, pose: GltfPose): Result<none, GltfError> {
   asset := pose.asset
   if !animationInAsset(animation, asset) {
     return Failure(gltfError("animation", "$.animations", "Animation does not belong to the pose asset"))
@@ -1224,12 +1224,12 @@ function applyAnimation(animation: GltfAnimation, time: double, pose: GltfPose):
   return Success()
 }
 
-function resolvePoseNode(pose: GltfPose, nodeIndex: int, parent: Mat4): Result<void, GltfError> {
+function resolvePoseNode(pose: GltfPose, nodeIndex: int, parent: Mat4): Result<none, GltfError> {
   if nodeIndex < 0 || nodeIndex >= pose.asset.nodes.length {
     return Failure(gltfError("animation", `$.nodes[${nodeIndex}]`, "Node index is out of range"))
   }
   node := pose.asset.nodes[nodeIndex]
-  if node.matrix != null {
+  if node.matrix != none {
     return Failure(gltfError("animation", `$.nodes[${nodeIndex}].matrix`, "Matrix-authored nodes cannot be resolved by GltfPose v1"))
   }
   if nodeIndex >= pose.local.length || nodeIndex >= pose.world.length {
@@ -1244,7 +1244,7 @@ function resolvePoseNode(pose: GltfPose, nodeIndex: int, parent: Mat4): Result<v
   return Success()
 }
 
-function resolvePoseWorldTransforms(pose: GltfPose): Result<void, GltfError> {
+function resolvePoseWorldTransforms(pose: GltfPose): Result<none, GltfError> {
   childNode: int[] := []
   while childNode.length < pose.asset.nodes.length {
     childNode.push(0)
@@ -1296,7 +1296,7 @@ function computeAnimationDuration(asset: GltfAsset, animation: GltfAnimation): d
   return duration
 }
 
-function attachAnimationDurations(asset: GltfAsset): void {
+function attachAnimationDurations(asset: GltfAsset): none {
   for animationIndex of 0..<asset.animations.length {
     animation := asset.animations[animationIndex]
     asset.animations[animationIndex] = GltfAnimation {
@@ -1349,21 +1349,21 @@ function primitiveVertexSourceIndex(asset: GltfAsset, primitive: GltfPrimitive, 
   return Success(outputIndex)
 }
 
-function convertPrimitive(asset: GltfAsset, meshIndex: int, primitiveIndex: int, color: Color): Result<GltfSimpleMeshSpec | null, GltfError> {
+function convertPrimitive(asset: GltfAsset, meshIndex: int, primitiveIndex: int, color: Color): Result<GltfSimpleMeshSpec | none, GltfError> {
   mesh := asset.meshes[meshIndex]
   primitive := mesh.primitives[primitiveIndex]
   path := `$.meshes[${meshIndex}].primitives[${primitiveIndex}]`
   if primitive.mode != GLTF_MODE_TRIANGLES {
-    return Success(null)
+    return Success(none)
   }
 
   positionAccessor := primitiveAttribute(primitive, "POSITION")
   if positionAccessor < 0 {
-    return Success(null)
+    return Success(none)
   }
   try positionUsable := usableFloatAccessor(asset, positionAccessor, "VEC3", path + ".attributes.POSITION")
   if !positionUsable {
-    return Success(null)
+    return Success(none)
   }
 
   let normalAccessor = primitiveAttribute(primitive, "NORMAL")
@@ -1393,7 +1393,7 @@ function convertPrimitive(asset: GltfAsset, meshIndex: int, primitiveIndex: int,
   if primitive.indices >= 0 {
     try indicesUsable := usableIndexAccessor(asset, primitive.indices, path + ".indices")
     if !indicesUsable {
-      return Success(null)
+      return Success(none)
     }
   }
 
@@ -1514,7 +1514,7 @@ function parseGltfJsonRoot(text: string, source: string): Result<JsonObject, Glt
   return Success(root)
 }
 
-function validateSingleGltfBuffer(root: JsonObject): Result<void, GltfError> {
+function validateSingleGltfBuffer(root: JsonObject): Result<none, GltfError> {
   try buffers := parseBuffers(root, [])
   if buffers.length > 1 {
     return Failure(gltfError("json", "$.buffers", "glTF loader supports at most one external buffer"))
@@ -1530,10 +1530,10 @@ function validateSingleGltfBuffer(root: JsonObject): Result<void, GltfError> {
   return Success()
 }
 
-function gltfBufferUri(root: JsonObject): Result<string | null, GltfError> {
+function gltfBufferUri(root: JsonObject): Result<string | none, GltfError> {
   try buffers := parseBuffers(root, [])
   if buffers.length == 0 {
-    return Success(null)
+    return Success(none)
   }
   if buffers.length > 1 {
     return Failure(gltfError("json", "$.buffers", "glTF loader supports at most one external buffer"))
@@ -1541,7 +1541,7 @@ function gltfBufferUri(root: JsonObject): Result<string | null, GltfError> {
   return Success(buffers[0].uri)
 }
 
-function validateLocalGltfBufferUri(uri: string, path: string): Result<void, GltfError> {
+function validateLocalGltfBufferUri(uri: string, path: string): Result<none, GltfError> {
   if uri.startsWith("data:") || uri.contains("://") {
     return Failure(gltfError("read", path, "glTF loader supports only local .bin buffer URIs"))
   }
@@ -1574,7 +1574,7 @@ export function parseGlb(data: readonly byte[], source: string = "input"): Resul
   }
 
   warnings: GltfWarning[] := []
-  let jsonText: string | null = null
+  let jsonText: string | none = none
   let binChunk: readonly byte[] = []
   let chunkIndex = 0
   while reader.getPosition() < reader.length() {
@@ -1591,7 +1591,7 @@ export function parseGlb(data: readonly byte[], source: string = "input"): Resul
     }
 
     if chunkType == GLB_CHUNK_JSON {
-      if jsonText != null {
+      if jsonText != none {
         warnings.push(gltfWarning("binary", `${source}.chunks[${chunkIndex}]`, "Duplicate JSON chunk ignored"))
         reader.skip(long(chunkLength))
       } else {
@@ -1620,7 +1620,7 @@ export function parseGlb(data: readonly byte[], source: string = "input"): Resul
     chunkIndex += 1
   }
 
-  if jsonText == null {
+  if jsonText == none {
     return Failure(gltfError("binary", source, "GLB is missing the required JSON chunk"))
   }
 
@@ -1647,7 +1647,7 @@ export function loadGltfResource(path: string): Result<GltfAsset, GltfError> {
   try uri := gltfBufferUri(root)
 
   let bin: readonly byte[] = []
-  if uri != null {
+  if uri != none {
     try validateLocalGltfBufferUri(uri!, path)
     binPath := join([dirname(path), uri!])
     loadedBin := readBlobResource(binPath) else error {
@@ -1667,7 +1667,7 @@ export function loadGltf(path: string): Result<GltfAsset, GltfError> {
   try uri := gltfBufferUri(root)
 
   let bin: readonly byte[] = []
-  if uri != null {
+  if uri != none {
     try validateLocalGltfBufferUri(uri!, path)
     binPath := join([dirname(path), uri!])
     loadedBin := readBlob(binPath) else error {
@@ -1702,7 +1702,7 @@ export function glbAssetToSimpleMeshSpecs(
     mesh := asset.meshes[meshIndex]
     for primitiveIndex of 0..<mesh.primitives.length {
       try converted := convertPrimitive(asset, meshIndex, primitiveIndex, color)
-      if converted != null {
+      if converted != none {
         specs.push(converted!)
       }
     }

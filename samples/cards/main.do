@@ -94,22 +94,22 @@ function main(): int {
     uvScale: uvScale,
   })
 
-  app.key(Key.Escape).onPressed((): void => app.stop())
+  app.key(Key.Escape).onPressed((): none => app.stop())
 
-  app.onEvent((event): void => {
+  app.onEvent((event): none => {
     if event.kind() == GameEventKind.CloseRequested {
       app.stop()
     }
   })
 
-  app.onRender((renderer): void => {
+  app.onRender((renderer): none => {
     renderer.pass(
       RenderPassDescriptor {
         clear: Clear.colorDepth(Color(0.03, 0.16, 0.10), 1.0),
         depth: Depth.disabled(),
         blend: Blend.alpha(),
       },
-      (pass): void => {
+      (pass): none => {
         drawSimpleModelBatch(pass, cardBatch)
       },
     )

@@ -364,7 +364,7 @@ function appendVertex(
   vertex: ObjVertexRef,
   fallbackNormal: Point3,
   color: Color,
-): void {
+): none {
   position := data.positions[vertex.positionIndex]
   uv := if vertex.uvIndex >= 0 then data.uvs[vertex.uvIndex] else ObjTexCoord {}
   normal := if vertex.normalIndex >= 0 then data.normals[vertex.normalIndex] else fallbackNormal

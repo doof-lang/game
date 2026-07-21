@@ -30,12 +30,12 @@ export enum ServerConnectionState {
 }
 
 export class JigsawRuntime {
-  connection: JigsawClientConnection | null = null
-  session: JigsawSession | null = null
-  serverAddress: string | null = null
+  connection: JigsawClientConnection | none = none
+  session: JigsawSession | none = none
+  serverAddress: string | none = none
   state: ServerConnectionState = ServerConnectionState.Local
   connectionGeneration: int = 0
-  lastError: string | null = null
+  lastError: string | none = none
 
   currentState(pieces: Piece[], drawOrder: int[], camera: PuzzleCamera): PuzzleState {
     localSession := this.session else {
@@ -45,7 +45,7 @@ export class JigsawRuntime {
   }
 
   isServerMode(): bool {
-    return this.serverAddress != null
+    return this.serverAddress != none
   }
 
   isInteractive(): bool {
@@ -53,8 +53,8 @@ export class JigsawRuntime {
   }
 }
 
-export function parseJigsawServerAddress(args: string[]): Result<string | null, string> {
-  let address: string | null = null
+export function parseJigsawServerAddress(args: string[]): Result<string | none, string> {
+  let address: string | none = none
   let index = 0
   while index < args.length {
     if args[index] == "--jigsaw-server" {
@@ -70,7 +70,7 @@ export function parseJigsawServerAddress(args: string[]): Result<string | null, 
   return Success(address)
 }
 
-export function createJigsawRuntime(serverAddress: string | null, initialState: PuzzleState): Result<JigsawRuntime, string> {
+export function createJigsawRuntime(serverAddress: string | none, initialState: PuzzleState): Result<JigsawRuntime, string> {
   address := serverAddress else {
     session := createJigsawSession(initialState)
     return Success(JigsawRuntime {
@@ -114,7 +114,7 @@ export function screenToWorldY(camera: PuzzleCamera, y: double): double {
   return camera.y + y / camera.zoom
 }
 
-export function setZoomAt(camera: PuzzleCamera, screenX: double, screenY: double, zoom: double): void {
+export function setZoomAt(camera: PuzzleCamera, screenX: double, screenY: double, zoom: double): none {
   worldX := screenToWorldX(camera, screenX)
   worldY := screenToWorldY(camera, screenY)
   camera.zoom = clampDouble(zoom, camera.minZoom, camera.maxZoom)
@@ -122,7 +122,7 @@ export function setZoomAt(camera: PuzzleCamera, screenX: double, screenY: double
   camera.y = worldY - screenY / camera.zoom
 }
 
-export function applyZoomAt(camera: PuzzleCamera, screenX: double, screenY: double, factor: double): void {
+export function applyZoomAt(camera: PuzzleCamera, screenX: double, screenY: double, factor: double): none {
   setZoomAt(camera, screenX, screenY, camera.zoom * clampDouble(factor, 0.75, 1.25))
 }
 
@@ -134,7 +134,7 @@ export function zoomFactorForMagnificationDelta(delta: double): double {
   return 1.0 + delta
 }
 
-export function pumpMainEventLoop(): void {
+export function pumpMainEventLoop(): none {
   let remaining = EVENT_DRAIN_PUMP_LIMIT
   let dispatched = 1
   while remaining > 0 && dispatched > 0 {

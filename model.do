@@ -4,7 +4,7 @@ import { Rotation, Transform, Vec3 } from "./transform"
 
 export class SimpleModel {
   readonly mesh: SimpleMesh
-  texture: Texture | null = null
+  texture: Texture | none = none
   transform: Transform = Transform.identity()
   material: SimpleMaterial = SimpleMaterial {}
 
@@ -13,13 +13,13 @@ export class SimpleModel {
     return this
   }
 
-  setTexture(texture: Texture | null): SimpleModel {
+  setTexture(texture: Texture | none): SimpleModel {
     this.texture = texture
     return this
   }
 
   clearTexture(): SimpleModel {
-    texture = null
+    texture = none
     return this
   }
 
@@ -107,8 +107,8 @@ export function drawSimpleModel(
   pass: RenderPass,
   model: SimpleModel,
   lighting: SimpleMeshLighting = SimpleMeshLighting {},
-): void {
-  if model.texture != null {
+): none {
+  if model.texture != none {
     drawTexturedSimpleMesh(pass, model.mesh, model.texture!, model.transform.toMat4(), model.material, lighting)
     return
   }

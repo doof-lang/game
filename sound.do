@@ -27,11 +27,11 @@ export class Sound {
 
   duration(): double => native.duration()
 
-  play(options: SoundPlayOptions = SoundPlayOptions {}): Result<void, string> {
+  play(options: SoundPlayOptions = SoundPlayOptions {}): Result<none, string> {
     return native.play(options.volume, options.pan)
   }
 
-  stop(): void {
+  stop(): none {
     native.stop()
   }
 

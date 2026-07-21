@@ -14,7 +14,7 @@ function image(width: int, height: int, bytes: readonly byte[]): Image {
   return try! Image.fromPixelBytes(PixelBytes(width, height, bytes, PixelAlphaMode.Straight))
 }
 
-function assertBytes(actual: readonly byte[], expected: readonly byte[]): void {
+function assertBytes(actual: readonly byte[], expected: readonly byte[]): none {
   Assert.equal(actual.length, expected.length)
   for index of 0..<actual.length {
     assert(
@@ -30,7 +30,7 @@ function failureMessage(result: Result<Image, string>): string {
   return ""
 }
 
-export function testAtlasUsesCenteredSquarePhotoCropAndMaskRgbMaximum(): void {
+export function testAtlasUsesCenteredSquarePhotoCropAndMaskRgbMaximum(): none {
   photo := image(4, 2, [
     9, 9, 9, 255, 255, 0, 0, 255, 0, 255, 0, 255, 9, 9, 9, 255,
     8, 8, 8, 255, 0, 0, 255, 255, 255, 255, 255, 255, 8, 8, 8, 255,
@@ -48,7 +48,7 @@ export function testAtlasUsesCenteredSquarePhotoCropAndMaskRgbMaximum(): void {
   ])
 }
 
-export function testAtlasMapsEachGridCellIntoPhotoCoordinates(): void {
+export function testAtlasMapsEachGridCellIntoPhotoCoordinates(): none {
   photo := image(4, 4, [
     1, 0, 0, 255, 2, 0, 0, 255, 3, 0, 0, 255, 4, 0, 0, 255,
     5, 0, 0, 255, 6, 0, 0, 255, 7, 0, 0, 255, 8, 0, 0, 255,
@@ -68,7 +68,7 @@ export function testAtlasMapsEachGridCellIntoPhotoCoordinates(): void {
   ])
 }
 
-export function testAtlasRejectsInvalidGridDimensions(): void {
+export function testAtlasRejectsInvalidGridDimensions(): none {
   photo := image(1, 1, [255, 255, 255, 255])
   mask := image(2, 2, [
     255, 255, 255, 255, 255, 255, 255, 255,
@@ -82,7 +82,7 @@ export function testAtlasRejectsInvalidGridDimensions(): void {
   )
 }
 
-export function testAtlasCachePathTracksAssetsAndGrid(): void {
+export function testAtlasCachePathTracksAssetsAndGrid(): none {
   photoPath := join([tempDirectory(), "jigsaw-atlas-cache-key-photo.bin"])
   maskPath := join([tempDirectory(), "jigsaw-atlas-cache-key-mask.bin"])
   try! writeBlob(photoPath, [1, 2, 3])
@@ -101,7 +101,7 @@ export function testAtlasCachePathTracksAssetsAndGrid(): void {
   try! remove(maskPath)
 }
 
-export function testAtlasCacheRoundTripsPixelsAndRejectsTruncation(): void {
+export function testAtlasCacheRoundTripsPixelsAndRejectsTruncation(): none {
   cachePath := join([tempDirectory(), "jigsaw-atlas-cache-roundtrip.rgba"])
   pixels := PixelBytes(2, 1, [255, 0, 0, 255, 0, 255, 0, 128], PixelAlphaMode.Straight)
   try! cacheJigsawAtlas(pixels, cachePath)
@@ -115,7 +115,7 @@ export function testAtlasCacheRoundTripsPixelsAndRejectsTruncation(): void {
   assertBytes(cached.bytes, pixels.bytes)
 
   try! writeBlob(cachePath, [1, 2, 3])
-  Assert.isTrue(loadCachedJigsawAtlas(cachePath) == null)
+  Assert.isTrue(loadCachedJigsawAtlas(cachePath) == none)
   try! remove(cachePath)
   try! remove("${cachePath}.dimensions")
 }

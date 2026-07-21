@@ -71,7 +71,7 @@ Use these common combinations:
 | --- | --- | --- | --- |
 | 2D UI or HUD | `Clear.colorDepth(...)` | `Depth.disabled()` | `Blend.alpha()` |
 | Opaque 3D scene | `Clear.colorDepth(...)` | `Depth.readWrite()` | `Blend.opaque()` |
-| Overlay pass | `Clear.none()` | `Depth.disabled()` | `Blend.alpha()` |
+| Overlay pass | `Clear.disabled()` | `Depth.disabled()` | `Blend.alpha()` |
 
 `Blend` is selected on the pass because built-in helpers choose compatible
 Metal pipeline state when drawing.

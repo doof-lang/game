@@ -37,7 +37,7 @@ export interface BitmapFontMetrics {
   readonly base: int
   readonly scaleWidth: int
   readonly scaleHeight: int
-  glyph(codepoint: int): BitmapGlyph | null
+  glyph(codepoint: int): BitmapGlyph | none
   kerning(first: int, second: int): int
 }
 
@@ -50,10 +50,10 @@ export class BitmapFontData {
   glyphs: Map<int, BitmapGlyph>
   kernings: Map<string, int>
 
-  glyph(codepoint: int): BitmapGlyph | null {
+  glyph(codepoint: int): BitmapGlyph | none {
     return case glyphs.get(codepoint) {
       s: Success -> s.value,
-      f: Failure -> null,
+      f: Failure -> none,
     }
   }
 
@@ -74,10 +74,10 @@ export class BitmapFont {
   glyphs: Map<int, BitmapGlyph>
   kernings: Map<string, int>
 
-  glyph(codepoint: int): BitmapGlyph | null {
+  glyph(codepoint: int): BitmapGlyph | none {
     return case glyphs.get(codepoint) {
       s: Success -> s.value,
-      f: Failure -> null,
+      f: Failure -> none,
     }
   }
 
@@ -113,7 +113,7 @@ class FontParseState {
   scaleWidth: int = 0
   scaleHeight: int = 0
   pages: int = 1
-  textureFile: string | null = null
+  textureFile: string | none = none
   glyphs: Map<int, BitmapGlyph> = {}
   kernings: Map<string, int> = {}
 }
@@ -259,7 +259,7 @@ function optionalInt(
   }
 }
 
-function parseCommon(attributes: Map<string, string>, state: FontParseState, source: string, lineNumber: int): Result<void, string> {
+function parseCommon(attributes: Map<string, string>, state: FontParseState, source: string, lineNumber: int): Result<none, string> {
   try lineHeight := requiredInt(attributes, "lineHeight", source, lineNumber)
   try base := requiredInt(attributes, "base", source, lineNumber)
   try scaleWidth := requiredInt(attributes, "scaleW", source, lineNumber)
@@ -281,7 +281,7 @@ function parseCommon(attributes: Map<string, string>, state: FontParseState, sou
   return Success()
 }
 
-function parseGlyph(attributes: Map<string, string>, state: FontParseState, source: string, lineNumber: int): Result<void, string> {
+function parseGlyph(attributes: Map<string, string>, state: FontParseState, source: string, lineNumber: int): Result<none, string> {
   try id := requiredInt(attributes, "id", source, lineNumber)
   try x := requiredInt(attributes, "x", source, lineNumber)
   try y := requiredInt(attributes, "y", source, lineNumber)
@@ -314,7 +314,7 @@ function parseGlyph(attributes: Map<string, string>, state: FontParseState, sour
   return Success()
 }
 
-function parsePage(attributes: Map<string, string>, state: FontParseState, source: string, lineNumber: int): Result<void, string> {
+function parsePage(attributes: Map<string, string>, state: FontParseState, source: string, lineNumber: int): Result<none, string> {
   try id := requiredInt(attributes, "id", source, lineNumber)
   if id != 0 {
     return Failure {
@@ -332,7 +332,7 @@ function parsePage(attributes: Map<string, string>, state: FontParseState, sourc
       error: parseError(source, lineNumber, "bitmap font page file cannot be empty")
     }
   }
-  if state.textureFile != null {
+  if state.textureFile != none {
     return Failure {
       error: parseError(source, lineNumber, "bitmap fonts with multiple pages are not supported")
     }
@@ -342,7 +342,7 @@ function parsePage(attributes: Map<string, string>, state: FontParseState, sourc
   return Success()
 }
 
-function parseKerning(attributes: Map<string, string>, state: FontParseState, source: string, lineNumber: int): Result<void, string> {
+function parseKerning(attributes: Map<string, string>, state: FontParseState, source: string, lineNumber: int): Result<none, string> {
   try first := requiredInt(attributes, "first", source, lineNumber)
   try second := requiredInt(attributes, "second", source, lineNumber)
   try amount := requiredInt(attributes, "amount", source, lineNumber)
@@ -467,12 +467,12 @@ export function loadBitmapFontForSurface(surface: GameSurface, path: string): Re
 
 function requireGlyph(font: BitmapFontMetrics, codepoint: int, options: TextLayoutOptions): BitmapGlyph {
   glyph := font.glyph(codepoint)
-  if glyph != null {
+  if glyph != none {
     return glyph!
   }
 
   fallback := font.glyph(options.fallbackCodepoint)
-  if fallback != null {
+  if fallback != none {
     return fallback!
   }
 
@@ -555,7 +555,7 @@ function measureSegment(font: BitmapFontMetrics, codepoints: int[], startPenX: d
   return penX
 }
 
-function addCodepoint(builder: TextLineBuilder, font: BitmapFontMetrics, codepoint: int, options: TextLayoutOptions): void {
+function addCodepoint(builder: TextLineBuilder, font: BitmapFontMetrics, codepoint: int, options: TextLayoutOptions): none {
   glyph := requireGlyph(font, codepoint, options)
   kerning := if builder.prevCodepoint >= 0 then font.kerning(builder.prevCodepoint, codepoint) else 0
   glyphX := builder.penX + double(kerning + glyph.xOffset)
@@ -574,7 +574,7 @@ function addCodepoint(builder: TextLineBuilder, font: BitmapFontMetrics, codepoi
   builder.hasAdvance = true
 }
 
-function finishLine(lines: TextLine[], builder: TextLineBuilder): void {
+function finishLine(lines: TextLine[], builder: TextLineBuilder): none {
   lines.push(TextLine {
     placements: builder.placements,
     width: builder.penX,
@@ -585,7 +585,7 @@ function finishLine(lines: TextLine[], builder: TextLineBuilder): void {
   builder.hasAdvance = false
 }
 
-function addWordBreaking(lines: TextLine[], builder: TextLineBuilder, font: BitmapFontMetrics, word: int[], options: TextLayoutOptions): void {
+function addWordBreaking(lines: TextLine[], builder: TextLineBuilder, font: BitmapFontMetrics, word: int[], options: TextLayoutOptions): none {
   for codepoint of word {
     glyph := requireGlyph(font, codepoint, options)
     nextPen := builder.penX + glyphAdvance(font, builder.prevCodepoint, codepoint, glyph, options)
@@ -598,7 +598,7 @@ function addWordBreaking(lines: TextLine[], builder: TextLineBuilder, font: Bitm
   }
 }
 
-function addSpaces(builder: TextLineBuilder, font: BitmapFontMetrics, count: int, options: TextLayoutOptions): void {
+function addSpaces(builder: TextLineBuilder, font: BitmapFontMetrics, count: int, options: TextLayoutOptions): none {
   for spaceIndex of 0..<count {
     addCodepoint(builder, font, 32, options)
   }
@@ -608,7 +608,7 @@ function isSpace(codepoint: int): bool {
   return codepoint == 32 || codepoint == 9
 }
 
-function layoutParagraph(lines: TextLine[], font: BitmapFontMetrics, text: string, options: TextLayoutOptions): void {
+function layoutParagraph(lines: TextLine[], font: BitmapFontMetrics, text: string, options: TextLayoutOptions): none {
   builder := TextLineBuilder {}
   let word: int[] = []
   let pendingSpaces = 0
@@ -642,7 +642,7 @@ function addWordWithWrap(
   word: int[],
   pendingSpaces: int,
   options: TextLayoutOptions,
-): void {
+): none {
   candidate: int[] := []
   if builder.hasAdvance {
     for spaceIndex of 0..<pendingSpaces {

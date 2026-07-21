@@ -7,7 +7,7 @@ import {
   loadGlb,
 } from "std/game"
 
-function nameOr(value: string | null, fallback: string): string {
+function nameOr(value: string | none, fallback: string): string {
   return value ?? fallback
 }
 
@@ -41,12 +41,12 @@ function primitiveSummary(primitive: GltfPrimitive): string {
     " COLOR_0=" + color
 }
 
-function printMaterials(asset: GltfAsset): void {
+function printMaterials(asset: GltfAsset): none {
   println("Materials: " + string(asset.materials.length))
   for index of 0..<asset.materials.length {
     material := asset.materials[index]
-    baseTexture := if material.baseColorTexture != null then material.baseColorTexture!.index else -1
-    normalTexture := if material.normalTexture != null then material.normalTexture!.index else -1
+    baseTexture := if material.baseColorTexture != none then material.baseColorTexture!.index else -1
+    normalTexture := if material.normalTexture != none then material.normalTexture!.index else -1
     println("  [" + string(index) + "] " + nameOr(material.name, "unnamed") +
       " baseColor=(" +
       string(material.baseColorFactor.r) + ", " +
@@ -62,7 +62,7 @@ function printMaterials(asset: GltfAsset): void {
   }
 }
 
-function printImagesAndTextures(asset: GltfAsset): void {
+function printImagesAndTextures(asset: GltfAsset): none {
   println("Textures: " + string(asset.textures.length))
   for index of 0..<asset.textures.length {
     texture := asset.textures[index]
@@ -74,14 +74,14 @@ function printImagesAndTextures(asset: GltfAsset): void {
   println("Images: " + string(asset.images.length))
   for index of 0..<asset.images.length {
     image := asset.images[index]
-    source := if image.uri != null then image.uri! else "bufferView " + textureIndexText(image.bufferView)
+    source := if image.uri != none then image.uri! else "bufferView " + textureIndexText(image.bufferView)
     println("  [" + string(index) + "] " + nameOr(image.name, "unnamed") +
       " " + (image.mimeType ?? "unknown mime") +
       " " + source)
   }
 }
 
-function printMeshes(asset: GltfAsset): void {
+function printMeshes(asset: GltfAsset): none {
   println("Meshes: " + string(asset.meshes.length))
   for meshIndex of 0..<asset.meshes.length {
     mesh := asset.meshes[meshIndex]
@@ -93,7 +93,7 @@ function printMeshes(asset: GltfAsset): void {
   }
 }
 
-function printAnimation(animation: GltfAnimation, index: int): void {
+function printAnimation(animation: GltfAnimation, index: int): none {
   println("  [" + string(index) + "] " + nameOr(animation.name, "unnamed") +
     " duration=" + string(animation.duration) +
     " samplers=" + string(animation.samplers.length) +
@@ -106,14 +106,14 @@ function printAnimation(animation: GltfAnimation, index: int): void {
   }
 }
 
-function printAnimations(asset: GltfAsset): void {
+function printAnimations(asset: GltfAsset): none {
   println("Animations: " + string(asset.animations.length))
   for index of 0..<asset.animations.length {
     printAnimation(asset.animations[index], index)
   }
 }
 
-function printWarnings(asset: GltfAsset): void {
+function printWarnings(asset: GltfAsset): none {
   if asset.warnings.length == 0 {
     return
   }
@@ -124,7 +124,7 @@ function printWarnings(asset: GltfAsset): void {
   }
 }
 
-function printOverview(path: string, asset: GltfAsset): void {
+function printOverview(path: string, asset: GltfAsset): none {
   println("== " + path + " ==")
   specs := glbAssetToSimpleMeshSpecs(asset)
   case specs {

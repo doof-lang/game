@@ -311,7 +311,7 @@ export function drawSimpleMesh(
   },
   material: SimpleMaterial = SimpleMaterial {},
   lighting: SimpleMeshLighting = SimpleMeshLighting {},
-): void {
+): none {
   viewProjection := pass.camera().matrix(pass.surface())
   normal := model.toNormalMat3()
   eye := pass.camera().transform.position
@@ -399,7 +399,7 @@ export function drawTexturedSimpleMesh(
   },
   material: SimpleMaterial = SimpleMaterial {},
   lighting: SimpleMeshLighting = SimpleMeshLighting {},
-): void {
+): none {
   viewProjection := pass.camera().matrix(pass.surface())
   normal := model.toNormalMat3()
   eye := pass.camera().transform.position

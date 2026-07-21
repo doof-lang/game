@@ -9,7 +9,7 @@ export function drawUiPanel(
   pass: RenderPass,
   panel: UiPanel,
   model: Mat4,
-): void {
+): none {
   bounds := panel.bounds()
   fill := quadMesh(surface, bounds, panel.style.background, panel.style.z)
   drawSimpleMesh(pass, fill, model)
@@ -38,7 +38,7 @@ export function drawUiLabel(
   label: UiLabel,
   font: BitmapFont,
   model: Mat4,
-): void {
+): none {
   if label.text == "" {
     return
   }
@@ -61,7 +61,7 @@ export function drawUiButton(
   button: UiButton,
   font: BitmapFont,
   model: Mat4,
-): void {
+): none {
   bounds := button.bounds()
   mesh := quadMesh(surface, bounds, buttonBackground(button), button.style.z)
   drawSimpleMesh(pass, mesh, model)
@@ -90,7 +90,7 @@ function drawUiText(
   text: string,
   options: TextLayoutOptions,
   model: Mat4,
-): void {
+): none {
   mesh := createTextMesh(surface, font, text, options)
   drawTexturedSimpleMesh(pass, mesh, font.texture, model)
 }

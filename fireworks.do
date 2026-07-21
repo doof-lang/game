@@ -81,7 +81,7 @@ export class Fireworks {
 
   isActive(): bool => active || layer.isActive()
 
-  clear(): void {
+  clear(): none {
     layer.clear()
     elapsed = 0.0
     active = false
@@ -90,7 +90,7 @@ export class Fireworks {
     finaleEmitted = false
   }
 
-  start(width: double, height: double): void {
+  start(width: double, height: double): none {
     clear()
     this.width = maxDouble(width, 1.0)
     this.height = maxDouble(height, 1.0)
@@ -105,14 +105,14 @@ export class Fireworks {
     return double(index) / double(config.burstCount - 1)
   }
 
-  private emitDueBursts(): void {
+  private emitDueBursts(): none {
     while emittedBursts < config.burstCount && elapsed >= burstProgress(emittedBursts) * config.duration * 0.78 {
       emitBurst(emittedBursts, config.particlesPerBurst, 1.0, 1.0)
       emittedBursts += 1
     }
   }
 
-  private emitBurst(index: int, count: int, radiusScale: double, lifetimeScale: double): void {
+  private emitBurst(index: int, count: int, radiusScale: double, lifetimeScale: double): none {
     burstSeed := config.seed + index * 101
     centerX := width * (0.12 + randomUnit(index, config.seed, 11.0) * 0.76)
     centerY := height * (0.12 + randomUnit(index, config.seed, 12.0) * 0.46)
@@ -140,7 +140,7 @@ export class Fireworks {
     emitFlash(index, centerX, centerY, color)
   }
 
-  private emitFlash(index: int, x: double, y: double, color: Color): void {
+  private emitFlash(index: int, x: double, y: double, color: Color): none {
     layer.emit(
       ParticleConfig {
         count: 10,
@@ -162,7 +162,7 @@ export class Fireworks {
     )
   }
 
-  private emitSparkles(): void {
+  private emitSparkles(): none {
     sparkleSeed := config.seed + int(elapsed * 1000.0) + emittedBursts * 37
     x := width * (0.08 + randomUnit(sparkleSeed, config.seed, 21.0) * 0.84)
     y := height * (0.08 + randomUnit(sparkleSeed, config.seed, 22.0) * 0.20)
@@ -190,7 +190,7 @@ export class Fireworks {
     )
   }
 
-  private emitFinale(): void {
+  private emitFinale(): none {
     for index of 0..<config.finaleBurstCount {
       emitBurst(config.burstCount + index, config.finaleParticlesPerBurst, 1.18, 0.72)
     }
@@ -223,7 +223,7 @@ export class Fireworks {
     return isActive()
   }
 
-  draw(pass: RenderPass): void {
+  draw(pass: RenderPass): none {
     layer.draw(pass)
   }
 }

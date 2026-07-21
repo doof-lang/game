@@ -3,7 +3,7 @@ import { approxEqual } from "std/math"
 
 import { InputAxis, InputStick } from "../index"
 
-function assertApprox(actual: double, expected: double): void {
+function assertApprox(actual: double, expected: double): none {
   Assert.isTrue(approxEqual(actual, expected))
 }
 
@@ -24,7 +24,7 @@ class TestStickSource {
   }
 }
 
-export function testInputAxisReadsCurrentValue(): void {
+export function testInputAxisReadsCurrentValue(): none {
   source := TestAxisSource {}
   axis := source.axis()
 
@@ -33,7 +33,7 @@ export function testInputAxisReadsCurrentValue(): void {
   assertApprox(axis.value(), 0.5)
 }
 
-export function testInputAxisDeadzoneScalesOutsideDeadzone(): void {
+export function testInputAxisDeadzoneScalesOutsideDeadzone(): none {
   source := TestAxisSource { value: 0.1 }
   axis := source.axis().withDeadzone(0.2)
 
@@ -44,14 +44,14 @@ export function testInputAxisDeadzoneScalesOutsideDeadzone(): void {
   assertApprox(axis.value(), -0.5)
 }
 
-export function testInputAxisInvertsAndClamps(): void {
+export function testInputAxisInvertsAndClamps(): none {
   source := TestAxisSource { value: 0.75 }
 
   assertApprox(source.axis().inverted().value(), -0.75)
   assertApprox(source.axis().clamped(-0.5, 0.5).value(), 0.5)
 }
 
-export function testInputStickReadsLengthAndInvertsY(): void {
+export function testInputStickReadsLengthAndInvertsY(): none {
   source := TestStickSource { x: 0.3, y: -0.4 }
   stick := source.stick()
 
@@ -61,7 +61,7 @@ export function testInputStickReadsLengthAndInvertsY(): void {
   assertApprox(stick.invertedY().y(), 0.4)
 }
 
-export function testInputStickDeadzoneUsesRadialLength(): void {
+export function testInputStickDeadzoneUsesRadialLength(): none {
   source := TestStickSource { x: 0.3, y: 0.4 }
   stick := source.stick().withDeadzone(0.2)
 

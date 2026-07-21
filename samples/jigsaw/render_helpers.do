@@ -127,7 +127,7 @@ export function createDragBatch(surface: GameSurface, mesh: SimpleMesh, texture:
   }
 }
 
-export function addGroupToBatch(batch: SimpleModelBatch, pieces: Piece[], group: int): void {
+export function addGroupToBatch(batch: SimpleModelBatch, pieces: Piece[], group: int): none {
   for id of 0..<COLUMNS * ROWS {
     if pieces[id].group == group {
       addPieceToBatch(batch, pieces[id])

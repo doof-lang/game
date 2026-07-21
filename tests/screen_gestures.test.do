@@ -2,7 +2,7 @@ import { Assert } from "std/assert"
 
 import { Point, ScreenGesture, ScreenGestures } from "../index"
 
-export function testScreenGesturesDispatchPanPayload(): void {
+export function testScreenGesturesDispatchPanPayload(): none {
   gestures := ScreenGestures {}
   let calls = 0
   let lastX = 0.0
@@ -10,7 +10,7 @@ export function testScreenGesturesDispatchPanPayload(): void {
   let lastDeltaX = 0.0
   let lastDeltaY = 0.0
 
-  gestures.onPan((gesture): void => {
+  gestures.onPan((gesture): none => {
     calls += 1
     lastX = gesture.point.x
     lastY = gesture.point.y
@@ -27,13 +27,13 @@ export function testScreenGesturesDispatchPanPayload(): void {
   Assert.equal(lastDeltaY, -4.0)
 }
 
-export function testScreenGesturesDispatchScrollPayload(): void {
+export function testScreenGesturesDispatchScrollPayload(): none {
   gestures := ScreenGestures {}
   let calls = 0
   let lastDeltaX = 0.0
   let lastDeltaY = 0.0
 
-  gestures.onScroll((gesture): void => {
+  gestures.onScroll((gesture): none => {
     calls += 1
     lastDeltaX = gesture.deltaX
     lastDeltaY = gesture.deltaY
@@ -46,14 +46,14 @@ export function testScreenGesturesDispatchScrollPayload(): void {
   Assert.equal(lastDeltaY, 6.0)
 }
 
-export function testScreenGesturesDispatchMagnifyPayload(): void {
+export function testScreenGesturesDispatchMagnifyPayload(): none {
   gestures := ScreenGestures {}
   let calls = 0
   let lastDeltaX = 0.0
   let lastDeltaY = 0.0
   let lastMagnification = 0.0
 
-  gestures.onMagnify((gesture): void => {
+  gestures.onMagnify((gesture): none => {
     calls += 1
     lastDeltaX = gesture.deltaX
     lastDeltaY = gesture.deltaY
@@ -68,13 +68,13 @@ export function testScreenGesturesDispatchMagnifyPayload(): void {
   Assert.equal(lastMagnification, 0.2)
 }
 
-export function testScreenGesturesDispatchDoubleTapPayload(): void {
+export function testScreenGesturesDispatchDoubleTapPayload(): none {
   gestures := ScreenGestures {}
   let calls = 0
   let lastX = 0.0
   let lastY = 0.0
 
-  gestures.onDoubleTap((gesture): void => {
+  gestures.onDoubleTap((gesture): none => {
     calls += 1
     lastX = gesture.point.x
     lastY = gesture.point.y

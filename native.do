@@ -51,10 +51,10 @@ export import class NativeGameApp from "native_game.hpp" as doof_game::NativeGam
   isolated fps(): double
   run(
     continuousRendering: bool,
-    onEvent: (event: NativeGameEvent, input: NativeInputState): void,
-    onRender: (surface: NativeGameSurface, input: NativeInputState): void,
+    onEvent: (event: NativeGameEvent, input: NativeInputState): none,
+    onRender: (surface: NativeGameSurface, input: NativeInputState): none,
     drainEvents: (): int,
-  ): Result<void, string>
+  ): Result<none, string>
 }
 
 export import class NativeTexture from "native_game.hpp" as doof_game::NativeTexture {
@@ -109,11 +109,11 @@ export import class NativeRenderFrame from "native_game.hpp" as doof_game::Nativ
     windingMode: int,
     cullMode: int,
   ): NativeRenderPass
-  commit(): void
+  commit(): none
 }
 
 export import class NativeRenderPass from "native_game.hpp" as doof_game::NativeRenderPass {
-  end(): void
+  end(): none
   metalRenderCommandEncoderHandle(): long
   metalCommandBufferHandle(): long
   metalDeviceHandle(): long
@@ -150,7 +150,7 @@ export import class NativeSimpleModelBatch from "native_mesh.hpp" as doof_game::
   static create(metalDeviceHandle: long, capacity: int): Result<NativeSimpleModelBatch, string>
   capacity(): int
   count(): int
-  setCount(count: int): void
+  setCount(count: int): none
   setInstance(
     slot: int,
     m00: double,
@@ -191,7 +191,7 @@ export import class NativeSimpleModelBatch from "native_mesh.hpp" as doof_game::
     shininess: double,
     fresnel: double,
     fresnelPower: double,
-  ): void
+  ): none
 }
 
 export import class NativeSpaceDustBuilder from "native_mesh.hpp" as doof_game::NativeSpaceDustBuilder {
@@ -296,7 +296,7 @@ export import function drawNativeSimpleMesh(
   shininess: double,
   fresnel: double,
   fresnelPower: double,
-): void from "native_mesh.hpp" as doof_game::drawNativeSimpleMesh
+): none from "native_mesh.hpp" as doof_game::drawNativeSimpleMesh
 
 export import function drawNativeTexturedSimpleMesh(
   mesh: NativeSimpleMesh,
@@ -368,7 +368,7 @@ export import function drawNativeTexturedSimpleMesh(
   shininess: double,
   fresnel: double,
   fresnelPower: double,
-): void from "native_mesh.hpp" as doof_game::drawNativeTexturedSimpleMesh
+): none from "native_mesh.hpp" as doof_game::drawNativeTexturedSimpleMesh
 
 export import function drawNativeSimpleModelBatch(
   mesh: NativeSimpleMesh,
@@ -404,7 +404,7 @@ export import function drawNativeSimpleModelBatch(
   eyeX: double,
   eyeY: double,
   eyeZ: double,
-): void from "native_mesh.hpp" as doof_game::drawNativeSimpleModelBatch
+): none from "native_mesh.hpp" as doof_game::drawNativeSimpleModelBatch
 
 export import function drawNativeShader(
   pipeline: NativeShaderPipeline,
@@ -427,7 +427,7 @@ export import function drawNativeShader(
   blendMode: int,
   hasColorAttachment: bool,
   hasDepthAttachment: bool,
-): Result<void, string> from "native_mesh.hpp" as doof_game::drawNativeShader
+): Result<none, string> from "native_mesh.hpp" as doof_game::drawNativeShader
 
 export import function drawNativeEquirectangularSkyMap(
   metalTextureHandle: long,
@@ -447,7 +447,7 @@ export import function drawNativeEquirectangularSkyMap(
   rotationM20: double,
   rotationM21: double,
   rotationM22: double,
-): void from "native_mesh.hpp" as doof_game::drawNativeEquirectangularSkyMap
+): none from "native_mesh.hpp" as doof_game::drawNativeEquirectangularSkyMap
 
 export import function drawNativeSpaceDust(
   dust: NativeSpaceDust,
@@ -483,7 +483,7 @@ export import function drawNativeSpaceDust(
   m31: double,
   m32: double,
   m33: double,
-): void from "native_mesh.hpp" as doof_game::drawNativeSpaceDust
+): none from "native_mesh.hpp" as doof_game::drawNativeSpaceDust
 
 export import function runNativeGameApp(
   title: string,
@@ -491,16 +491,16 @@ export import function runNativeGameApp(
   windowWidth: int,
   windowHeight: int,
   continuousRendering: bool,
-  onEvent: (event: NativeGameEvent, input: NativeInputState): void,
-  onRender: (surface: NativeGameSurface, input: NativeInputState): void,
+  onEvent: (event: NativeGameEvent, input: NativeInputState): none,
+  onRender: (surface: NativeGameSurface, input: NativeInputState): none,
   drainEvents: (): int,
-): Result<void, string> from "native_game.hpp" as doof_game::runNativeGameApp
+): Result<none, string> from "native_game.hpp" as doof_game::runNativeGameApp
 
-export import function requestGameAppWake(): void from "native_game.hpp" as doof_game::requestGameAppWake
-export import function requestGameAppRender(): void from "native_game.hpp" as doof_game::requestGameAppRender
-export import function requestGameAppStop(): void from "native_game.hpp" as doof_game::requestGameAppStop
-export import function beginGameAppPanGesture(x: double, y: double): void from "native_game.hpp" as doof_game::beginGameAppPanGesture
-export import function updateGameAppPanGesture(x: double, y: double): void from "native_game.hpp" as doof_game::updateGameAppPanGesture
-export import function endGameAppPanGesture(): void from "native_game.hpp" as doof_game::endGameAppPanGesture
-export import function cancelGameAppPanGesture(): void from "native_game.hpp" as doof_game::cancelGameAppPanGesture
-export import function cancelGameAppPanInertia(): void from "native_game.hpp" as doof_game::cancelGameAppPanInertia
+export import function requestGameAppWake(): none from "native_game.hpp" as doof_game::requestGameAppWake
+export import function requestGameAppRender(): none from "native_game.hpp" as doof_game::requestGameAppRender
+export import function requestGameAppStop(): none from "native_game.hpp" as doof_game::requestGameAppStop
+export import function beginGameAppPanGesture(x: double, y: double): none from "native_game.hpp" as doof_game::beginGameAppPanGesture
+export import function updateGameAppPanGesture(x: double, y: double): none from "native_game.hpp" as doof_game::updateGameAppPanGesture
+export import function endGameAppPanGesture(): none from "native_game.hpp" as doof_game::endGameAppPanGesture
+export import function cancelGameAppPanGesture(): none from "native_game.hpp" as doof_game::cancelGameAppPanGesture
+export import function cancelGameAppPanInertia(): none from "native_game.hpp" as doof_game::cancelGameAppPanInertia

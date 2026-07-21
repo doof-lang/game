@@ -71,20 +71,20 @@ function testState(): PuzzleState {
   }
 }
 
-function collectEvents(connectionEvents: JigsawServerEvent[]): (event: JigsawServerEvent): void {
-  return (event: JigsawServerEvent): void => connectionEvents.push(event)
+function collectEvents(connectionEvents: JigsawServerEvent[]): (event: JigsawServerEvent): none {
+  return (event: JigsawServerEvent): none => connectionEvents.push(event)
 }
 
-function assertApprox(actual: double, expected: double): void {
+function assertApprox(actual: double, expected: double): none {
   Assert.isTrue(approxEqual(actual, expected), "expected ${actual} to approximately equal ${expected}")
 }
 
-export function testZoomFactorsSeparateScrollAndMagnifyInput(): void {
+export function testZoomFactorsSeparateScrollAndMagnifyInput(): none {
   assertApprox(zoomFactorForScrollDelta(10.0), 0.9)
   assertApprox(zoomFactorForMagnificationDelta(0.1), 1.1)
 }
 
-export function testSetZoomAtPreservesWorldPointUnderCursor(): void {
+export function testSetZoomAtPreservesWorldPointUnderCursor(): none {
   camera := PuzzleCamera { x: 10.0, y: 20.0, zoom: 1.0, minZoom: 0.5, maxZoom: 4.0 }
   screenX := 120.0
   screenY := 80.0
@@ -98,7 +98,7 @@ export function testSetZoomAtPreservesWorldPointUnderCursor(): void {
   assertApprox(screenToWorldY(camera, screenY), worldY)
 }
 
-export function testConnectEmitsFullBoardSnapshot(): void {
+export function testConnectEmitsFullBoardSnapshot(): none {
   session := createJigsawSession(testState())
   client := session.connectClient()
   events: JigsawServerEvent[] := []
@@ -116,7 +116,7 @@ export function testConnectEmitsFullBoardSnapshot(): void {
   Assert.equal(events[0].clientId, client.clientId)
 }
 
-export function testProtocolRoundTripsCommandAndEventFrames(): void {
+export function testProtocolRoundTripsCommandAndEventFrames(): none {
   command := JigsawClientCommand {
     kind: JigsawClientCommandKind.MoveGroup,
     clientId: 99,
@@ -181,7 +181,7 @@ export function testProtocolRoundTripsCommandAndEventFrames(): void {
   Assert.equal(joinEventPosition.x, 0.0)
 }
 
-export function testMoveCommandsAndEventsExposeCoalescingKeys(): void {
+export function testMoveCommandsAndEventsExposeCoalescingKeys(): none {
   command := JigsawClientCommand {
     kind: JigsawClientCommandKind.MoveGroup,
     clientId: 4,
@@ -198,7 +198,7 @@ export function testMoveCommandsAndEventsExposeCoalescingKeys(): void {
     clientId: 4,
     groupIds: [9, 10],
   })
-  Assert.isTrue(joinKey == null)
+  Assert.isTrue(joinKey == none)
 
   eventKey := jigsawServerEventKey(JigsawServerEvent {
     kind: JigsawServerEventKind.GroupMoved,
@@ -212,10 +212,10 @@ export function testMoveCommandsAndEventsExposeCoalescingKeys(): void {
   snapshotKey := jigsawServerEventKey(JigsawServerEvent {
     kind: JigsawServerEventKind.BoardSnapshot,
   })
-  Assert.isTrue(snapshotKey == null)
+  Assert.isTrue(snapshotKey == none)
 }
 
-export function testNormalizeJigsawServerUrlDefaultsToWebSocketPath(): void {
+export function testNormalizeJigsawServerUrlDefaultsToWebSocketPath(): none {
   Assert.equal(normalizeJigsawServerUrl("127.0.0.1:8765"), "ws://127.0.0.1:8765/jigsaw")
   Assert.equal(normalizeJigsawServerUrl("http://example.test:8080"), "ws://example.test:8080/jigsaw")
   Assert.equal(normalizeJigsawServerUrl("https://example.test"), "wss://example.test/jigsaw")
@@ -223,7 +223,7 @@ export function testNormalizeJigsawServerUrlDefaultsToWebSocketPath(): void {
   Assert.equal(normalizeJigsawServerUrl("wss://example.test/jigsaw"), "wss://example.test/jigsaw")
 }
 
-export function testSingleClientMoveUpdatesServerWithoutLocalEcho(): void {
+export function testSingleClientMoveUpdatesServerWithoutLocalEcho(): none {
   session := createJigsawSession(testState())
   client := session.connectClient()
   events: JigsawServerEvent[] := []
@@ -240,7 +240,7 @@ export function testSingleClientMoveUpdatesServerWithoutLocalEcho(): void {
   Assert.equal(events.length, 1)
 }
 
-export function testMoveCommandsCoalesceByClientAndGroupKey(): void {
+export function testMoveCommandsCoalesceByClientAndGroupKey(): none {
   session := createJigsawSession(testState(), JigsawSessionConfig { commandCapacity: 1, eventCapacity: 4 })
   client := session.connectClient()
   try! sendMoveGroup(client, 0, 10.0, 20.0)
@@ -254,7 +254,7 @@ export function testMoveCommandsCoalesceByClientAndGroupKey(): void {
   Assert.equal(position.y, 40.0)
 }
 
-export function testServerMoveBroadcastsCoalesceByGroupKey(): void {
+export function testServerMoveBroadcastsCoalesceByGroupKey(): none {
   session := createJigsawSession(testState(), JigsawSessionConfig { commandCapacity: 8, eventCapacity: 2 })
   first := session.connectClient()
   second := session.connectClient()
@@ -274,7 +274,7 @@ export function testServerMoveBroadcastsCoalesceByGroupKey(): void {
   Assert.equal(events[1].y, 40.0)
 }
 
-export function testJoinCreatesNewGroupAndBroadcastsIdentity(): void {
+export function testJoinCreatesNewGroupAndBroadcastsIdentity(): none {
   session := createJigsawSession(testState())
   first := session.connectClient()
   second := session.connectClient()
@@ -294,7 +294,7 @@ export function testJoinCreatesNewGroupAndBroadcastsIdentity(): void {
   Assert.equal(state.pieces[1].group, COLUMNS * ROWS)
 }
 
-export function testJoinWithoutPositionIsIgnored(): void {
+export function testJoinWithoutPositionIsIgnored(): none {
   session := createJigsawSession(testState())
   client := session.connectClient()
   drainMainEventLoop()
@@ -315,7 +315,7 @@ export function testJoinWithoutPositionIsIgnored(): void {
   Assert.equal(state.pieces[1].group, 1)
 }
 
-export function testJoinAnchorsMergedGroupToLowestPiece(): void {
+export function testJoinAnchorsMergedGroupToLowestPiece(): none {
   session := createJigsawSession(testState())
   first := session.connectClient()
   watcher := session.connectClient()
@@ -340,7 +340,7 @@ export function testJoinAnchorsMergedGroupToLowestPiece(): void {
   Assert.equal(joined.x, 0.0)
 }
 
-export function testClientJoinPositionIsLowestPieceEvenWhenDraggedPieceIsHigher(): void {
+export function testClientJoinPositionIsLowestPieceEvenWhenDraggedPieceIsHigher(): none {
   state := testState()
   layout := createLayoutForSize(1000.0, 800.0)
   setGroupPositionFromPiece(state.pieces, 1, 1, 70.0, 0.0)
@@ -358,7 +358,7 @@ export function testClientJoinPositionIsLowestPieceEvenWhenDraggedPieceIsHigher(
   Assert.equal(position.x, 0.0)
 }
 
-export function testJoinCanonicalizesEvenAfterStaleRightSideFinalMove(): void {
+export function testJoinCanonicalizesEvenAfterStaleRightSideFinalMove(): none {
   session := createJigsawSession(testState())
   first := session.connectClient()
   drainMainEventLoop()
@@ -378,7 +378,7 @@ export function testJoinCanonicalizesEvenAfterStaleRightSideFinalMove(): void {
   Assert.equal(state.pieces[1].x, 64.0)
 }
 
-export function testCanonicalGroupPositionRepairsOverlappedClientGeometry(): void {
+export function testCanonicalGroupPositionRepairsOverlappedClientGeometry(): none {
   state := testState()
   state.pieces[0].group = 9
   state.pieces[1].group = 9
@@ -393,7 +393,7 @@ export function testCanonicalGroupPositionRepairsOverlappedClientGeometry(): voi
   Assert.equal(state.pieces[1].y, 20.0)
 }
 
-export function testMoveWithJoinedGroupsResolvesToCanonicalGroup(): void {
+export function testMoveWithJoinedGroupsResolvesToCanonicalGroup(): none {
   session := createJigsawSession(testState())
   first := session.connectClient()
   second := session.connectClient()
@@ -413,7 +413,7 @@ export function testMoveWithJoinedGroupsResolvesToCanonicalGroup(): void {
   Assert.equal(moved.y, 60.0)
 }
 
-export function testStalePartialMoveCancelsWithCanonicalLocation(): void {
+export function testStalePartialMoveCancelsWithCanonicalLocation(): none {
   session := createJigsawSession(testState())
   staleClient := session.connectClient()
   joiningClient := session.connectClient()
@@ -432,7 +432,7 @@ export function testStalePartialMoveCancelsWithCanonicalLocation(): void {
   Assert.equal(cancelled.cancelledGroups[0].groupId, COLUMNS * ROWS)
 }
 
-export function testSingleUserFlowUsesSessionApi(): void {
+export function testSingleUserFlowUsesSessionApi(): none {
   session := createJigsawSession(testState())
   client := session.connectClient()
   events: JigsawServerEvent[] := []

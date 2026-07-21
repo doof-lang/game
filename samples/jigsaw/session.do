@@ -35,7 +35,7 @@ export class JigsawClientCommand {
   additionalGroupIds: int[] = []
   x: double = 0.0
   y: double = 0.0
-  position: GroupPosition | null = null
+  position: GroupPosition | none = none
 }
 
 export class JigsawServerEvent {
@@ -46,8 +46,8 @@ export class JigsawServerEvent {
   pieceIds: int[] = []
   x: double = 0.0
   y: double = 0.0
-  position: GroupPosition | null = null
-  state: PuzzleState | null = null
+  position: GroupPosition | none = none
+  state: PuzzleState | none = none
   drawOrder: int[] = []
   cancelledGroups: GroupPosition[] = []
 }
@@ -88,7 +88,7 @@ export class JigsawSession {
   private nextClientId: int = 1
   private nextGroupId: int
   private eventCapacity: int
-  private onStateChanged: (state: PuzzleState): void
+  private onStateChanged: (state: PuzzleState): none
 
   connectClient(): JigsawClientConnection {
     clientId := this.nextClientId
@@ -107,7 +107,7 @@ export class JigsawSession {
     return clonePuzzleState(this.state)
   }
 
-  handleCommand(command: JigsawClientCommand): void {
+  handleCommand(command: JigsawClientCommand): none {
     if command.kind == JigsawClientCommandKind.MoveGroup {
       this.handleMove(command)
     }
@@ -116,7 +116,7 @@ export class JigsawSession {
     }
   }
 
-  private handleMove(command: JigsawClientCommand): void {
+  private handleMove(command: JigsawClientCommand): none {
     requested := requestedMoveGroups(command)
     resolution := this.resolveMove(requested)
     if resolution.accepted {
@@ -141,11 +141,11 @@ export class JigsawSession {
         groupIds: resolution.requestedGroups,
         cancelledGroups: this.canonicalPositionsForRequestedGroups(resolution.requestedGroups),
         drawOrder: cloneIntArray(this.state.drawOrder),
-      }, null)
+      }, none)
     }
   }
 
-  private handleJoin(command: JigsawClientCommand): void {
+  private handleJoin(command: JigsawClientCommand): none {
     requestedGroups := uniqueInts(command.groupIds)
     requestedPieceIds := this.expandGroupIds(requestedGroups)
     if requestedPieceIds.length == 0 {
@@ -174,7 +174,7 @@ export class JigsawSession {
       y: position.y,
       position,
       drawOrder: cloneIntArray(this.state.drawOrder),
-    }, null)
+    }, none)
     this.notifyStateChanged()
   }
 
@@ -201,7 +201,7 @@ export class JigsawSession {
     pieceIds: int[] := []
     for groupId of groupIds {
       definition := this.groupDefinition(groupId)
-      if definition != null {
+      if definition != none {
         for pieceId of definition!.pieceIds {
           if !pieceIds.contains(pieceId) {
             pieceIds.push(pieceId)
@@ -223,13 +223,13 @@ export class JigsawSession {
     return this.state.pieces[pieceId].group
   }
 
-  private groupDefinition(groupId: int): JigsawGroupDefinition | null {
+  private groupDefinition(groupId: int): JigsawGroupDefinition | none {
     for definition of this.groupDefinitions {
       if definition.id == groupId {
         return definition
       }
     }
-    return null
+    return none
   }
 
   private canonicalPositionsForRequestedGroups(groupIds: int[]): GroupPosition[] {
@@ -246,7 +246,7 @@ export class JigsawSession {
     return positions
   }
 
-  private broadcastAll(event: JigsawServerEvent, key: string | null): void {
+  private broadcastAll(event: JigsawServerEvent, key: string | none): none {
     liveClients: JigsawClientEndpoint[] := []
     for client of this.clients {
       sent := client.sender.send(event, key)
@@ -258,7 +258,7 @@ export class JigsawSession {
     this.clients = liveClients
   }
 
-  private broadcastExcept(originClientId: int, event: JigsawServerEvent, key: string | null): void {
+  private broadcastExcept(originClientId: int, event: JigsawServerEvent, key: string | none): none {
     liveClients: JigsawClientEndpoint[] := []
     for client of this.clients {
       if client.clientId != originClientId {
@@ -274,7 +274,7 @@ export class JigsawSession {
     this.clients = liveClients
   }
 
-  private sendToClient(clientId: int, event: JigsawServerEvent, key: string | null): void {
+  private sendToClient(clientId: int, event: JigsawServerEvent, key: string | none): none {
     liveClients: JigsawClientEndpoint[] := []
     for client of this.clients {
       if client.clientId == clientId {
@@ -290,18 +290,18 @@ export class JigsawSession {
     this.clients = liveClients
   }
 
-  private notifyStateChanged(): void {
+  private notifyStateChanged(): none {
     this.onStateChanged.call(clonePuzzleState(this.state))
   }
 }
 
 export function createJigsawSession(initialState: PuzzleState, config: JigsawSessionConfig = JigsawSessionConfig {}): JigsawSession {
-  return createJigsawSessionWithStateChanged(initialState, (state: PuzzleState): void => {}, config)
+  return createJigsawSessionWithStateChanged(initialState, (state: PuzzleState): none => {}, config)
 }
 
 export function createJigsawSessionWithStateChanged(
   initialState: PuzzleState,
-  onStateChanged: (state: PuzzleState): void,
+  onStateChanged: (state: PuzzleState): none,
   config: JigsawSessionConfig = JigsawSessionConfig {},
 ): JigsawSession {
   if config.commandCapacity <= 0 {
@@ -324,7 +324,7 @@ export function createJigsawSessionWithStateChanged(
     eventCapacity: config.eventCapacity,
     onStateChanged,
   }
-  commandEvents.onMessage((command: JigsawClientCommand): void => session.handleCommand(command))
+  commandEvents.onMessage((command: JigsawClientCommand): none => session.handleCommand(command))
   return session
 }
 
@@ -361,18 +361,18 @@ export function sendJoinGroups(
   })
 }
 
-export function jigsawClientCommandKey(command: JigsawClientCommand): string | null {
+export function jigsawClientCommandKey(command: JigsawClientCommand): string | none {
   if command.kind == JigsawClientCommandKind.MoveGroup {
     return moveCommandKey(command.clientId, command.primaryGroupId)
   }
-  return null
+  return none
 }
 
-export function jigsawServerEventKey(event: JigsawServerEvent): string | null {
+export function jigsawServerEventKey(event: JigsawServerEvent): string | none {
   if event.kind == JigsawServerEventKind.GroupMoved {
     return moveEventKey(event.groupId)
   }
-  return null
+  return none
 }
 
 export function moveCommandKey(clientId: int, primaryGroupId: int): string {
@@ -408,7 +408,7 @@ function initialGroupDefinitions(state: PuzzleState): JigsawGroupDefinition[] {
   definitions: JigsawGroupDefinition[] := []
   for piece of state.pieces {
     existing := findDefinition(definitions, piece.group)
-    if existing == null {
+    if existing == none {
       definitions.push(JigsawGroupDefinition { id: piece.group, pieceIds: [piece.id] })
     } else {
       existing!.pieceIds.push(piece.id)
@@ -417,13 +417,13 @@ function initialGroupDefinitions(state: PuzzleState): JigsawGroupDefinition[] {
   return definitions
 }
 
-function findDefinition(definitions: JigsawGroupDefinition[], groupId: int): JigsawGroupDefinition | null {
+function findDefinition(definitions: JigsawGroupDefinition[], groupId: int): JigsawGroupDefinition | none {
   for definition of definitions {
     if definition.id == groupId {
       return definition
     }
   }
-  return null
+  return none
 }
 
 function maxInitialGroupId(state: PuzzleState): int {

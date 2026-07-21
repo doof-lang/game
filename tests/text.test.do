@@ -34,11 +34,11 @@ function requireFont(): BitmapFontData {
   return try! parsed
 }
 
-function assertApprox(actual: double, expected: double): void {
+function assertApprox(actual: double, expected: double): none {
   Assert.isTrue(approxEqual(actual, expected), "expected ${actual} to approximately equal ${expected}")
 }
 
-export function testParseBitmapFontReadsMetricsGlyphsKerningAndTextureFile(): void {
+export function testParseBitmapFontReadsMetricsGlyphsKerningAndTextureFile(): none {
   font := requireFont()
   glyphA := font.glyph(65) else {
     Assert.fail("expected A glyph")
@@ -56,20 +56,20 @@ export function testParseBitmapFontReadsMetricsGlyphsKerningAndTextureFile(): vo
   Assert.equal(font.kerning(66, 65), 0)
 }
 
-export function testIntrinsicBitmapFontDataIsUseful(): void {
+export function testIntrinsicBitmapFontDataIsUseful(): none {
   font := try! intrinsicBitmapFontData()
 
   Assert.equal(font.lineHeight, 19)
   Assert.equal(font.base, 15)
   Assert.equal(font.scaleWidth, 256)
   Assert.equal(font.scaleHeight, 256)
-  Assert.isTrue(font.glyph(32) != null, "expected a space glyph")
-  Assert.isTrue(font.glyph(63) != null, "expected a fallback glyph")
-  Assert.isTrue(font.glyph(65) != null, "expected a Latin glyph")
-  Assert.isTrue(font.glyph(8364) != null, "expected a euro glyph")
+  Assert.isTrue(font.glyph(32) != none, "expected a space glyph")
+  Assert.isTrue(font.glyph(63) != none, "expected a fallback glyph")
+  Assert.isTrue(font.glyph(65) != none, "expected a Latin glyph")
+  Assert.isTrue(font.glyph(8364) != none, "expected a euro glyph")
 }
 
-export function testParseBitmapFontRejectsMalformedInput(): void {
+export function testParseBitmapFontRejectsMalformedInput(): none {
   missingCommon := parseBitmapFontData("char id=65 x=0 y=0 width=1 height=1 xoffset=0 yoffset=0 xadvance=1\n")
   badNumber := parseBitmapFontData(
     "common lineHeight=nope base=8 scaleW=64 scaleH=32 pages=1\n" +
@@ -85,7 +85,7 @@ export function testParseBitmapFontRejectsMalformedInput(): void {
   Assert.isTrue(multiPage.isFailure())
 }
 
-export function testParseBitmapFontRejectsMissingAndNonzeroPages(): void {
+export function testParseBitmapFontRejectsMissingAndNonzeroPages(): none {
   missingPage := parseBitmapFontData(
     "common lineHeight=10 base=8 scaleW=64 scaleH=32 pages=1\n" +
     "char id=65 x=0 y=0 width=1 height=1 xoffset=0 yoffset=0 xadvance=1 page=0\n",
@@ -100,7 +100,7 @@ export function testParseBitmapFontRejectsMissingAndNonzeroPages(): void {
   Assert.isTrue(nonzeroPage.isFailure())
 }
 
-export function testMeasureTextHandlesKerningLinesAndWrap(): void {
+export function testMeasureTextHandlesKerningLinesAndWrap(): none {
   font := requireFont()
 
   kerned := measureText(font, "AB")
@@ -118,25 +118,25 @@ export function testMeasureTextHandlesKerningLinesAndWrap(): void {
   Assert.equal(wrapped.lineCount, 3)
 }
 
-export function testMeasureTextDecodesUtf8Codepoints(): void {
+export function testMeasureTextDecodesUtf8Codepoints(): none {
   font := requireFont()
 
-  measured := measureText(font, "Aé€😀")
+  measured := measureText(font, "AÃ©â¬ð")
 
   assertApprox(measured.width, 30.0)
   Assert.equal(measured.lineCount, 1)
 }
 
-export function testCreateTextMeshSpecEmitsOneQuadPerUtf8Codepoint(): void {
+export function testCreateTextMeshSpecEmitsOneQuadPerUtf8Codepoint(): none {
   font := requireFont()
 
-  spec := createTextMeshSpec(font, "é€😀")
+  spec := createTextMeshSpec(font, "Ã©â¬ð")
 
   Assert.equal(spec.vertexCount(), 12)
   Assert.equal(spec.indexCount(), 18)
 }
 
-export function testCreateTextMeshSpecBuildsGlyphQuadsAndUvs(): void {
+export function testCreateTextMeshSpecBuildsGlyphQuadsAndUvs(): none {
   font := requireFont()
   spec := createTextMeshSpec(
     font,
@@ -165,7 +165,7 @@ export function testCreateTextMeshSpecBuildsGlyphQuadsAndUvs(): void {
   Assert.equal(spec.indices[5], 3)
 }
 
-export function testCreateTextMeshSpecAlignsWithinMaxWidth(): void {
+export function testCreateTextMeshSpecAlignsWithinMaxWidth(): none {
   font := requireFont()
   centered := createTextMeshSpec(
     font,

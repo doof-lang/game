@@ -134,13 +134,13 @@ function eventToJsonObject(event: JigsawServerEvent): JsonObject {
   payload.set("pieceIds", intArrayToJson(event.pieceIds))
   payload.set("x", event.x)
   payload.set("y", event.y)
-  if event.position == null {
-    payload.set("position", null)
+  if event.position == none {
+    payload.set("position", none)
   } else {
     payload.set("position", event.position!.toJsonObject())
   }
-  if event.state == null {
-    payload.set("state", null)
+  if event.state == none {
+    payload.set("state", none)
   } else {
     payload.set("state", event.state!.toJsonObject())
   }
@@ -226,32 +226,32 @@ function readGroupPositionsField(object: JsonObject, name: string): Result<Group
   return Success(result)
 }
 
-function readGroupPositionField(object: JsonObject, name: string): Result<GroupPosition | null, string> {
+function readGroupPositionField(object: JsonObject, name: string): Result<GroupPosition | none, string> {
   if !object.has(name) {
-    empty: GroupPosition | null := null
+    empty: GroupPosition | none := none
     return Success(empty)
   }
   value := object.get(name) else {
     return Failure("Expected group position field ${name}")
   }
   positionObject := value as JsonObject else {
-    empty: GroupPosition | null := null
+    empty: GroupPosition | none := none
     return Success(empty)
   }
   try position := GroupPosition.fromJsonValue(positionObject)
   return Success(position)
 }
 
-function readStateField(object: JsonObject, name: string): Result<PuzzleState | null, string> {
+function readStateField(object: JsonObject, name: string): Result<PuzzleState | none, string> {
   if !object.has(name) {
-    empty: PuzzleState | null := null
+    empty: PuzzleState | none := none
     return Success(empty)
   }
   value := object.get(name) else {
     return Failure("Expected state field ${name}")
   }
   stateObject := value as JsonObject else {
-    empty: PuzzleState | null := null
+    empty: PuzzleState | none := none
     return Success(empty)
   }
   try state := PuzzleState.fromJsonValue(stateObject)
@@ -335,12 +335,12 @@ export function connectJigsawServer(address: string): Result<JigsawClientConnect
     events,
   }
 
-  let pendingCommand: JigsawClientCommand | null = null
-  flushPendingCommand := (): void => {
+  let pendingCommand: JigsawClientCommand | none = none
+  flushPendingCommand := (): none => {
     command := pendingCommand else {
       return
     }
-    pendingCommand = null
+    pendingCommand = none
     key := jigsawClientCommandKey(command) else {
       return
     }
@@ -354,30 +354,30 @@ export function connectJigsawServer(address: string): Result<JigsawClientConnect
     handler: flushPendingCommand,
   }
 
-  commandEvents.onMessage((command: JigsawClientCommand): void => {
-    if jigsawClientCommandKey(command) == null {
+  commandEvents.onMessage((command: JigsawClientCommand): none => {
+    if jigsawClientCommandKey(command) == none {
       flushPendingCommand.call()
-      if !sendCommandFrame(socket, command, null) {
+      if !sendCommandFrame(socket, command, none) {
         eventSender.close()
       }
       return
     }
     pendingCommand = command
   })
-  commandEvents.onClosed((): void => {
+  commandEvents.onClosed((): none => {
     flushPendingCommand.call()
     flushTimer.cancel()
     socket.close()
   })
-  eventSender.onClosed((): void => {
+  eventSender.onClosed((): none => {
     flushTimer.cancel()
     socket.close()
   })
 
   socket.events.onMessage((
     event: WebSocketOpen | WebSocketText | WebSocketBinary | WebSocketWritable | WebSocketClose | WebSocketError,
-  ): void => handleRemoteSocketEvent(connection, eventSender, event))
-  socket.events.onClosed((): void => {
+  ): none => handleRemoteSocketEvent(connection, eventSender, event))
+  socket.events.onClosed((): none => {
     flushTimer.cancel()
     commands.close()
     eventSender.close()
@@ -389,9 +389,9 @@ export function connectJigsawServer(address: string): Result<JigsawClientConnect
 function sendCommandFrame(
   socket: WebSocketConnection,
   command: JigsawClientCommand,
-  key: string | null,
+  key: string | none,
 ): bool {
-  sent := if key == null then socket.commands.send(WebSocketSendText {
+  sent := if key == none then socket.commands.send(WebSocketSendText {
     text: encodeJigsawCommandFrame(command),
   }) else socket.commands.send(WebSocketSendText {
     text: encodeJigsawCommandFrame(command),
@@ -407,7 +407,7 @@ function handleRemoteSocketEvent(
   connection: JigsawClientConnection,
   eventSender: ChannelSender<JigsawServerEvent>,
   event: WebSocketOpen | WebSocketText | WebSocketBinary | WebSocketWritable | WebSocketClose | WebSocketError,
-): void {
+): none {
   textEvent := event as WebSocketText
   case textEvent {
     textSuccess: Success -> {

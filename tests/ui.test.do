@@ -44,16 +44,16 @@ function testStyle(): UiStyle => UiStyle { font: testFont() }
 
 function testButtonStyle(): UiButtonStyle => UiButtonStyle { font: testFont() }
 
-function assertApprox(actual: double, expected: double): void {
+function assertApprox(actual: double, expected: double): none {
   Assert.isTrue(approxEqual(actual, expected), "expected ${actual} to approximately equal ${expected}")
 }
 
-export function testUiStylesDefaultToIntrinsicFont(): void {
-  Assert.equal(UiStyle {}.font, null)
-  Assert.equal(UiButtonStyle {}.font, null)
+export function testUiStylesDefaultToIntrinsicFont(): none {
+  Assert.equal(UiStyle {}.font, none)
+  Assert.equal(UiButtonStyle {}.font, none)
 }
 
-export function testRectContainsIncludesEdgesAndRejectsOutside(): void {
+export function testRectContainsIncludesEdgesAndRejectsOutside(): none {
   rect := Rect(10.0, 20.0, 30.0, 40.0)
 
   Assert.isTrue(rectContains(rect, Point(10.0, 20.0)))
@@ -63,13 +63,13 @@ export function testRectContainsIncludesEdgesAndRejectsOutside(): void {
   Assert.isFalse(rectContains(rect, Point(10.0, 60.1)))
 }
 
-export function testGameAppLoadsReferencedBitmapFontTexture(): void {
+export function testGameAppLoadsReferencedBitmapFontTexture(): none {
   font := testFont()
   Assert.equal(font.texture.pixelWidth(), 256)
   Assert.equal(font.texture.pixelHeight(), 128)
 }
 
-export function testGameAppBitmapFontTextureErrorIncludesFontAndAtlasPaths(): void {
+export function testGameAppBitmapFontTextureErrorIncludesFontAndAtlasPaths(): none {
   app := initGameApp{ title: "Doof Game Font Loader Error Test" }
   path := testFixturePath("missing-texture.fnt")
   result := app.loadBitmapFont(path)
@@ -82,9 +82,9 @@ export function testGameAppBitmapFontTextureErrorIncludesFontAndAtlasPaths(): vo
   }
 }
 
-export function testHitTestMapsIdentityTranslationAndScaleToUiSpace(): void {
+export function testHitTestMapsIdentityTranslationAndScaleToUiSpace(): none {
   identity := testLayer()
-  identity.addButton("Play", Rect(10.0, 20.0, 100.0, 40.0), testButtonStyle(), (): void => {})
+  identity.addButton("Play", Rect(10.0, 20.0, 100.0, 40.0), testButtonStyle(), (): none => {})
   identityHit := identity.hitTest(Point(25.0, 30.0)) else {
     Assert.fail("expected identity hit")
     return
@@ -93,7 +93,7 @@ export function testHitTestMapsIdentityTranslationAndScaleToUiSpace(): void {
   translated := testLayer()
   translated
     .setTransform(Transform.identity().withPosition(Point3(50.0, 25.0, 0.0)))
-    .addButton("Play", Rect(10.0, 20.0, 100.0, 40.0), testButtonStyle(), (): void => {})
+    .addButton("Play", Rect(10.0, 20.0, 100.0, 40.0), testButtonStyle(), (): none => {})
   translatedHit := translated.hitTest(Point(65.0, 50.0)) else {
     Assert.fail("expected translated hit")
     return
@@ -102,7 +102,7 @@ export function testHitTestMapsIdentityTranslationAndScaleToUiSpace(): void {
   scaled := testLayer()
   scaled
     .setTransform(Transform.identity().withScale(Vec3.xyz(2.0, 3.0, 1.0)))
-    .addButton("Play", Rect(10.0, 20.0, 100.0, 40.0), testButtonStyle(), (): void => {})
+    .addButton("Play", Rect(10.0, 20.0, 100.0, 40.0), testButtonStyle(), (): none => {})
   scaledHit := scaled.hitTest(Point(30.0, 75.0)) else {
     Assert.fail("expected scaled hit")
     return
@@ -115,12 +115,12 @@ export function testHitTestMapsIdentityTranslationAndScaleToUiSpace(): void {
   assertApprox(translatedHit.point.y, 25.0)
   assertApprox(scaledHit.point.x, 15.0)
   assertApprox(scaledHit.point.y, 25.0)
-  Assert.equal(scaled.hitTest(Point(5.0, 5.0)), null)
+  Assert.equal(scaled.hitTest(Point(5.0, 5.0)), none)
 }
 
-export function testHitTestUsesLastAddedTopmostElement(): void {
+export function testHitTestUsesLastAddedTopmostElement(): none {
   layer := testLayer()
-  layer.addButton("Back", Rect(0.0, 0.0, 100.0, 100.0), testButtonStyle(), (): void => {})
+  layer.addButton("Back", Rect(0.0, 0.0, 100.0, 100.0), testButtonStyle(), (): none => {})
   top := layer.addLabel("Top", Rect(0.0, 0.0, 100.0, 100.0), testStyle())
 
   hit := layer.hitTest(Point(50.0, 50.0)) else {
@@ -132,10 +132,10 @@ export function testHitTestUsesLastAddedTopmostElement(): void {
   Assert.equal(hit.kind, UiElementKind.Label)
 }
 
-export function testButtonHoverPressAndClickOnReleaseInside(): void {
+export function testButtonHoverPressAndClickOnReleaseInside(): none {
   layer := testLayer()
   let clicks = 0
-  button := layer.addButton("Play", Rect(10.0, 20.0, 100.0, 40.0), testButtonStyle(), (): void => {
+  button := layer.addButton("Play", Rect(10.0, 20.0, 100.0, 40.0), testButtonStyle(), (): none => {
     clicks += 1
   })
 
@@ -152,10 +152,10 @@ export function testButtonHoverPressAndClickOnReleaseInside(): void {
   Assert.isFalse(button.isPressed())
 }
 
-export function testButtonDoesNotClickWhenReleasedOutside(): void {
+export function testButtonDoesNotClickWhenReleasedOutside(): none {
   layer := testLayer()
   let clicks = 0
-  button := layer.addButton("Play", Rect(10.0, 20.0, 100.0, 40.0), testButtonStyle(), (): void => {
+  button := layer.addButton("Play", Rect(10.0, 20.0, 100.0, 40.0), testButtonStyle(), (): none => {
     clicks += 1
   })
 
@@ -168,10 +168,10 @@ export function testButtonDoesNotClickWhenReleasedOutside(): void {
   Assert.isFalse(button.isPressed())
 }
 
-export function testDisabledButtonDoesNotHoverPressOrClick(): void {
+export function testDisabledButtonDoesNotHoverPressOrClick(): none {
   layer := testLayer()
   let clicks = 0
-  button := layer.addButton("Play", Rect(10.0, 20.0, 100.0, 40.0), testButtonStyle(),  (): void => {
+  button := layer.addButton("Play", Rect(10.0, 20.0, 100.0, 40.0), testButtonStyle(),  (): none => {
     clicks += 1
   })
   button.setEnabled(false)
@@ -186,12 +186,12 @@ export function testDisabledButtonDoesNotHoverPressOrClick(): void {
   Assert.isFalse(button.isPressed())
 }
 
-export function testRegisteredPointerDrivesButtonHoverPressAndClick(): void {
+export function testRegisteredPointerDrivesButtonHoverPressAndClick(): none {
   layer := testLayer()
   pointer := ScreenPointer {}
   layer.registerPointer(pointer)
   let clicks = 0
-  button := layer.addButton("Play", Rect(10.0, 20.0, 100.0, 40.0), testButtonStyle(), (): void => {
+  button := layer.addButton("Play", Rect(10.0, 20.0, 100.0, 40.0), testButtonStyle(), (): none => {
     clicks += 1
   })
 
@@ -207,12 +207,12 @@ export function testRegisteredPointerDrivesButtonHoverPressAndClick(): void {
   Assert.isFalse(button.isPressed())
 }
 
-export function testRegisteredPointerDoesNotClickWhenReleasedOutside(): void {
+export function testRegisteredPointerDoesNotClickWhenReleasedOutside(): none {
   layer := testLayer()
   pointer := ScreenPointer {}
   layer.registerPointer(pointer)
   let clicks = 0
-  button := layer.addButton("Play", Rect(10.0, 20.0, 100.0, 40.0), testButtonStyle(), (): void => {
+  button := layer.addButton("Play", Rect(10.0, 20.0, 100.0, 40.0), testButtonStyle(), (): none => {
     clicks += 1
   })
 

@@ -471,9 +471,9 @@ export class Camera {
     return this
   }
 
-  lookAt(target: Point3, up: Vec3 | null = null): Camera {
+  lookAt(target: Point3, up: Vec3 | none = none): Camera {
     direction := Vec3.fromPoint(target).minus(Vec3.fromPoint(transform.position))
-    resolvedUp := if up == null then Vec3.up else up!
+    resolvedUp := if up == none then Vec3.up else up!
     transform = transform.withRotation(Rotation.lookAt{ direction: direction, up: resolvedUp })
     return this
   }
@@ -571,7 +571,7 @@ export class Clear {
   readonly colorValue: Color
   readonly depthValue: double
 
-  static none(): Clear {
+  static disabled(): Clear {
     return Clear {
       kind: ClearKind.None,
       colorValue: Color.transparent,
@@ -692,7 +692,7 @@ export class Renderer {
     return createDepthTextureForSurface(gameSurface, pixelWidth, pixelHeight)
   }
 
-  pass(desc: RenderPassDescriptor, draw: (pass: RenderPass): void): void {
+  pass(desc: RenderPassDescriptor, draw: (pass: RenderPass): none): none {
     nativePass := nativeFrame.beginPass(
       clearKindCode(desc.clear.kind),
       desc.clear.colorValue.r,
@@ -716,7 +716,7 @@ export class Renderer {
     nativePass.end()
   }
 
-  depthPass(texture: DepthTexture, desc: RenderPassDescriptor, draw: (pass: RenderPass): void): void {
+  depthPass(texture: DepthTexture, desc: RenderPassDescriptor, draw: (pass: RenderPass): none): none {
     nativePass := nativeFrame.beginDepthPass(
       texture.native,
       desc.clear.depthValue,
@@ -736,7 +736,7 @@ export class Renderer {
     nativePass.end()
   }
 
-  finish(): void {
+  finish(): none {
     if isFinished {
       return
     }

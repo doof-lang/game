@@ -88,15 +88,15 @@ function main(): int {
     },
   )
 
-  app.key(Key.Escape).onPressed((): void => app.stop())
+  app.key(Key.Escape).onPressed((): none => app.stop())
 
-  app.onEvent((event): void => {
+  app.onEvent((event): none => {
     if event.kind() == GameEventKind.CloseRequested {
       app.stop()
     }
   })
 
-  app.onRender((renderer): void => {
+  app.onRender((renderer): none => {
     renderer.pass(
       RenderPassDescriptor {
         camera: Camera.screen(),
@@ -104,7 +104,7 @@ function main(): int {
         depth: Depth.disabled(),
         blend: Blend.alpha(),
       },
-      (pass): void => {
+      (pass): none => {
         drawSimpleModel(pass, title)
         drawSimpleModel(pass, leftLabel)
         drawSimpleModel(pass, centerLabel)

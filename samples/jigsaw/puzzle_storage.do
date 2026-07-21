@@ -35,7 +35,7 @@ export function loadPuzzleState(path: string): Result<PuzzleState, string> {
   return Success(state)
 }
 
-export function savePuzzleState(path: string, pieces: Piece[], drawOrder: int[], camera: PuzzleCamera): Result<void, string> {
+export function savePuzzleState(path: string, pieces: Piece[], drawOrder: int[], camera: PuzzleCamera): Result<none, string> {
   state := createPuzzleState(pieces, drawOrder, camera)
   try validatePuzzleState(state)
 
@@ -51,7 +51,7 @@ export function savePuzzleStateSafely(
   pieces: Piece[],
   drawOrder: int[],
   camera: PuzzleCamera,
-): void {
+): none {
   savePuzzleState(statePath, pieces, drawOrder, camera) else error {
     println("Failed to save puzzle state: ${error}")
   }
@@ -63,7 +63,7 @@ export function savePuzzleStateForRuntime(
   pieces: Piece[],
   drawOrder: int[],
   camera: PuzzleCamera,
-): void {
+): none {
   if !runtime.isServerMode() {
     canonical := runtime.currentState(pieces, drawOrder, camera)
     savePuzzleStateSafely(statePath, canonical.pieces, canonical.drawOrder, camera)
@@ -71,11 +71,11 @@ export function savePuzzleStateForRuntime(
 }
 
 export function loadSavedPuzzleStateForLocalMode(
-  serverAddress: string | null,
+  serverAddress: string | none,
   statePath: string,
   fallback: PuzzleState,
 ): PuzzleState {
-  if serverAddress == null && exists(statePath) {
+  if serverAddress == none && exists(statePath) {
     case loadPuzzleState(statePath) {
       loaded: Success -> return loaded.value
       failed: Failure -> println("Ignoring saved puzzle state: ${failed.error}")

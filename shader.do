@@ -183,14 +183,14 @@ export class ShaderBytesBinding {
 
 export class ShaderTextureBinding {
   readonly index: int
-  readonly texture: Texture | null = null
-  readonly depthTexture: DepthTexture | null = null
+  readonly texture: Texture | none = none
+  readonly depthTexture: DepthTexture | none = none
 
   metalTextureHandle(): long {
-    if texture != null {
+    if texture != none {
       return texture!.metalTextureHandle()
     }
-    if depthTexture != null {
+    if depthTexture != none {
       return depthTexture!.metalTextureHandle()
     }
     return 0L
@@ -202,7 +202,7 @@ export class ShaderDraw {
   readonly vertexBuffers: ShaderBufferBinding[]
   readonly vertexCount: int = 0
   readonly instanceCount: int = 1
-  readonly indexBuffer: ShaderBuffer | null = null
+  readonly indexBuffer: ShaderBuffer | none = none
   readonly indexCount: int = 0
   readonly vertexBytes: ShaderBytesBinding[] = []
   readonly fragmentBytes: ShaderBytesBinding[] = []
@@ -273,7 +273,7 @@ function collectTextureBindingHandles(bindings: readonly ShaderTextureBinding[])
   return handles
 }
 
-function validateBufferBindings(bindings: readonly ShaderBufferBinding[], label: string): Result<void, string> {
+function validateBufferBindings(bindings: readonly ShaderBufferBinding[], label: string): Result<none, string> {
   for binding of bindings {
     if binding.index < 0 {
       return Failure(label + " binding index must be non-negative")
@@ -288,7 +288,7 @@ function validateBufferBindings(bindings: readonly ShaderBufferBinding[], label:
   return Success()
 }
 
-function validateBytesBindings(bindings: readonly ShaderBytesBinding[], label: string): Result<void, string> {
+function validateBytesBindings(bindings: readonly ShaderBytesBinding[], label: string): Result<none, string> {
   for binding of bindings {
     if binding.index < 0 {
       return Failure(label + " binding index must be non-negative")
@@ -303,22 +303,22 @@ function validateBytesBindings(bindings: readonly ShaderBytesBinding[], label: s
   return Success()
 }
 
-function validateTextureBindings(bindings: readonly ShaderTextureBinding[]): Result<void, string> {
+function validateTextureBindings(bindings: readonly ShaderTextureBinding[]): Result<none, string> {
   for binding of bindings {
     if binding.index < 0 {
       return Failure("Shader texture binding index must be non-negative")
     }
-    if binding.texture == null && binding.depthTexture == null {
+    if binding.texture == none && binding.depthTexture == none {
       return Failure("Shader texture binding must include a texture or depth texture")
     }
-    if binding.texture != null && binding.depthTexture != null {
+    if binding.texture != none && binding.depthTexture != none {
       return Failure("Shader texture binding must not include both texture and depth texture")
     }
   }
   return Success()
 }
 
-export function drawShader(pass: RenderPass, draw: ShaderDraw): Result<void, string> {
+export function drawShader(pass: RenderPass, draw: ShaderDraw): Result<none, string> {
   if draw.vertexBuffers.length == 0 {
     return Failure("Shader draw must include at least one vertex buffer")
   }
@@ -331,7 +331,7 @@ export function drawShader(pass: RenderPass, draw: ShaderDraw): Result<void, str
   }
 
   let indexBufferHandle = 0L
-  if draw.indexBuffer != null {
+  if draw.indexBuffer != none {
     if draw.indexCount <= 0 {
       return Failure("Shader indexed draw must include a positive index count")
     }

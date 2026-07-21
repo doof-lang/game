@@ -2,7 +2,7 @@ import { Assert } from "std/assert"
 
 import { Point, ScreenPointer } from "../index"
 
-export function testScreenPointerStartsReleasedAtOrigin(): void {
+export function testScreenPointerStartsReleasedAtOrigin(): none {
   pointer := ScreenPointer {}
 
   Assert.equal(pointer.x(), 0.0)
@@ -11,19 +11,19 @@ export function testScreenPointerStartsReleasedAtOrigin(): void {
   Assert.isTrue(pointer.released())
 }
 
-export function testScreenPointerPressedAndReleasedHandlersFireOnEdgesOnly(): void {
+export function testScreenPointerPressedAndReleasedHandlersFireOnEdgesOnly(): none {
   pointer := ScreenPointer {}
   let pressed = 0
   let released = 0
   let lastX = 0.0
   let lastY = 0.0
 
-  pointer.onPressed((point): void => {
+  pointer.onPressed((point): none => {
     pressed += 1
     lastX = point.x
     lastY = point.y
   })
-  pointer.onReleased((point): void => {
+  pointer.onReleased((point): none => {
     released += 1
     lastX = point.x
     lastY = point.y
@@ -50,13 +50,13 @@ export function testScreenPointerPressedAndReleasedHandlersFireOnEdgesOnly(): vo
   Assert.equal(pointer.y(), 36.0)
 }
 
-export function testScreenPointerMovedHandlersReceiveUpdatedPoint(): void {
+export function testScreenPointerMovedHandlersReceiveUpdatedPoint(): none {
   pointer := ScreenPointer {}
   let moved = 0
   let lastX = 0.0
   let lastY = 0.0
 
-  pointer.onMoved((point): void => {
+  pointer.onMoved((point): none => {
     moved += 1
     lastX = point.x
     lastY = point.y

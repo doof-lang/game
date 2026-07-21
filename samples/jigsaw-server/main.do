@@ -7,11 +7,11 @@ import {
   startJigsawHttpServer,
 } from "./index"
 
-function usage(): void {
+function usage(): none {
   println("Usage: doof run game/samples/jigsaw-server -- [--listen host:port] [--state path] [--no-persist] [--reset]")
 }
 
-function applyListenAddress(options: JigsawHttpServerOptions, text: string): Result<void, string> {
+function applyListenAddress(options: JigsawHttpServerOptions, text: string): Result<none, string> {
   separator := text.indexOf(":")
   if separator <= 0 || separator >= text.length - 1 {
     return Failure("Listen address must be host:port")
@@ -46,7 +46,7 @@ function parseOptions(args: string[]): Result<JigsawHttpServerOptions, string> {
       options.statePath = args[index + 1]
       index = index + 2
     } else if args[index] == "--no-persist" {
-      options.statePath = null
+      options.statePath = none
       index = index + 1
     } else if args[index] == "--reset" {
       options.resetState = true

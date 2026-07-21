@@ -10,7 +10,7 @@ import {
   initGameApp,
 } from "../index"
 
-function assertApprox(actual: double, expected: double, tolerance: double = 0.000001): void {
+function assertApprox(actual: double, expected: double, tolerance: double = 0.000001): none {
   Assert.isTrue(approxEqual(actual, expected, tolerance), "expected ${actual} to approximately equal ${expected}")
 }
 
@@ -19,14 +19,14 @@ function testLayer(capacity: int = 16): ParticleLayer {
   return ParticleLayer(app.surface, ParticleLayerConfig { capacity })
 }
 
-export function testEmitIncreasesActiveCount(): void {
+export function testEmitIncreasesActiveCount(): none {
   layer := testLayer()
   layer.emit(ParticleConfig { count: 3, lifetime: 1.0, size: 4.0 })
   Assert.equal(layer.activeCount(), 3)
   Assert.isTrue(layer.isActive())
 }
 
-export function testUpdateExpiresParticlesAfterLifetime(): void {
+export function testUpdateExpiresParticlesAfterLifetime(): none {
   layer := testLayer()
   layer.emit(ParticleConfig { count: 4, lifetime: 0.25, size: 4.0 })
 
@@ -38,7 +38,7 @@ export function testUpdateExpiresParticlesAfterLifetime(): void {
   Assert.isFalse(layer.isActive())
 }
 
-export function testClearRemovesLiveParticles(): void {
+export function testClearRemovesLiveParticles(): none {
   layer := testLayer()
   layer.emit(ParticleConfig { count: 5, lifetime: 2.0, size: 4.0 })
   layer.clear()
@@ -47,7 +47,7 @@ export function testClearRemovesLiveParticles(): void {
   Assert.isFalse(layer.isActive())
 }
 
-export function testSeededEmissionIsDeterministic(): void {
+export function testSeededEmissionIsDeterministic(): none {
   first := testLayer()
   second := testLayer()
   config := ParticleConfig {
@@ -73,7 +73,7 @@ export function testSeededEmissionIsDeterministic(): void {
   assertApprox(p0.z, p1.z)
 }
 
-export function testFireworksStartCreatesParticlesAndEventuallyFinishes(): void {
+export function testFireworksStartCreatesParticlesAndEventuallyFinishes(): none {
   app := initGameApp{ title: "Doof Game Fireworks Tests" }
   fireworks := Fireworks(
     app.surface,
@@ -99,7 +99,7 @@ export function testFireworksStartCreatesParticlesAndEventuallyFinishes(): void 
   Assert.isFalse(fireworks.isActive())
 }
 
-export function testFireworksStaggersBurstsAndAddsFinale(): void {
+export function testFireworksStaggersBurstsAndAddsFinale(): none {
   app := initGameApp{ title: "Doof Game Fireworks More Tests" }
   fireworks := Fireworks(
     app.surface,

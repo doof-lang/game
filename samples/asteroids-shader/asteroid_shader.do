@@ -43,7 +43,7 @@ function randomSigned(index: int, salt: double): double {
   return randomUnit(index, salt) * 2.0 - 1.0
 }
 
-function writeAsteroidVertex(builder: ShaderBytesBuilder, spec: SimpleMeshSpec, index: int): void {
+function writeAsteroidVertex(builder: ShaderBytesBuilder, spec: SimpleMeshSpec, index: int): none {
   position := spec.positions[index]
   normal := spec.normals[index]
   vertexSeed := normal.x * 0.41 + normal.y * 1.37 + normal.z * 2.11
@@ -158,7 +158,7 @@ export function createAsteroidShaderResources(surface: GameSurface): AsteroidSha
   }
 }
 
-export function drawAsteroids(pass: RenderPass, resources: AsteroidShaderResources, viewProjection: Mat4, time: double): void {
+export function drawAsteroids(pass: RenderPass, resources: AsteroidShaderResources, viewProjection: Mat4, time: double): none {
   uniformBytes := uniformsBytes(viewProjection, time)
   uniforms := try! ShaderBytesBinding.create(pass.surface(), 2, uniformBytes)
   fragmentUniforms := try! ShaderBytesBinding.create(pass.surface(), 0, uniformBytes)

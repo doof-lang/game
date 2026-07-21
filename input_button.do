@@ -1,4 +1,4 @@
-type InputButtonHandler = (): void
+type InputButtonHandler = (): none
 type InputButtonReader = (): bool
 
 export class InputButton {
@@ -36,16 +36,16 @@ export class InputButton {
     return this
   }
 
-  update(): void {
+  update(): none {
     updateFromReader()
     updateDependents()
   }
 
-  private addDependent(button: InputButton): void {
+  private addDependent(button: InputButton): none {
     dependents.push(button)
   }
 
-  private updateFromReader(): void {
+  private updateFromReader(): none {
     next := readState.call()
     if next == down {
       return
@@ -64,7 +64,7 @@ export class InputButton {
     }
   }
 
-  private updateDependents(): void {
+  private updateDependents(): none {
     for dependent of dependents {
       dependent.update()
     }

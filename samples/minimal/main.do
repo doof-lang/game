@@ -47,7 +47,7 @@ function main(): int {
     app.stop()
   }
 
-  app.onEvent((event): void => {
+  app.onEvent((event): none => {
     if event.kind() == GameEventKind.CloseRequested {
       app.stop()
     }
@@ -55,14 +55,14 @@ function main(): int {
 
   mesh := createMinimalMesh(app.surface)
 
-  app.onRender((renderer): void => {
+  app.onRender((renderer): none => {
     renderer.pass(
       RenderPassDescriptor {
         clear: Clear.colorDepth(Color(0.02, 0.03, 0.04), 1.0),
         depth: Depth.disabled(),
         blend: Blend.alpha(),
       },
-      (pass): void => {
+      (pass): none => {
         drawSimpleMesh(pass, mesh)
       },
     )

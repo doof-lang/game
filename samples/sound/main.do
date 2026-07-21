@@ -48,9 +48,9 @@ function main(): int {
   app.key(Key.Digit5).onPressed() {
     hit.play(SoundPlayOptions { volume: 0.6, pan: 0.25 }) else error { println(error) }
   }
-  app.key(Key.Escape).onPressed((): void => app.stop())
+  app.key(Key.Escape).onPressed((): none => app.stop())
 
-  app.onEvent((event): void => {
+  app.onEvent((event): none => {
     if event.kind() == GameEventKind.CloseRequested {
       app.stop()
     }

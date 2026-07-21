@@ -21,7 +21,7 @@ function unitBox(): CollisionAabb {
   }
 }
 
-export function testSphereIntersections(): void {
+export function testSphereIntersections(): none {
   center := CollisionSphere(Point3(0.0, 0.0, 0.0), 1.0)
   overlap := CollisionSphere(Point3(1.5, 0.0, 0.0), 1.0)
   touching := CollisionSphere(Point3(2.0, 0.0, 0.0), 1.0)
@@ -34,7 +34,7 @@ export function testSphereIntersections(): void {
   Assert.isFalse(center.containsPoint(Point3(1.1, 0.0, 0.0)))
 }
 
-export function testAabbIntersections(): void {
+export function testAabbIntersections(): none {
   box := unitBox()
   overlap := CollisionAabb.fromCenterHalfExtents(Point3(1.5, 0.0, 0.0), Vec3.one)
   touching := CollisionAabb.fromCenterSize(Point3(2.0, 0.0, 0.0), Vec3.xyz(2.0, 2.0, 2.0))
@@ -49,7 +49,7 @@ export function testAabbIntersections(): void {
   Assert.isFalse(box.containsPoint(Point3(1.1, 0.0, 0.0)))
 }
 
-export function testSphereAabbIntersections(): void {
+export function testSphereAabbIntersections(): none {
   box := unitBox()
   inside := CollisionSphere(Point3(0.0, 0.0, 0.0), 0.25)
   edgeTouch := CollisionSphere(Point3(2.0, 0.0, 0.0), 1.0)
@@ -62,7 +62,7 @@ export function testSphereAabbIntersections(): void {
   Assert.isFalse(sphereIntersectsAabb(separated, box))
 }
 
-export function testCapsuleContainsAndSphereIntersections(): void {
+export function testCapsuleContainsAndSphereIntersections(): none {
   capsule := CollisionCapsule(Point3(-1.0, 0.0, 0.0), Point3(1.0, 0.0, 0.0), 0.5)
 
   Assert.isTrue(capsule.containsPoint(Point3(0.0, 0.5, 0.0)))
@@ -73,7 +73,7 @@ export function testCapsuleContainsAndSphereIntersections(): void {
   Assert.isFalse(capsuleIntersectsSphere(capsule, CollisionSphere(Point3(0.0, 1.1, 0.0), 0.5)))
 }
 
-export function testCapsuleCapsuleIntersections(): void {
+export function testCapsuleCapsuleIntersections(): none {
   horizontal := CollisionCapsule(Point3(-1.0, 0.0, 0.0), Point3(1.0, 0.0, 0.0), 0.25)
   crossing := CollisionCapsule(Point3(0.0, -1.0, 0.0), Point3(0.0, 1.0, 0.0), 0.25)
   parallelSeparated := CollisionCapsule(Point3(-1.0, 1.0, 0.0), Point3(1.0, 1.0, 0.0), 0.25)
@@ -84,7 +84,7 @@ export function testCapsuleCapsuleIntersections(): void {
   Assert.isFalse(capsuleIntersectsCapsule(horizontal, parallelSeparated))
 }
 
-export function testCapsuleAabbIntersections(): void {
+export function testCapsuleAabbIntersections(): none {
   box := unitBox()
   through := CollisionCapsule(Point3(-3.0, 0.0, 0.0), Point3(3.0, 0.0, 0.0), 0.25)
   radiusTouch := CollisionCapsule(Point3(-3.0, 1.5, 0.0), Point3(3.0, 1.5, 0.0), 0.5)
