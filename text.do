@@ -1,4 +1,5 @@
 import { readText } from "std/fs"
+import { parseInt } from "std/parse"
 import { dirname, join } from "std/path"
 
 import { SimpleMesh, SimpleMeshSpec } from "./mesh"
@@ -232,7 +233,7 @@ function requiredInt(
     }
   }
 
-  return case int.parse(value) {
+  return case parseInt(value) {
     s: Success -> Success { value: s.value },
     f: Failure -> Failure {
       error: parseError(source, lineNumber, `invalid ${key} value "${value}"`)
@@ -251,7 +252,7 @@ function optionalInt(
     return Success { value: fallback }
   }
 
-  return case int.parse(value) {
+  return case parseInt(value) {
     s: Success -> Success { value: s.value },
     f: Failure -> Failure {
       error: parseError(source, lineNumber, `invalid ${key} value "${value}"`)

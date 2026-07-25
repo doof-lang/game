@@ -1,6 +1,7 @@
 import { exists, metadata, readBlob, readText, writeBlob, writeText } from "std/fs"
 import { GameApp, Texture } from "std/game"
 import { Image, PixelAlphaMode, PixelBytes } from "std/image"
+import { parseInt } from "std/parse"
 import { join } from "std/path"
 
 import isolated function composeJigsawAtlas(
@@ -59,8 +60,8 @@ export function loadCachedJigsawAtlas(cachePath: string): PixelBytes | none {
   if dimensions.length != 2 {
     return none
   }
-  width := int.parse(dimensions[0]) else { return none }
-  height := int.parse(dimensions[1]) else { return none }
+  width := parseInt(dimensions[0]) else { return none }
+  height := parseInt(dimensions[1]) else { return none }
   if width <= 0 || height <= 0 {
     return none
   }

@@ -1,4 +1,5 @@
 import { runMainEventLoop } from "std/event"
+import { parseInt } from "std/parse"
 
 import {
   JigsawHttpServerOptions,
@@ -17,7 +18,7 @@ function applyListenAddress(options: JigsawHttpServerOptions, text: string): Res
     return Failure("Listen address must be host:port")
   }
 
-  port := int.parse(text.slice(separator + 1)) else error {
+  port := parseInt(text.slice(separator + 1)) else error {
     return Failure("Invalid listen port: ${error}")
   }
 

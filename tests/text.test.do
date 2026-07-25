@@ -121,7 +121,7 @@ export function testMeasureTextHandlesKerningLinesAndWrap(): none {
 export function testMeasureTextDecodesUtf8Codepoints(): none {
   font := requireFont()
 
-  measured := measureText(font, "AÃ©â¬ð")
+  measured := measureText(font, "Aé€😀")
 
   assertApprox(measured.width, 30.0)
   Assert.equal(measured.lineCount, 1)
@@ -130,7 +130,7 @@ export function testMeasureTextDecodesUtf8Codepoints(): none {
 export function testCreateTextMeshSpecEmitsOneQuadPerUtf8Codepoint(): none {
   font := requireFont()
 
-  spec := createTextMeshSpec(font, "Ã©â¬ð")
+  spec := createTextMeshSpec(font, "é€😀")
 
   Assert.equal(spec.vertexCount(), 12)
   Assert.equal(spec.indexCount(), 18)

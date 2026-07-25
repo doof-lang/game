@@ -1,5 +1,6 @@
 import { readText, readTextResource } from "std/fs"
 import { sqrt } from "std/math"
+import { parseDouble, parseInt } from "std/parse"
 
 import { SimpleMeshSpec } from "./mesh"
 import { Color, Point, Point3 } from "./render"
@@ -76,7 +77,7 @@ function splitWhitespace(text: string): string[] {
 }
 
 function parseDoubleToken(token: string, lineNumber: int, source: string, label: string): Result<double, ObjError> {
-  return case double.parse(token) {
+  return case parseDouble(token) {
     s: Success -> Success { value: s.value },
     f: Failure -> Failure {
       error: objError("parse", lineNumber, `${source}:${lineNumber}: invalid ${label} value "${token}"`)
@@ -85,7 +86,7 @@ function parseDoubleToken(token: string, lineNumber: int, source: string, label:
 }
 
 function parseIntToken(token: string, lineNumber: int, source: string, label: string): Result<int, ObjError> {
-  return case int.parse(token) {
+  return case parseInt(token) {
     s: Success -> Success { value: s.value },
     f: Failure -> Failure {
       error: objError("parse", lineNumber, `${source}:${lineNumber}: invalid ${label} value "${token}"`)
