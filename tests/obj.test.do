@@ -55,3 +55,22 @@ export function testParseObjMeshSpecReadsTexCoordsNormalsAndRelativeIndices(): n
   Assert.equal(spec.normals[0].y, 0.0)
   Assert.equal(spec.normals[0].z, -1.0)
 }
+
+export function testParseObjMeshSpecTokenizesMixedLineEndingsWhitespaceAndComments(): none {
+  parsed := parseObjMeshSpec(
+    "# ignored heading\r\n" +
+    "\tv\t0\t0\t0 # origin\r" +
+    "v 1 0 0\n" +
+    "v 0 1 0\r\n" +
+    "f\t1\t2\t3 # triangle",
+    "mixed.obj",
+  )
+
+  spec := try! parsed
+
+  Assert.equal(spec.vertexCount(), 3)
+  Assert.equal(spec.indexCount(), 3)
+  Assert.equal(spec.positions[0].x, 0.0)
+  Assert.equal(spec.positions[1].x, 1.0)
+  Assert.equal(spec.positions[2].y, 1.0)
+}

@@ -10,6 +10,7 @@
         "native_intrinsic_font_data.inc",
         "native_mesh.hpp",
         "native_mesh_internal.hpp",
+        "native_obj.hpp",
         "native_sound.hpp"
       ],
       "macos": {

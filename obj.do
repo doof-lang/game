@@ -7,6 +7,13 @@ import { Color, Point, Point3 } from "./render"
 
 readonly EPSILON = 0.000001
 
+import class NativeObjTokenizer from "native_obj.hpp" as doof_game::NativeObjTokenizer {
+  isolated static constructor(source: string): NativeObjTokenizer
+  isolated next(): bool
+  isolated lineNumber(): int
+  isolated tokens(): string[]
+}
+
 class ObjTexCoord {
   u: double = 0.0
   v: double = 0.0
@@ -41,39 +48,6 @@ function objError(stage: string, line: int, message: string): ObjError {
     line,
     message,
   }
-}
-
-function stripComment(line: string): string {
-  marker := line.indexOf("#")
-  if marker >= 0 {
-    return line.substring(0, marker).trim()
-  }
-  return line.trim()
-}
-
-function splitWhitespace(text: string): string[] {
-  tokens: string[] := []
-  let current = ""
-  normalized := text.replaceAll("\t", " ")
-
-  for index of 0..<normalized.length {
-    ch := normalized.charAt(index)
-    if ch == ' ' {
-      if current != "" {
-        tokens.push(current)
-        current = ""
-      }
-      continue
-    }
-
-    current += ch
-  }
-
-  if current != "" {
-    tokens.push(current)
-  }
-
-  return tokens
 }
 
 function parseDoubleToken(token: string, lineNumber: int, source: string, label: string): Result<double, ObjError> {
@@ -257,26 +231,15 @@ function parseFace(
   }
 }
 
-function parseObjData(text: string, source: string): Result<ObjData, ObjError> {
+function parseObjData(tokenizer: NativeObjTokenizer, source: string): Result<ObjData, ObjError> {
   positions: Point3[] := []
   uvs: ObjTexCoord[] := []
   normals: Point3[] := []
   faces: ObjFace[] := []
-  normalizedText := text.replaceAll("\r\n", "\n").replaceAll("\r", "\n")
-  lines := normalizedText.split("\n")
 
-  for lineIndex of 0..<lines.length {
-    lineNumber := lineIndex + 1
-    line := stripComment(lines[lineIndex])
-    if line == "" {
-      continue
-    }
-
-    tokens := splitWhitespace(line)
-    if tokens.length == 0 {
-      continue
-    }
-
+  while tokenizer.next() {
+    lineNumber := tokenizer.lineNumber()
+    tokens := tokenizer.tokens()
     kind := tokens[0]
     if kind == "v" {
       try position := parsePosition(tokens, lineNumber, source)
@@ -415,7 +378,8 @@ export function parseObjMeshSpec(
   source: string = "input",
   color: Color = Color { r: 1.0, g: 1.0, b: 1.0, a: 1.0 },
 ): Result<SimpleMeshSpec, ObjError> {
-  try data := parseObjData(text, source)
+  tokenizer := NativeObjTokenizer(text)
+  try data := parseObjData(tokenizer, source)
   return Success {
     value: buildSimpleMeshSpec(data, color)
   }
