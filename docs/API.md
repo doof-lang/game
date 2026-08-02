@@ -598,7 +598,9 @@ app.onRender((renderer): void => {
 
 The OBJ parser supports `v`, `vt`, `vn`, and polygonal `f` records, including
 negative relative face indices. Polygons are triangulated with a fan. Missing
-UVs use `(0, 0)`, and missing normals use generated face normals.
+UVs use `(0, 1)`, and missing normals use generated face normals. OBJ's
+bottom-origin texture coordinates are converted to std/game's top-origin
+texture coordinates.
 
 The glTF loader supports embedded GLB v2 files and `.gltf` JSON files that
 reference a single local `.bin` buffer. `GltfAsset` preserves the parsed JSON

@@ -41,16 +41,16 @@ export { UiButton, UiLabel, UiPanel } from "./ui_controls"
 
 export class UiLayer {
   surface: GameSurface | none
-  transform: Transform = Transform.identity()
+  let transform: Transform = Transform.identity()
 
   private elements: UiElement[] = []
   private panels: UiPanelEntry[] = []
   private labels: UiLabelEntry[] = []
   private buttons: UiButtonEntry[] = []
-  private nextId: int = 1
-  private pressedButtonId: int = 0
-  private pointerRenderVersion: int = 0
-  private intrinsicFont: BitmapFont | none = none
+  private let nextId: int = 1
+  private let pressedButtonId: int = 0
+  private let pointerRenderVersion: int = 0
+  private let intrinsicFont: BitmapFont | none = none
 
   static constructor(target: GameApp | GameSurface | none): UiLayer {
     app := target as GameApp else {

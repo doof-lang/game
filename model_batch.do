@@ -14,8 +14,8 @@ export class SimpleModelInstanceConfig {
 }
 
 class SimpleModelInstanceState {
-  slot: int
-  live: bool = true
+  let slot: int
+  let live: bool = true
 }
 
 export class SimpleModelBatch {
@@ -24,11 +24,11 @@ export class SimpleModelBatch {
   texture: Texture | none = none
   readonly capacity: int
 
-  private transforms: Transform[] = []
-  private materials: SimpleMaterial[] = []
-  private dirty: int[] = []
-  private states: SimpleModelInstanceState[] = []
-  private native: NativeSimpleModelBatch | none = none
+  private let transforms: Transform[] = []
+  private let materials: SimpleMaterial[] = []
+  private let dirty: int[] = []
+  private let states: SimpleModelInstanceState[] = []
+  private let native: NativeSimpleModelBatch | none = none
 
   count(): int => transforms.length
 

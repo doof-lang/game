@@ -686,6 +686,17 @@ doof::Result<std::shared_ptr<NativeSimpleMesh>, std::string> NativeSimpleMeshBui
         return doof::Failure<std::string>{"Metal device handle is invalid"};
     }
 
+    if (impl_->vertices.empty() && impl_->indices.empty()) {
+        auto mesh = std::make_shared<NativeSimpleMesh>(
+            (__bridge void*)device,
+            nullptr,
+            nullptr,
+            0,
+            0
+        );
+        return doof::Success<std::shared_ptr<NativeSimpleMesh>>{mesh};
+    }
+
     if (impl_->vertices.empty()) {
         return doof::Failure<std::string>{"Simple mesh has no vertices"};
     }

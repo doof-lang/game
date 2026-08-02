@@ -75,10 +75,10 @@ export function createSphereMeshSpec(
   }
 
   return SimpleMeshSpec {
-    positions: positions,
-    indices: indices,
-    colors: colors,
-    uvs: uvs,
-    normals: normals,
+    positions: positions.drainToReadonly(),
+    indices: indices.drainToReadonly(),
+    colors: colors.drainToReadonly(),
+    uvs: uvs.drainToReadonly(),
+    normals: normals.drainToReadonly(),
   }
 }

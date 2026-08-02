@@ -411,7 +411,7 @@ export class Camera {
   readonly perspectiveFovYRadians: double = 0.0
   readonly perspectiveNear: double = 0.0
   readonly perspectiveFar: double = 0.0
-  transform: Transform = Transform.identity()
+  let transform: Transform = Transform.identity()
 
   static screen(): Camera {
     return Camera { kind: CameraKind.Screen, viewProjection: Mat4.identity }
@@ -672,7 +672,7 @@ export class RenderPass {
 export class Renderer {
   private readonly gameSurface: GameSurface
   private readonly nativeFrame: NativeRenderFrame
-  private isFinished: bool = false
+  private let isFinished: bool = false
 
   surface(): GameSurface => gameSurface
 

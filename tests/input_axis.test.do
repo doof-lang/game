@@ -8,7 +8,7 @@ function assertApprox(actual: double, expected: double): none {
 }
 
 class TestAxisSource {
-  value: double = 0.0
+  let value: double = 0.0
 
   axis(): InputAxis {
     return InputAxis.source((): double => value)
@@ -16,8 +16,8 @@ class TestAxisSource {
 }
 
 class TestStickSource {
-  x: double = 0.0
-  y: double = 0.0
+  let x: double = 0.0
+  let y: double = 0.0
 
   stick(): InputStick {
     return InputStick.source((): double => x, (): double => y)

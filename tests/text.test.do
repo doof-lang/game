@@ -136,6 +136,18 @@ export function testCreateTextMeshSpecEmitsOneQuadPerUtf8Codepoint(): none {
   Assert.equal(spec.indexCount(), 18)
 }
 
+export function testCreateTextMeshSpecAllowsTextWithNoDrawableGlyphs(): none {
+  font := requireFont()
+
+  empty := createTextMeshSpec(font, "")
+  spaces := createTextMeshSpec(font, "   ")
+
+  Assert.equal(empty.vertexCount(), 0)
+  Assert.equal(empty.indexCount(), 0)
+  Assert.equal(spaces.vertexCount(), 0)
+  Assert.equal(spaces.indexCount(), 0)
+}
+
 export function testCreateTextMeshSpecBuildsGlyphQuadsAndUvs(): none {
   font := requireFont()
   spec := createTextMeshSpec(

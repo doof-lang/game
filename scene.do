@@ -34,7 +34,7 @@ export class SceneNode {
   private readonly kind: SceneNodeKind
   private model: SimpleModel | none = none
   private batch: SimpleModelBatch | none = none
-  private removed: bool = false
+  private let removed: bool = false
 
   remove(): none {
     removed = true
@@ -47,10 +47,10 @@ export class Scene {
   readonly ticksPerSecond: double | none
   readonly maxDeltaSeconds: double
 
-  private nodes: SceneNode[] = []
-  private tickAccumulator: double = 0.0
-  private nextTickIndex: long = 0L
-  private elapsedSceneSeconds: double = 0.0
+  private let nodes: SceneNode[] = []
+  private let tickAccumulator: double = 0.0
+  private let nextTickIndex: long = 0L
+  private let elapsedSceneSeconds: double = 0.0
 
   static constructor(
     ticksPerSecond: double | none = none,

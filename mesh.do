@@ -50,11 +50,11 @@ export class MeshUv {
 }
 
 export class SimpleMeshSpec {
-  positions: Point3[]
-  indices: int[]
-  colors: Color[]
-  uvs: Point[]
-  normals: Point3[]
+  readonly positions: Point3[]
+  readonly indices: int[]
+  readonly colors: Color[]
+  readonly uvs: Point[]
+  readonly normals: Point3[]
 
   vertexCount(): int => positions.length
   indexCount(): int => indices.length
@@ -81,11 +81,11 @@ export class SimpleMesh {
   private readonly native: NativeSimpleMesh
 
   static constructor(surface: GameSurface, spec: SimpleMeshSpec): SimpleMesh {
-    if spec.positions.length == 0 {
+    if spec.positions.length == 0 && spec.indices.length != 0 {
       panic("Simple mesh has no vertices")
     }
 
-    if spec.indices.length == 0 {
+    if spec.positions.length != 0 && spec.indices.length == 0 {
       panic("Simple mesh has no triangles")
     }
 
@@ -287,11 +287,11 @@ export class SimpleMeshBuilder {
 
   buildSpec(): SimpleMeshSpec {
     return {
-      positions: positions.slice(0, positions.length),
-      indices: indices.slice(0, indices.length),
-      colors: colors.slice(0, colors.length),
-      uvs: uvs.slice(0, uvs.length),
-      normals: normals.slice(0, normals.length),
+      positions: positions.slice(0, positions.length).drainToReadonly(),
+      indices: indices.slice(0, indices.length).drainToReadonly(),
+      colors: colors.slice(0, colors.length).drainToReadonly(),
+      uvs: uvs.slice(0, uvs.length).drainToReadonly(),
+      normals: normals.slice(0, normals.length).drainToReadonly(),
     }
   }
 

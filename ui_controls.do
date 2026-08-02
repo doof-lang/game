@@ -5,8 +5,8 @@ import { UiButtonStyle, UiCallback, UiElementKind, UiPanelStyle, UiStyle } from 
 export class UiElement {
   id: int
   kind: UiElementKind
-  bounds: Rect
-  visible: bool = true
+  let bounds: Rect
+  let visible: bool = true
 }
 
 export class UiPanel {
@@ -30,7 +30,7 @@ export class UiPanel {
 
 export class UiLabel {
   element: UiElement
-  text: string
+  let text: string
   style: UiStyle
 
   id(): int => element.id
@@ -65,13 +65,13 @@ export class UiLabel {
 
 export class UiButton {
   element: UiElement
-  text: string
+  let text: string
   style: UiButtonStyle
-  enabled: bool = true
-  hovered: bool = false
-  pressed: bool = false
-  pressedInside: bool = false
-  onClick: UiCallback
+  let enabled: bool = true
+  let hovered: bool = false
+  let pressed: bool = false
+  let pressedInside: bool = false
+  let onClick: UiCallback
 
   id(): int => element.id
   bounds(): Rect => element.bounds

@@ -3,7 +3,7 @@ import { Assert } from "std/assert"
 import { InputButton } from "../index"
 
 class TestInputSource {
-  down: bool = false
+  let down: bool = false
 
   button(): InputButton {
     return InputButton.source((): bool => down)

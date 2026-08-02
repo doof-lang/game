@@ -32,19 +32,19 @@ export class ParticleConfig {
 }
 
 class ParticleState {
-  active: bool = false
-  x: double = 0.0
-  y: double = 0.0
-  z: double = 0.0
-  vx: double = 0.0
-  vy: double = 0.0
-  ax: double = 0.0
-  ay: double = 0.0
-  age: double = 0.0
-  lifetime: double = 1.0
-  size: double = 1.0
-  color: Color = Color { r: 1.0, g: 1.0, b: 1.0, a: 1.0 }
-  fade: bool = true
+  let active: bool = false
+  let x: double = 0.0
+  let y: double = 0.0
+  let z: double = 0.0
+  let vx: double = 0.0
+  let vy: double = 0.0
+  let ax: double = 0.0
+  let ay: double = 0.0
+  let age: double = 0.0
+  let lifetime: double = 1.0
+  let size: double = 1.0
+  let color: Color = Color { r: 1.0, g: 1.0, b: 1.0, a: 1.0 }
+  let fade: bool = true
 }
 
 function createParticleMesh(surface: GameSurface): SimpleMesh {
@@ -88,8 +88,8 @@ export class ParticleLayer {
   private states: ParticleState[] = []
   private instances: SimpleModelInstance[] = []
   private batch: SimpleModelBatch
-  private active: int = 0
-  private cursor: int = 0
+  private let active: int = 0
+  private let cursor: int = 0
 
   static constructor(surface: GameSurface, config: ParticleLayerConfig = ParticleLayerConfig {}): ParticleLayer {
     if config.capacity <= 0 {

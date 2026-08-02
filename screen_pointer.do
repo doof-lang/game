@@ -5,8 +5,8 @@ import { MouseButton } from "./types"
 type ScreenPointerHandler = (point: Point): none
 
 export class ScreenPointer {
-  private point: Point = Point(0.0, 0.0)
-  private down: bool = false
+  private let point: Point = Point(0.0, 0.0)
+  private let down: bool = false
   private pressedHandlers: ScreenPointerHandler[] = []
   private releasedHandlers: ScreenPointerHandler[] = []
   private movedHandlers: ScreenPointerHandler[] = []

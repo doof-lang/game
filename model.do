@@ -4,9 +4,9 @@ import { Rotation, Transform, Vec3 } from "./transform"
 
 export class SimpleModel {
   readonly mesh: SimpleMesh
-  texture: Texture | none = none
-  transform: Transform = Transform.identity()
-  material: SimpleMaterial = SimpleMaterial {}
+  let texture: Texture | none = none
+  let transform: Transform = Transform.identity()
+  let material: SimpleMaterial = SimpleMaterial {}
 
   setTransform(transform: Transform): SimpleModel {
     this.transform = transform

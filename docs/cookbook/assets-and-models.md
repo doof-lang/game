@@ -47,6 +47,8 @@ mesh := SimpleMesh(app.surface, spec)
 ```
 
 OBJ loading is useful for simple static meshes.
+Wavefront OBJ texture coordinates are converted from their bottom-origin
+convention to std/game's top-origin texture convention during loading.
 
 ## Load glTF Or GLB Assets
 

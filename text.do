@@ -108,13 +108,13 @@ export class TextBounds {
 }
 
 class FontParseState {
-  foundCommon: bool = false
-  lineHeight: int = 0
-  base: int = 0
-  scaleWidth: int = 0
-  scaleHeight: int = 0
-  pages: int = 1
-  textureFile: string | none = none
+  let foundCommon: bool = false
+  let lineHeight: int = 0
+  let base: int = 0
+  let scaleWidth: int = 0
+  let scaleHeight: int = 0
+  let pages: int = 1
+  let textureFile: string | none = none
   glyphs: Map<int, BitmapGlyph> = {}
   kernings: Map<string, int> = {}
 }
@@ -131,10 +131,10 @@ class TextLine {
 }
 
 class TextLineBuilder {
-  placements: TextGlyphPlacement[] = []
-  penX: double = 0.0
-  prevCodepoint: int = -1
-  hasAdvance: bool = false
+  let placements: TextGlyphPlacement[] = []
+  let penX: double = 0.0
+  let prevCodepoint: int = -1
+  let hasAdvance: bool = false
 }
 
 class TextLayout {
@@ -771,11 +771,11 @@ export function createTextMeshSpec(font: BitmapFontMetrics, text: string, option
   }
 
   return SimpleMeshSpec {
-    positions,
-    indices,
-    colors,
-    uvs,
-    normals,
+    positions: positions.drainToReadonly(),
+    indices: indices.drainToReadonly(),
+    colors: colors.drainToReadonly(),
+    uvs: uvs.drainToReadonly(),
+    normals: normals.drainToReadonly(),
   }
 }
 
@@ -785,11 +785,7 @@ export function createTextMesh(
   text: string,
   options: TextLayoutOptions = TextLayoutOptions {},
 ): SimpleMesh {
-  spec := createTextMeshSpec(font, text, options)
-  if spec.vertexCount() == 0 {
-    panic("Cannot create a SimpleMesh for text with no drawable glyphs")
-  }
-  return SimpleMesh(surface, spec)
+  return SimpleMesh(surface, createTextMeshSpec(font, text, options))
 }
 
 export function createTextModel(

@@ -191,9 +191,9 @@ export class GltfAsset {
 
 export class GltfPose {
   asset: GltfAsset
-  local: Transform[] = []
-  world: Mat4[] = []
-  weights: double[][] = []
+  let local: Transform[] = []
+  let world: Mat4[] = []
+  let weights: double[][] = []
 
   static constructor(asset: GltfAsset): GltfPose {
     pose := GltfPose { asset }
@@ -1454,7 +1454,13 @@ function convertPrimitive(asset: GltfAsset, meshIndex: int, primitiveIndex: int,
     meshIndex,
     primitiveIndex,
     name: mesh.name,
-    spec: SimpleMeshSpec { positions, indices, colors, uvs, normals },
+    spec: SimpleMeshSpec { 
+      positions: positions.drainToReadonly(),
+      indices: indices.drainToReadonly(),
+      colors: colors.drainToReadonly(),
+      uvs: uvs.drainToReadonly(),
+      normals: normals.drainToReadonly(),
+     },
   })
 }
 

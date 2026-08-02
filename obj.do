@@ -335,7 +335,9 @@ function appendVertex(
 
   specPositions.push(position)
   specColors.push(color)
-  specUvs.push(Point(uv.u, uv.v))
+  // Wavefront OBJ texture coordinates are bottom-origin, while std/game
+  // textures use top-origin coordinates.
+  specUvs.push(Point(uv.u, 1.0 - uv.v))
   specNormals.push(normal)
   specIndices.push(specPositions.length - 1)
 }
@@ -365,11 +367,11 @@ function buildSimpleMeshSpec(data: ObjData, color: Color): SimpleMeshSpec {
   }
 
   return SimpleMeshSpec {
-    positions,
-    indices,
-    colors,
-    uvs,
-    normals,
+    positions: positions.drainToReadonly(),
+    indices: indices.drainToReadonly(),
+    colors: colors.drainToReadonly(),
+    uvs: uvs.drainToReadonly(),
+    normals: normals.drainToReadonly(),
   }
 }
 

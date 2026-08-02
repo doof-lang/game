@@ -39,13 +39,13 @@ export class FireworksConfig {
 export class Fireworks {
   private layer: ParticleLayer
   config: FireworksConfig
-  private elapsed: double = 0.0
-  private active: bool = false
-  private width: double = 1.0
-  private height: double = 1.0
-  private emittedBursts: int = 0
-  private sparkleTime: double = 0.0
-  private finaleEmitted: bool = false
+  private let elapsed: double = 0.0
+  private let active: bool = false
+  private let width: double = 1.0
+  private let height: double = 1.0
+  private let emittedBursts: int = 0
+  private let sparkleTime: double = 0.0
+  private let finaleEmitted: bool = false
 
   static constructor(surface: GameSurface, config: FireworksConfig = FireworksConfig {}): Fireworks {
     if config.burstCount <= 0 {

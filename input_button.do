@@ -3,7 +3,7 @@ type InputButtonReader = (): bool
 
 export class InputButton {
   private readState: InputButtonReader
-  private down: bool = false
+  private let down: bool = false
   private pressedHandlers: InputButtonHandler[] = []
   private releasedHandlers: InputButtonHandler[] = []
   private dependents: InputButton[] = []

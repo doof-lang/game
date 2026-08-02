@@ -189,10 +189,10 @@ export function createIcosphereMeshSpec(
   addIcosahedronFaces(geometry, midpointCache, subdivisions, radius, color)
 
   return SimpleMeshSpec {
-    positions: geometry.positions,
-    indices: geometry.indices,
-    colors: geometry.colors,
-    uvs: geometry.uvs,
-    normals: geometry.normals,
+    positions: geometry.positions.drainToReadonly(),
+    indices: geometry.indices.drainToReadonly(),
+    colors: geometry.colors.drainToReadonly(),
+    uvs: geometry.uvs.drainToReadonly(),
+    normals: geometry.normals.drainToReadonly(),
   }
 }

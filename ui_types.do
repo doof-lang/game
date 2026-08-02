@@ -18,11 +18,11 @@ export class UiPanelStyle {
 
 export class UiStyle {
   font: BitmapFont | none = none
-  textColor: Color = Color(1.0, 1.0, 1.0, 1.0)
+  let textColor: Color = Color(1.0, 1.0, 1.0, 1.0)
   paddingX: double = 12.0
   paddingY: double = 8.0
   z: double = 0.0
-  align: TextAlign = TextAlign.Left
+  let align: TextAlign = TextAlign.Left
   lineSpacing: double = 0.0
 }
 

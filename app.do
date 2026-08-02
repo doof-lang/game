@@ -53,13 +53,13 @@ export class GameApp {
   readonly renderMode: GameRenderMode
   readonly options: GameAppOptions
   private readonly native: NativeGameApp
-  input: InputState
-  surface: GameSurface
+  let input: InputState
+  let surface: GameSurface
   private inputButtons: InputButton[] = []
   private screenGestures: ScreenGestures[] = []
   private screenPointers: ScreenPointer[] = []
-  private onEventHandler: (event: GameEvent): none
-  private onRenderHandler: (renderer: Renderer): none
+  private let onEventHandler: (event: GameEvent): none
+  private let onRenderHandler: (renderer: Renderer): none
 
   static constructor(
     title: string,

@@ -14,6 +14,7 @@ import {
   UiLayer,
   UiStyle,
   Vec3,
+  createTextMesh,
   initGameApp,
   rectContains,
 } from "../index"
@@ -67,6 +68,15 @@ export function testGameAppLoadsReferencedBitmapFontTexture(): none {
   font := testFont()
   Assert.equal(font.texture.pixelWidth(), 256)
   Assert.equal(font.texture.pixelHeight(), 128)
+}
+
+export function testCreateTextMeshAllowsTextWithNoDrawableGlyphs(): none {
+  app := initGameApp{ title: "Doof Game Empty Text Mesh Test" }
+  font := testFont()
+  mesh := createTextMesh(app.surface, font, "   ")
+
+  Assert.equal(mesh.vertexCount(), 0)
+  Assert.equal(mesh.indexCount(), 0)
 }
 
 export function testGameAppBitmapFontTextureErrorIncludesFontAndAtlasPaths(): none {
