@@ -216,8 +216,8 @@ export struct Mat4 {
     right: double,
     bottom: double,
     top: double,
-    near: double = -1.0,
-    far: double = 1.0,
+    nearPlane: double = -1.0,
+    farPlane: double = 1.0,
   ): Mat4 {
     return Mat4 {
       m00: 2.0 / (right - left),
@@ -230,8 +230,8 @@ export struct Mat4 {
       m13: -(top + bottom) / (top - bottom),
       m20: 0.0,
       m21: 0.0,
-      m22: 1.0 / (near - far),
-      m23: near / (near - far),
+      m22: 1.0 / (nearPlane - farPlane),
+      m23: nearPlane / (nearPlane - farPlane),
       m30: 0.0,
       m31: 0.0,
       m32: 0.0,
@@ -239,7 +239,7 @@ export struct Mat4 {
     }
   }
 
-  static perspective(fovYRadians: double, aspect: double, near: double, far: double): Mat4 {
+  static perspective(fovYRadians: double, aspect: double, nearPlane: double, farPlane: double): Mat4 {
     f := 1.0 / tan(fovYRadians * 0.5)
     return Mat4 {
       m00: f / aspect,
@@ -252,8 +252,8 @@ export struct Mat4 {
       m13: 0.0,
       m20: 0.0,
       m21: 0.0,
-      m22: far / (near - far),
-      m23: (far * near) / (near - far),
+      m22: farPlane / (nearPlane - farPlane),
+      m23: (farPlane * nearPlane) / (nearPlane - farPlane),
       m30: 0.0,
       m31: 0.0,
       m32: -1.0,
@@ -426,22 +426,22 @@ export class Camera {
     right: double,
     bottom: double,
     top: double,
-    near: double = -1.0,
-    far: double = 1.0,
+    nearPlane: double = -1.0,
+    farPlane: double = 1.0,
   ): Camera {
     return Camera {
       kind: CameraKind.Orthographic,
-      viewProjection: Mat4.orthographic(left, right, bottom, top, near, far),
+      viewProjection: Mat4.orthographic(left, right, bottom, top, nearPlane, farPlane),
     }
   }
 
-  static perspective(fovYRadians: double, near: double, far: double): Camera {
+  static perspective(fovYRadians: double, nearPlane: double, farPlane: double): Camera {
     return Camera {
       kind: CameraKind.Perspective,
       viewProjection: Mat4.identity,
       perspectiveFovYRadians: fovYRadians,
-      perspectiveNear: near,
-      perspectiveFar: far,
+      perspectiveNear: nearPlane,
+      perspectiveFar: farPlane,
     }
   }
 

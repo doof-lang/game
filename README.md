@@ -1,7 +1,8 @@
 # std/game
 
-`std/game` provides a macOS-first full-screen game/app host with a Metal-backed
-surface, neutral key and mouse events, queryable input state, and a small
+`std/game` provides a cross-platform game/app host with Metal-backed surfaces
+on Apple platforms and a D3D11-backed surface on Windows, neutral key and mouse
+events, queryable input state, and a small
 native-backed render pass API with static simple meshes and batched texture-quad
 drawing. It also includes a reusable native-backed `Sound` object for file and
 generated audio playback, plus a compact sfxr/bfxr-inspired synth for game sound
@@ -12,7 +13,7 @@ delivery, frame callbacks, Metal surface lifetime, render pass setup, and basic
 static mesh and texture-quad batch primitives. Drawing code can also build on
 the Metal handles exposed by `RenderPass` and `GameSurface`.
 
-The native host supports macOS and Doof's built-in `ios-app` target. iOS apps
+The native host supports Windows, macOS, and Doof's built-in `ios-app` target. iOS apps
 attach the same Metal-backed surface to the generated UIKit app shell; single
 touch input is reported through the existing mouse event and mouse button APIs.
 Hardware keyboard events are not exposed on iOS yet.
@@ -124,7 +125,7 @@ app.onRender((renderer: Renderer): void => {})
 result := app.run()
 ```
 
-Creates a macOS app host. It defaults to full-screen; pass
+Creates a native app host. It defaults to full-screen; pass
 `GameAppOptions { windowMode: GameWindowMode.Windowed, ... }` to use a normal
 resizable window. Register event and render callbacks, set up any `std/event`
 timers or channels, then call `run()`. By default,
@@ -803,11 +804,16 @@ starting a pinch.
 
 ## Notes
 
-- macOS is the primary host.
+- Windows uses a Win32 app loop and D3D11 surface. Keyboard, mouse, resize,
+  requested rendering, built-in colored/textured meshes, WIC-backed textures,
+  and WAV/generated sound are supported. Metal shader source, model batches,
+  sky maps, space dust, and native gestures remain Apple-only.
 - Doof's `ios-app` target is supported with a Metal-backed UIKit surface.
 - On iOS, single-touch input is reported through the mouse and screen pointer
   APIs; hardware keyboard events are not exposed yet.
-- The surface is explicitly Metal-backed.
+- The legacy `metal*Handle()` accessors expose opaque backend handles on
+  Windows; they contain D3D11 objects and should only be used by the built-in
+  Windows backend.
 - `std/game` depends on `std/event` for host-loop integration.
 
 ## Samples

@@ -74,6 +74,23 @@
           "CoreGraphics",
           "ImageIO"
         ]
+      },
+      "windows": {
+        "sourceFiles": [
+          "native_intrinsic_font.cpp",
+          "native_game_windows.cpp",
+          "native_mesh_windows.cpp",
+          "native_sound_windows.cpp"
+        ],
+        "linkLibraries": [
+          "d3d11",
+          "d3dcompiler",
+          "dxgi",
+          "ole32",
+          "user32",
+          "windowscodecs",
+          "winmm"
+        ]
       }
     }
   },

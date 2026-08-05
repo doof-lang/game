@@ -30,15 +30,15 @@ function collisionSegmentIntersectsAabb(a: Point3, b: Point3, box: CollisionAabb
     if a.x < box.min.x || a.x > box.max.x { return false }
   } else {
     inv := 1.0 / dx
-    let near = (box.min.x - a.x) * inv
-    let far = (box.max.x - a.x) * inv
-    if near > far {
-      temp := near
-      near = far
-      far = temp
+    let nearValue = (box.min.x - a.x) * inv
+    let farValue = (box.max.x - a.x) * inv
+    if nearValue > farValue {
+      temp := nearValue
+      nearValue = farValue
+      farValue = temp
     }
-    tMin = max(tMin, near)
-    tMax = min(tMax, far)
+    tMin = max(tMin, nearValue)
+    tMax = min(tMax, farValue)
     if tMin > tMax { return false }
   }
 
@@ -46,15 +46,15 @@ function collisionSegmentIntersectsAabb(a: Point3, b: Point3, box: CollisionAabb
     if a.y < box.min.y || a.y > box.max.y { return false }
   } else {
     inv := 1.0 / dy
-    let near = (box.min.y - a.y) * inv
-    let far = (box.max.y - a.y) * inv
-    if near > far {
-      temp := near
-      near = far
-      far = temp
+    let nearValue = (box.min.y - a.y) * inv
+    let farValue = (box.max.y - a.y) * inv
+    if nearValue > farValue {
+      temp := nearValue
+      nearValue = farValue
+      farValue = temp
     }
-    tMin = max(tMin, near)
-    tMax = min(tMax, far)
+    tMin = max(tMin, nearValue)
+    tMax = min(tMax, farValue)
     if tMin > tMax { return false }
   }
 
@@ -62,15 +62,15 @@ function collisionSegmentIntersectsAabb(a: Point3, b: Point3, box: CollisionAabb
     if a.z < box.min.z || a.z > box.max.z { return false }
   } else {
     inv := 1.0 / dz
-    let near = (box.min.z - a.z) * inv
-    let far = (box.max.z - a.z) * inv
-    if near > far {
-      temp := near
-      near = far
-      far = temp
+    let nearValue = (box.min.z - a.z) * inv
+    let farValue = (box.max.z - a.z) * inv
+    if nearValue > farValue {
+      temp := nearValue
+      nearValue = farValue
+      farValue = temp
     }
-    tMin = max(tMin, near)
-    tMax = min(tMax, far)
+    tMin = max(tMin, nearValue)
+    tMax = min(tMax, farValue)
     if tMin > tMax { return false }
   }
 

@@ -1,7 +1,7 @@
 # std/game Guide And API Reference
 
-`std/game` provides a Metal-backed game and app host for macOS, with support
-for Doof's `ios-app` target. It owns the native app loop, surface lifetime,
+`std/game` provides native game and app hosts for Windows and macOS, with
+support for Doof's `ios-app` target. It owns the native app loop, surface lifetime,
 frame callbacks, input state, rendering passes, basic meshes, textures, bitmap
 text, retained UI controls, controller input, screen gestures, and reusable
 sound playback.
@@ -88,7 +88,7 @@ function main(): int {
 ## Mental Model
 
 - The `GameApp` owns the native app loop and a current `GameSurface`.
-- Resources that depend on the Metal device, such as textures, meshes, fonts,
+- Resources that depend on the graphics device, such as textures, meshes, fonts,
   shader buffers, and shader pipelines, are created for a `GameSurface`.
 - `onRender` receives a `Renderer`. Use it to begin one or more render passes.
 - Built-in draw helpers use the active pass camera and blend/depth state.
@@ -804,12 +804,15 @@ Helper functions:
 
 ## Platform Notes
 
-- macOS is the primary host.
+- Windows uses a Win32 app loop and D3D11 surface, with keyboard/mouse input,
+  resizing, built-in colored/textured meshes, WIC textures, and WAV/generated
+  sound. Metal shader source, model batches, sky maps, space dust, and native
+  gestures are not available on Windows.
 - Doof's `ios-app` target attaches the same Metal-backed surface to the
   generated UIKit shell.
 - iOS single-touch input is reported through the mouse/screen pointer APIs.
 - Hardware keyboard events are not exposed on iOS yet.
-- Offscreen render targets and additional platform backends are future work.
+- Offscreen render targets are future work.
 
 Build and run an iOS simulator sample with:
 

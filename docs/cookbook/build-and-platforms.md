@@ -1,8 +1,17 @@
 # Build And Platforms
 
-`std/game` currently targets macOS first and also supports Doof's `ios-app`
-target. macOS apps use the native Metal-backed host. iOS apps attach the same
-surface to the generated UIKit shell.
+`std/game` supports Windows, macOS, and Doof's `ios-app` target. Windows apps
+use a Win32/D3D11 host, macOS apps use the native Metal-backed host, and iOS
+apps attach the Metal surface to the generated UIKit shell.
+
+## Run A Windows Sample
+
+From an MSVC developer shell:
+
+```powershell
+$env:DOOF_STDLIB_ROOT = (Resolve-Path .).Path
+doof run game/samples/minimal
+```
 
 ## Run A macOS Sample
 
@@ -46,6 +55,10 @@ doof build --target ios-app --ios-destination device game/samples/jigsaw
 
 ## Platform Notes
 
+- Windows supports a Win32 window, D3D11 clear passes and built-in
+  colored/textured meshes, keyboard and mouse input, resizing, requested
+  rendering, WIC textures, and WAV/generated sound. Metal shader source, model
+  batches, sky maps, space dust, and native gestures are not available.
 - macOS supports keyboard, mouse, controller input, windowed apps, full-screen
   apps, sound, Metal rendering, and native gestures.
 - iOS supports the Metal-backed surface and single-touch input through the
