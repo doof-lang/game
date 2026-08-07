@@ -12,8 +12,12 @@
 #include <array>
 #include <atomic>
 #include <chrono>
+#include <cctype>
 #include <cmath>
+#include <cstdio>
 #include <cstring>
+#include <fstream>
+#include <iterator>
 #include <limits>
 #include <mutex>
 #include <set>
@@ -111,7 +115,97 @@ static doof::Result<std::shared_ptr<NativeTexture>, std::string> createTexture(
     return doof::Success<std::shared_ptr<NativeTexture>>{result};
 }
 
+static bool pathHasHdrExtension(const std::string& path) {
+    if (path.size() < 4) return false;
+    std::string extension = path.substr(path.size() - 4);
+    std::transform(extension.begin(), extension.end(), extension.begin(), [](unsigned char value) {
+        return static_cast<char>(std::tolower(value));
+    });
+    return extension == ".hdr";
+}
+
+static bool readHdrLine(const std::vector<uint8_t>& bytes, size_t& offset, std::string& line) {
+    if (offset >= bytes.size()) return false;
+    line.clear();
+    while (offset < bytes.size()) {
+        char value = static_cast<char>(bytes[offset++]);
+        if (value == '\n') {
+            if (!line.empty() && line.back() == '\r') line.pop_back();
+            return true;
+        }
+        line.push_back(value);
+    }
+    return true;
+}
+
+static bool parseHdrResolution(const std::string& line, int32_t& width, int32_t& height) {
+    char ySign = 0, yAxis = 0, xSign = 0, xAxis = 0;
+    int parsedHeight = 0, parsedWidth = 0;
+    if (std::sscanf(line.c_str(), " %c%c %d %c%c %d", &ySign, &yAxis, &parsedHeight, &xSign, &xAxis, &parsedWidth) != 6) return false;
+    if ((yAxis != 'Y' && yAxis != 'y') || (xAxis != 'X' && xAxis != 'x') || parsedWidth <= 0 || parsedHeight <= 0) return false;
+    width = parsedWidth; height = parsedHeight; return true;
+}
+
+static float rgbeToFloat(uint8_t value, uint8_t exponent) {
+    return exponent == 0 ? 0.0f : static_cast<float>((static_cast<double>(value) + 0.5) * std::ldexp(1.0, static_cast<int>(exponent) - 136));
+}
+
+static doof::Result<std::shared_ptr<NativeTexture>, std::string> loadRadianceHdrTexture(
+    const std::string& path, ID3D11Device* device) {
+    if (!device) return doof::Failure<std::string>{"D3D11 device handle is invalid"};
+    std::ifstream file(path, std::ios::binary);
+    if (!file) return doof::Failure<std::string>{"Failed to load HDR image: " + path};
+    std::vector<uint8_t> bytes((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
+    size_t offset = 0; std::string line; int32_t width = 0, height = 0;
+    while (readHdrLine(bytes, offset, line)) if (parseHdrResolution(line, width, height)) break;
+    if (width <= 0 || height <= 0 || width > 16384 || height > 16384)
+        return doof::Failure<std::string>{"Failed to parse HDR image resolution: " + path};
+    const size_t pixelCount = static_cast<size_t>(width) * static_cast<size_t>(height);
+    if (pixelCount > std::numeric_limits<size_t>::max() / 4u) return doof::Failure<std::string>{"HDR image dimensions are too large: " + path};
+    std::vector<uint8_t> rgbe(pixelCount * 4u);
+    for (int32_t y = 0; y < height; ++y) {
+        if (offset + 4u > bytes.size()) return doof::Failure<std::string>{"HDR image ended early: " + path};
+        uint8_t b0=bytes[offset],b1=bytes[offset+1],b2=bytes[offset+2],b3=bytes[offset+3];
+        if (b0 == 2 && b1 == 2 && (b2 & 0x80u) == 0u) {
+            int32_t scanlineWidth = (static_cast<int32_t>(b2) << 8) | b3; offset += 4u;
+            if (scanlineWidth != width) return doof::Failure<std::string>{"HDR scanline width mismatch: " + path};
+            std::vector<uint8_t> channels(static_cast<size_t>(width) * 4u);
+            for (int32_t channel = 0; channel < 4; ++channel) {
+                int32_t x = 0;
+                while (x < width) {
+                    if (offset >= bytes.size()) return doof::Failure<std::string>{"HDR RLE data ended early: " + path};
+                    uint8_t count = bytes[offset++];
+                    if (count > 128) {
+                        int32_t run = static_cast<int32_t>(count) - 128;
+                        if (run <= 0 || x + run > width || offset >= bytes.size()) return doof::Failure<std::string>{"HDR RLE run is invalid: " + path};
+                        uint8_t value = bytes[offset++];
+                        for (int32_t i = 0; i < run; ++i) channels[static_cast<size_t>(channel) * width + static_cast<size_t>(x++)] = value;
+                    } else {
+                        int32_t run = count;
+                        if (run <= 0 || x + run > width || offset + static_cast<size_t>(run) > bytes.size()) return doof::Failure<std::string>{"HDR RLE literal is invalid: " + path};
+                        for (int32_t i = 0; i < run; ++i) channels[static_cast<size_t>(channel) * width + static_cast<size_t>(x++)] = bytes[offset++];
+                    }
+                }
+            }
+            for (int32_t x = 0; x < width; ++x) {
+                size_t output = (static_cast<size_t>(y) * width + static_cast<size_t>(x)) * 4u;
+                rgbe[output]=channels[static_cast<size_t>(x)];rgbe[output+1]=channels[static_cast<size_t>(width)+x];rgbe[output+2]=channels[static_cast<size_t>(width)*2u+x];rgbe[output+3]=channels[static_cast<size_t>(width)*3u+x];
+            }
+        } else {
+            size_t rowBytes = static_cast<size_t>(width) * 4u;
+            if (offset + rowBytes > bytes.size()) return doof::Failure<std::string>{"HDR image ended early: " + path};
+            std::copy(bytes.begin()+static_cast<std::ptrdiff_t>(offset),bytes.begin()+static_cast<std::ptrdiff_t>(offset+rowBytes),rgbe.begin()+static_cast<std::ptrdiff_t>(static_cast<size_t>(y)*rowBytes));offset += rowBytes;
+        }
+    }
+    std::vector<float> pixels(pixelCount * 4u);
+    for (size_t i = 0; i < pixelCount; ++i) { uint8_t exponent=rgbe[i*4u+3u];pixels[i*4u]=rgbeToFloat(rgbe[i*4u],exponent);pixels[i*4u+1u]=rgbeToFloat(rgbe[i*4u+1u],exponent);pixels[i*4u+2u]=rgbeToFloat(rgbe[i*4u+2u],exponent);pixels[i*4u+3u]=1.0f; }
+    D3D11_TEXTURE2D_DESC desc{};desc.Width=static_cast<UINT>(width);desc.Height=static_cast<UINT>(height);desc.MipLevels=1;desc.ArraySize=1;desc.Format=DXGI_FORMAT_R32G32B32A32_FLOAT;desc.SampleDesc.Count=1;desc.Usage=D3D11_USAGE_IMMUTABLE;desc.BindFlags=D3D11_BIND_SHADER_RESOURCE;
+    D3D11_SUBRESOURCE_DATA initial{};initial.pSysMem=pixels.data();initial.SysMemPitch=static_cast<UINT>(static_cast<size_t>(width)*4u*sizeof(float));ComPtr<ID3D11Texture2D> texture;HRESULT hr=device->CreateTexture2D(&desc,&initial,&texture);
+    if(FAILED(hr))return doof::Failure<std::string>{windowsError("Failed to create HDR texture",hr)};auto result=std::make_shared<NativeTexture>(texture.Get(),width,height);if(!result->metalTextureHandle())return doof::Failure<std::string>{"Failed to create HDR texture view"};return doof::Success<std::shared_ptr<NativeTexture>>{result};
+}
+
 doof::Result<std::shared_ptr<NativeTexture>, std::string> NativeTexture::load(const std::string& path, int64_t deviceHandle) {
+    if (pathHasHdrExtension(path)) return loadRadianceHdrTexture(path, reinterpret_cast<ID3D11Device*>(deviceHandle));
     HRESULT init = CoInitializeEx(nullptr, COINIT_MULTITHREADED);
     (void)init;
     ComPtr<IWICImagingFactory> factory;

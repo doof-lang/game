@@ -805,9 +805,9 @@ Helper functions:
 ## Platform Notes
 
 - Windows uses a Win32 app loop and D3D11 surface, with keyboard/mouse input,
-  resizing, built-in colored/textured meshes, WIC textures, and WAV/generated
-  sound. Metal shader source, model batches, sky maps, space dust, and native
-  gestures are not available on Windows.
+  resizing, built-in colored/textured meshes, model batches, sky maps, space
+  dust, WIC textures, Radiance HDR textures, and WAV/generated sound. Metal
+  shader source and native gestures are not available on Windows.
 - Doof's `ios-app` target attaches the same Metal-backed surface to the
   generated UIKit shell.
 - iOS single-touch input is reported through the mouse/screen pointer APIs.

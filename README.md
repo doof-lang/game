@@ -632,7 +632,7 @@ ignoring its position, because the sky is treated as infinitely far away. It
 accepts vertical field of view and exposure. It is intended for sky/background
 rendering, so draw it before opaque scene geometry when sharing a depth-enabled
 pass. `app.loadTexture(...)` accepts Radiance `.hdr` RGBE files and uploads them
-as float Metal textures, so HDRI panoramas can be used directly.
+as float textures, so HDRI panoramas can be used directly.
 
 ### `GameSurface`
 
@@ -805,9 +805,10 @@ starting a pinch.
 ## Notes
 
 - Windows uses a Win32 app loop and D3D11 surface. Keyboard, mouse, resize,
-  requested rendering, built-in colored/textured meshes, WIC-backed textures,
-  and WAV/generated sound are supported. Metal shader source, model batches,
-  sky maps, space dust, and native gestures remain Apple-only.
+  requested rendering, built-in colored/textured meshes, model batches, sky
+  maps, space dust, WIC-backed textures, Radiance HDR textures, and
+  WAV/generated sound are supported. Metal shader source and native gestures
+  remain Apple-only.
 - Doof's `ios-app` target is supported with a Metal-backed UIKit surface.
 - On iOS, single-touch input is reported through the mouse and screen pointer
   APIs; hardware keyboard events are not exposed yet.

@@ -56,9 +56,10 @@ doof build --target ios-app --ios-destination device game/samples/jigsaw
 ## Platform Notes
 
 - Windows supports a Win32 window, D3D11 clear passes and built-in
-  colored/textured meshes, keyboard and mouse input, resizing, requested
-  rendering, WIC textures, and WAV/generated sound. Metal shader source, model
-  batches, sky maps, space dust, and native gestures are not available.
+  colored/textured meshes, model batches, equirectangular sky maps, space dust,
+  keyboard and mouse input, resizing, requested rendering, WIC textures,
+  Radiance HDR textures, and WAV/generated sound. Metal shader source and
+  native gestures are not available.
 - macOS supports keyboard, mouse, controller input, windowed apps, full-screen
   apps, sound, Metal rendering, and native gestures.
 - iOS supports the Metal-backed surface and single-touch input through the
