@@ -1229,10 +1229,16 @@ struct GameRuntimeState : std::enable_shared_from_this<GameRuntimeState> {
         running.store(false);
         panInertia.cancel();
         stopDisplayLink();
-        dispatch_async(dispatch_get_main_queue(), ^{
+        auto stopRunLoop = ^{
             [NSApp stop:nil];
             CFRunLoopStop(CFRunLoopGetMain());
-        });
+            CFRunLoopWakeUp(CFRunLoopGetMain());
+        };
+        if ([NSThread isMainThread]) {
+            stopRunLoop();
+        } else {
+            dispatch_async(dispatch_get_main_queue(), stopRunLoop);
+        }
     }
 
     void recordRenderedFrame() {
