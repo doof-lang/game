@@ -1,7 +1,7 @@
 # std/game
 
 `std/game` provides a cross-platform game/app host with Metal-backed surfaces
-on Apple platforms and a D3D11-backed surface on Windows, neutral key and mouse
+on Apple platforms, a D3D11-backed surface on Windows, and WebGL on Wasm, neutral key and mouse
 events, queryable input state, and a small
 native-backed render pass API with static simple meshes and batched texture-quad
 drawing. It also includes a reusable native-backed `Sound` object for file and
@@ -9,14 +9,20 @@ generated audio playback, plus a compact sfxr/bfxr-inspired synth for game sound
 effects.
 
 This first version is intentionally small: it owns the native app surface, input
-delivery, frame callbacks, Metal surface lifetime, render pass setup, and basic
+delivery, frame callbacks, platform surface lifetime, render pass setup, and basic
 static mesh and texture-quad batch primitives. Drawing code can also build on
-the Metal handles exposed by `RenderPass` and `GameSurface`.
+the opaque backend handles exposed by `RenderPass` and `GameSurface`.
 
 The native host supports Windows, macOS, and Doof's built-in `ios-app` target. iOS apps
 attach the same Metal-backed surface to the generated UIKit app shell; single
 touch input is reported through the existing mouse event and mouse button APIs.
 Hardware keyboard events are not exposed on iOS yet.
+
+Wasm apps use the same `std/game` API as native apps. The Wasm target selects a
+WebGL host implementation behind the existing native game window, surface,
+render-pass, texture, mesh, sky-map, and space-dust boundary. Built Wasm games
+are loaded with `doof-game.js`; browser DOM and WebGL objects remain backend
+details.
 
 ## Documentation
 

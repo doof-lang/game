@@ -29,6 +29,8 @@ export class ControllerEvent {
 export class GameEvent {
   private readonly native: NativeGameEvent
 
+  static constructor(native: NativeGameEvent): GameEvent => GameEvent { native }
+
   kind(): GameEventKind => gameEventKindFromCode(this.native.kindCode())
   controller(): ControllerEvent => ControllerEvent(this.native)
   key(): Key => keyFromCode(this.native.keyCode())

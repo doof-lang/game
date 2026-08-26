@@ -58,7 +58,7 @@ export class JigsawSessionConfig {
 }
 
 export class JigsawClientConnection {
-  clientId: int
+  let clientId: int
   commands: ChannelSender<JigsawClientCommand>
   events: ChannelReceiver<JigsawServerEvent>
 }
@@ -83,10 +83,10 @@ export class JigsawSession {
   commands: ChannelSender<JigsawClientCommand>
   private readonly commandEvents: ChannelReceiver<JigsawClientCommand>
   private state: PuzzleState
-  private clients: JigsawClientEndpoint[] = []
+  private let clients: JigsawClientEndpoint[] = []
   private groupDefinitions: JigsawGroupDefinition[] = []
-  private nextClientId: int = 1
-  private nextGroupId: int
+  private let nextClientId: int = 1
+  private let nextGroupId: int
   private eventCapacity: int
   private onStateChanged: (state: PuzzleState): none
 

@@ -30,12 +30,12 @@ export enum ServerConnectionState {
 }
 
 export class JigsawRuntime {
-  connection: JigsawClientConnection | none = none
+  let connection: JigsawClientConnection | none = none
   session: JigsawSession | none = none
   serverAddress: string | none = none
-  state: ServerConnectionState = ServerConnectionState.Local
-  connectionGeneration: int = 0
-  lastError: string | none = none
+  let state: ServerConnectionState = ServerConnectionState.Local
+  let connectionGeneration: int = 0
+  let lastError: string | none = none
 
   currentState(pieces: Piece[], drawOrder: int[], camera: PuzzleCamera): PuzzleState {
     localSession := this.session else {

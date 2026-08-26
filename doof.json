@@ -11,7 +11,8 @@
         "native_mesh.hpp",
         "native_mesh_internal.hpp",
         "native_obj.hpp",
-        "native_sound.hpp"
+        "native_sound.hpp",
+        "doof-game.js"
       ],
       "macos": {
         "sourceFiles": [
@@ -90,6 +91,12 @@
           "user32",
           "windowscodecs",
           "winmm"
+        ]
+      },
+      "wasm": {
+        "sourceFiles": [
+          "native_game_wasm.cpp",
+          "native_mesh_wasm.cpp"
         ]
       }
     }

@@ -91,7 +91,7 @@ function vertexBytes(spec: SimpleMeshSpec): readonly byte[] {
   return builder.build()
 }
 
-function indexBytes(indices: int[]): readonly byte[] {
+function indexBytes(indices: readonly int[]): readonly byte[] {
   builder := ShaderBytesBuilder()
   for index of indices {
     builder.uint32(index)

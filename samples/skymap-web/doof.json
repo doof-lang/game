@@ -1,0 +1,11 @@
+{
+  "name": "std-game-skymap-web-sample",
+  "version": "0.1.0",
+  "license": "ISC",
+  "build": {
+    "entry": "index.do",
+    "target": "wasm",
+    "resources": ["web", "images", "models"]
+  },
+  "dependencies": {}
+}

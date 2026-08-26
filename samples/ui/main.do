@@ -99,7 +99,7 @@ function main(): int {
     pressedBackground: Color(0.10, 0.18, 0.23, 1.0),
     textColor: Color.white,
   }
-  ui.addButton("Click me", (26.0, 466.0, 190.0, 42.0), buttonStyle) {
+  ui.addButton("Click me", Rect(26.0, 466.0, 190.0, 42.0), buttonStyle) {
     clicks += 1
     updateSampleBody(app.surface, transformedPanelScale(app.surface), body, clicks)
   }

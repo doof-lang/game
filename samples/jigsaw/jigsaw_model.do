@@ -17,9 +17,9 @@ export class PuzzleLayout {
 }
 
 export class PuzzleCamera {
-  x: double
-  y: double
-  zoom: double
+  let x: double
+  let y: double
+  let zoom: double
   minZoom: double
   maxZoom: double
 }
@@ -28,9 +28,9 @@ export class Piece {
   id: int
   column: int
   row: int
-  group: int
-  x: double
-  y: double
+  let group: int
+  let x: double
+  let y: double
 }
 
 export class SnapMatch {
@@ -44,7 +44,7 @@ export class PuzzleState {
   columns: int
   rows: int
   pieces: Piece[]
-  drawOrder: int[]
+  let drawOrder: int[]
   camera: PuzzleCamera
 }
 

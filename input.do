@@ -14,6 +14,8 @@ export class ControllerQuery {
 export class InputState {
   private readonly native: NativeInputState
 
+  static constructor(native: NativeInputState): InputState => InputState { native }
+
   controllers(): ControllerQuery => ControllerQuery(this.native)
   isControllerConnected(slot: ControllerSlot): bool => this.native.isControllerConnectedCode(controllerSlotCode(slot))
   isControllerButtonDown(slot: ControllerSlot, button: ControllerButton): bool {

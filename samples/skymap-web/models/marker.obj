@@ -1,0 +1,19 @@
+# Low-poly marker model for the skymap sample.
+#
+# Coordinates are authored in a compact unit space and scaled/positioned by the
+# sample at runtime.
+o marker
+v 0.000 1.100 0.000
+v -0.620 0.000 0.620
+v 0.620 0.000 0.620
+v 0.620 0.000 -0.620
+v -0.620 0.000 -0.620
+v 0.000 -0.520 0.000
+f 1 2 3
+f 1 3 4
+f 1 4 5
+f 1 5 2
+f 6 3 2
+f 6 4 3
+f 6 5 4
+f 6 2 5

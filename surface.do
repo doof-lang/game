@@ -3,6 +3,8 @@ import { NativeGameSurface } from "./native"
 export class GameSurface {
   private readonly native: NativeGameSurface
 
+  static constructor(native: NativeGameSurface): GameSurface => GameSurface { native }
+
   width(): double => double(pixelWidth()) / effectiveScale()
   height(): double => double(pixelHeight()) / effectiveScale()
   pixelWidth(): int => this.native.pixelWidth()
