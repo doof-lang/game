@@ -60,6 +60,8 @@ doof build --target ios-app --ios-destination device game/samples/jigsaw
   keyboard and mouse input, resizing, requested rendering, WIC textures,
   Radiance HDR textures, and WAV/generated sound. Metal shader source and
   native gestures are not available.
+- Wasm supports WebGL 2 clear passes, built-in colored/textured meshes, model
+  batches with core instancing, equirectangular sky maps, and space dust.
 - macOS supports keyboard, mouse, controller input, windowed apps, full-screen
   apps, sound, Metal rendering, and native gestures.
 - iOS supports the Metal-backed surface and single-touch input through the

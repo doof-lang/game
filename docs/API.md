@@ -498,7 +498,8 @@ specular or Fresnel contribution.
 Use a batch for many instances of one mesh and optional shared texture. The
 batch keeps live instances packed and draws them with one instanced draw call.
 `drawSimpleModelBatch(pass, batch, lighting = SimpleMeshLighting {})` applies
-one lighting value to the whole batch.
+one lighting value to the whole batch. The Wasm backend uses WebGL 2 instance
+attributes and `drawElementsInstanced` for this path.
 
 ```doof
 batch := SimpleModelBatch {
@@ -808,6 +809,9 @@ Helper functions:
   resizing, built-in colored/textured meshes, model batches, sky maps, space
   dust, WIC textures, Radiance HDR textures, and WAV/generated sound. Metal
   shader source and native gestures are not available on Windows.
+- Wasm uses WebGL 2 for built-in colored/textured meshes, model batches, sky
+  maps, and space dust. Model batches use core WebGL 2 instancing and 32-bit
+  element indices.
 - Doof's `ios-app` target attaches the same Metal-backed surface to the
   generated UIKit shell.
 - iOS single-touch input is reported through the mouse/screen pointer APIs.

@@ -1,7 +1,7 @@
 # std/game
 
 `std/game` provides a cross-platform game/app host with Metal-backed surfaces
-on Apple platforms, a D3D11-backed surface on Windows, and WebGL on Wasm, neutral key and mouse
+on Apple platforms, a D3D11-backed surface on Windows, and WebGL 2 on Wasm, neutral key and mouse
 events, queryable input state, and a small
 native-backed render pass API with static simple meshes and batched texture-quad
 drawing. It also includes a reusable native-backed `Sound` object for file and
@@ -19,8 +19,8 @@ touch input is reported through the existing mouse event and mouse button APIs.
 Hardware keyboard events are not exposed on iOS yet.
 
 Wasm apps use the same `std/game` API as native apps. The Wasm target selects a
-WebGL host implementation behind the existing native game window, surface,
-render-pass, texture, mesh, sky-map, and space-dust boundary. Built Wasm games
+WebGL 2 host implementation behind the existing native game window, surface,
+render-pass, texture, mesh, model-batch, sky-map, and space-dust boundary. Built Wasm games
 are loaded with `doof-game.js`; browser DOM and WebGL objects remain backend
 details.
 
@@ -516,8 +516,9 @@ renderer boundary to match `Blend.alpha()`.
 `PixelBytes` when generated pixels are already available, avoiding an
 unnecessary `Image` conversion and pixel snapshot.
 `SimpleModelBatch` stores repeated instances of one mesh and optional shared
-texture, then `drawSimpleModelBatch(...)` draws the live instances with one Metal
-instanced draw call. Instance handles update their batch slot through ergonomic
+texture, then `drawSimpleModelBatch(...)` draws the live instances with one
+backend instanced draw call, including core WebGL 2 instancing on Wasm. Instance
+handles update their batch slot through ergonomic
 transform, tint, and UV helpers. Removing an instance keeps the live slots packed,
 and later use of the removed handle is a programmer error. Pass
 `SimpleMeshLighting` as the optional final draw argument to use the same
@@ -815,6 +816,8 @@ starting a pinch.
   maps, space dust, WIC-backed textures, Radiance HDR textures, and
   WAV/generated sound are supported. Metal shader source and native gestures
   remain Apple-only.
+- Wasm uses WebGL 2 and supports the built-in mesh and model-batch paths,
+  including 32-bit mesh indices and core instanced drawing.
 - Doof's `ios-app` target is supported with a Metal-backed UIKit surface.
 - On iOS, single-touch input is reported through the mouse and screen pointer
   APIs; hardware keyboard events are not exposed yet.

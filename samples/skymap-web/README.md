@@ -1,7 +1,7 @@
-# WebGL/Wasm sky map sample
+# WebGL 2/Wasm sky map sample
 
 This browser sample uses the ordinary `std/game` API. Its Wasm target selects a
-WebGL implementation behind the same native game window, surface, render-pass,
+WebGL 2 implementation behind the same native game window, surface, render-pass,
 texture, mesh, sky-map, and space-dust boundary used by the macOS, iOS, and
 Windows backends. There is no browser-specific game object model.
 
