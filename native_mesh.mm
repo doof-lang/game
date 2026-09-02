@@ -571,7 +571,8 @@ struct NativeShaderBuffer::Impl {
 
 struct NativeShaderPipeline::Impl {
     id<MTLDevice> device = nil;
-    id<MTLLibrary> library = nil;
+    id<MTLLibrary> vertexLibrary = nil;
+    id<MTLLibrary> fragmentLibrary = nil;
     MTLVertexDescriptor* vertexDescriptor = nil;
     std::string vertexFunction;
     std::string fragmentFunction;
@@ -581,18 +582,21 @@ struct NativeShaderPipeline::Impl {
 
     Impl(
         void* rawDevice,
-        void* rawLibrary,
+        void* rawVertexLibrary,
+        void* rawFragmentLibrary,
         void* rawVertexDescriptor,
         std::string vertexFunction,
         std::string fragmentFunction
     )
         : device((__bridge id<MTLDevice>)rawDevice),
-          library((__bridge id<MTLLibrary>)rawLibrary),
+          vertexLibrary((__bridge id<MTLLibrary>)rawVertexLibrary),
+          fragmentLibrary((__bridge id<MTLLibrary>)rawFragmentLibrary),
           vertexDescriptor((__bridge MTLVertexDescriptor*)rawVertexDescriptor),
           vertexFunction(std::move(vertexFunction)),
           fragmentFunction(std::move(fragmentFunction)) {
         [device retain];
-        [library retain];
+        [vertexLibrary retain];
+        [fragmentLibrary retain];
         [vertexDescriptor retain];
     }
 
@@ -601,7 +605,8 @@ struct NativeShaderPipeline::Impl {
             [pipeline release];
         }
         [vertexDescriptor release];
-        [library release];
+        [fragmentLibrary release];
+        [vertexLibrary release];
         [device release];
     }
 };
@@ -909,7 +914,8 @@ int64_t NativeShaderBuffer::metalBufferHandle() const {
 
 doof::Result<std::shared_ptr<NativeShaderPipeline>, std::string> NativeShaderPipeline::create(
     int64_t metalDeviceHandle,
-    const std::string& source,
+    const std::string& vertexSource,
+    const std::string& fragmentSource,
     const std::string& vertexFunction,
     const std::string& fragmentFunction,
     const std::shared_ptr<std::vector<int32_t>>& attributeIndices,
@@ -925,8 +931,11 @@ doof::Result<std::shared_ptr<NativeShaderPipeline>, std::string> NativeShaderPip
     if (device == nil) {
         return doof::Failure<std::string>{"Metal device handle is invalid"};
     }
-    if (source.empty()) {
-        return doof::Failure<std::string>{"Shader source must not be empty"};
+    if (vertexSource.empty()) {
+        return doof::Failure<std::string>{"Shader vertex source must not be empty"};
+    }
+    if (fragmentSource.empty()) {
+        return doof::Failure<std::string>{"Shader fragment source must not be empty"};
     }
     if (vertexFunction.empty()) {
         return doof::Failure<std::string>{"Shader vertex function name must not be empty"};
@@ -948,21 +957,35 @@ doof::Result<std::shared_ptr<NativeShaderPipeline>, std::string> NativeShaderPip
     }
 
     NSError* error = nil;
-    id<MTLLibrary> library = [device newLibraryWithSource:nsString(source) options:nil error:&error];
-    if (library == nil) {
-        return doof::Failure<std::string>{errorMessage(error, "Failed to compile shader source")};
+    id<MTLLibrary> vertexLibrary = [device newLibraryWithSource:nsString(vertexSource) options:nil error:&error];
+    if (vertexLibrary == nil) {
+        return doof::Failure<std::string>{errorMessage(error, "Failed to compile shader vertex source")};
     }
 
-    id<MTLFunction> vertex = [library newFunctionWithName:nsString(vertexFunction)];
+    id<MTLLibrary> fragmentLibrary = vertexLibrary;
+    [fragmentLibrary retain];
+    if (fragmentSource != vertexSource) {
+        [fragmentLibrary release];
+        error = nil;
+        fragmentLibrary = [device newLibraryWithSource:nsString(fragmentSource) options:nil error:&error];
+        if (fragmentLibrary == nil) {
+            [vertexLibrary release];
+            return doof::Failure<std::string>{errorMessage(error, "Failed to compile shader fragment source")};
+        }
+    }
+
+    id<MTLFunction> vertex = [vertexLibrary newFunctionWithName:nsString(vertexFunction)];
     if (vertex == nil) {
-        [library release];
+        [fragmentLibrary release];
+        [vertexLibrary release];
         return doof::Failure<std::string>{"Shader vertex function was not found: " + vertexFunction};
     }
     [vertex release];
 
-    id<MTLFunction> fragment = [library newFunctionWithName:nsString(fragmentFunction)];
+    id<MTLFunction> fragment = [fragmentLibrary newFunctionWithName:nsString(fragmentFunction)];
     if (fragment == nil) {
-        [library release];
+        [fragmentLibrary release];
+        [vertexLibrary release];
         return doof::Failure<std::string>{"Shader fragment function was not found: " + fragmentFunction};
     }
     [fragment release];
@@ -971,13 +994,15 @@ doof::Result<std::shared_ptr<NativeShaderPipeline>, std::string> NativeShaderPip
     for (size_t i = 0; i < layoutBuffers->size(); ++i) {
         if ((*layoutBuffers)[i] < 0 || (*layoutStrides)[i] <= 0 || (*layoutStepRates)[i] <= 0) {
             [vertexDescriptor release];
-            [library release];
+            [fragmentLibrary release];
+            [vertexLibrary release];
             return doof::Failure<std::string>{"Shader vertex layout buffer index, stride, and step rate must be positive"};
         }
         MTLVertexStepFunction stepFunction = shaderVertexStepFunction((*layoutStepFunctions)[i]);
         if (stepFunction == MTLVertexStepFunctionConstant) {
             [vertexDescriptor release];
-            [library release];
+            [fragmentLibrary release];
+            [vertexLibrary release];
             return doof::Failure<std::string>{"Shader vertex layout step function is invalid"};
         }
         vertexDescriptor.layouts[static_cast<NSUInteger>((*layoutBuffers)[i])].stride = static_cast<NSUInteger>((*layoutStrides)[i]);
@@ -988,13 +1013,15 @@ doof::Result<std::shared_ptr<NativeShaderPipeline>, std::string> NativeShaderPip
     for (size_t i = 0; i < attributeIndices->size(); ++i) {
         if ((*attributeIndices)[i] < 0 || (*attributeBuffers)[i] < 0 || (*attributeOffsets)[i] < 0) {
             [vertexDescriptor release];
-            [library release];
+            [fragmentLibrary release];
+            [vertexLibrary release];
             return doof::Failure<std::string>{"Shader vertex attribute index, buffer, and offset must be non-negative"};
         }
         MTLVertexFormat format = shaderVertexFormat((*attributeFormats)[i]);
         if (format == MTLVertexFormatInvalid) {
             [vertexDescriptor release];
-            [library release];
+            [fragmentLibrary release];
+            [vertexLibrary release];
             return doof::Failure<std::string>{"Shader vertex attribute format is invalid"};
         }
         MTLVertexAttributeDescriptor* attribute = vertexDescriptor.attributes[static_cast<NSUInteger>((*attributeIndices)[i])];
@@ -1005,28 +1032,31 @@ doof::Result<std::shared_ptr<NativeShaderPipeline>, std::string> NativeShaderPip
 
     auto pipeline = std::make_shared<NativeShaderPipeline>(
         (__bridge void*)device,
-        (__bridge void*)library,
+        (__bridge void*)vertexLibrary,
+        (__bridge void*)fragmentLibrary,
         (__bridge void*)vertexDescriptor,
         vertexFunction,
         fragmentFunction
     );
     [vertexDescriptor release];
-    [library release];
+    [fragmentLibrary release];
+    [vertexLibrary release];
     return doof::Success<std::shared_ptr<NativeShaderPipeline>>{pipeline};
 }
 
 NativeShaderPipeline::NativeShaderPipeline(
     void* device,
-    void* library,
+    void* vertexLibrary,
+    void* fragmentLibrary,
     void* vertexDescriptor,
     std::string vertexFunction,
     std::string fragmentFunction
-) : impl_(std::make_shared<Impl>(device, library, vertexDescriptor, std::move(vertexFunction), std::move(fragmentFunction))) {}
+) : impl_(std::make_shared<Impl>(device, vertexLibrary, fragmentLibrary, vertexDescriptor, std::move(vertexFunction), std::move(fragmentFunction))) {}
 
 NativeShaderPipeline::~NativeShaderPipeline() = default;
 
 doof::Result<int64_t, std::string> NativeShaderPipeline::metalPipelineHandle(int32_t blendMode, bool hasColorAttachment, bool hasDepthAttachment) {
-    if (impl_->device == nil || impl_->library == nil || impl_->vertexDescriptor == nil) {
+    if (impl_->device == nil || impl_->vertexLibrary == nil || impl_->fragmentLibrary == nil || impl_->vertexDescriptor == nil) {
         return doof::Failure<std::string>{"Shader pipeline is invalid"};
     }
 
@@ -1039,8 +1069,8 @@ doof::Result<int64_t, std::string> NativeShaderPipeline::metalPipelineHandle(int
     }
     impl_->attempted[slot] = true;
 
-    id<MTLFunction> vertex = [impl_->library newFunctionWithName:nsString(impl_->vertexFunction)];
-    id<MTLFunction> fragment = hasColorAttachment ? [impl_->library newFunctionWithName:nsString(impl_->fragmentFunction)] : nil;
+    id<MTLFunction> vertex = [impl_->vertexLibrary newFunctionWithName:nsString(impl_->vertexFunction)];
+    id<MTLFunction> fragment = hasColorAttachment ? [impl_->fragmentLibrary newFunctionWithName:nsString(impl_->fragmentFunction)] : nil;
     if (vertex == nil || (hasColorAttachment && fragment == nil)) {
         [fragment release];
         [vertex release];

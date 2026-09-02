@@ -92,6 +92,7 @@ export {
   ShaderVertexStepFunction,
   drawShader,
 } from "./shader"
+export { ShaderProgram } from "./shader_program"
 export { ShaderBytesBuilder } from "./shader_bytes"
 export { createSphereMeshSpec } from "./sphere"
 export { createIcosphereMeshSpec } from "./icosphere"

@@ -213,7 +213,8 @@ export import class NativeShaderBuffer from "native_mesh.hpp" as doof_game::Nati
 export import class NativeShaderPipeline from "native_mesh.hpp" as doof_game::NativeShaderPipeline {
   isolated static create(
     metalDeviceHandle: long,
-    source: string,
+    vertexSource: string,
+    fragmentSource: string,
     vertexFunction: string,
     fragmentFunction: string,
     attributeIndices: int[],

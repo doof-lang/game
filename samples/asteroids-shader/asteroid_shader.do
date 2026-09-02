@@ -12,6 +12,7 @@ import {
   ShaderDraw,
   ShaderPipeline,
   ShaderPipelineDescriptor,
+  ShaderProgram,
   ShaderVertexAttribute,
   ShaderVertexFormat,
   ShaderVertexLayout,
@@ -123,9 +124,11 @@ export function createAsteroidShaderResources(surface: GameSurface): AsteroidSha
   pipeline := try! ShaderPipeline(
     surface,
     ShaderPipelineDescriptor {
-      source: asteroidShaderSource(),
-      vertexFunction: "asteroid_vertex",
-      fragmentFunction: "asteroid_fragment",
+      program: ShaderProgram {
+        vertexSource: asteroidShaderSource(),
+        vertexFunction: "asteroid_vertex",
+        fragmentFunction: "asteroid_fragment",
+      },
       attributes: [
         ShaderVertexAttribute { attribute: 0, buffer: 0, offset: 0, format: ShaderVertexFormat.Float3 },
         ShaderVertexAttribute { attribute: 1, buffer: 0, offset: 12, format: ShaderVertexFormat.Float3 },

@@ -58,10 +58,12 @@ doof build --target ios-app --ios-destination device game/samples/jigsaw
 - Windows supports a Win32 window, D3D11 clear passes and built-in
   colored/textured meshes, model batches, equirectangular sky maps, space dust,
   keyboard and mouse input, resizing, requested rendering, WIC textures,
-  Radiance HDR textures, and WAV/generated sound. Metal shader source and
-  native gestures are not available.
+  Radiance HDR textures, and WAV/generated sound. Custom D3D11 pipelines and
+  native gestures are not implemented.
 - Wasm supports WebGL 2 clear passes, built-in colored/textured meshes, model
-  batches with core instancing, equirectangular sky maps, and space dust.
+  batches with core instancing, equirectangular sky maps, space dust, and custom
+  GLSL ES pipelines with vertex/index buffers and instancing. Custom uniform-byte
+  and texture bindings are not implemented.
 - macOS supports keyboard, mouse, controller input, windowed apps, full-screen
   apps, sound, Metal rendering, and native gestures.
 - iOS supports the Metal-backed surface and single-touch input through the

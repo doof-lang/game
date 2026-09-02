@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Doof WebGL 2 Prism Field</title>
+    <style>
+      :root { color-scheme: dark; font-family: Inter, ui-sans-serif, system-ui, sans-serif; }
+      * { box-sizing: border-box; }
+      html, body, .app { width: 100%; height: 100%; margin: 0; overflow: hidden; background: #030510; }
+      body { color: #f4f7ff; }
+      .app { --shift-x: 0px; --shift-y: 0px; position: relative; isolation: isolate; }
+      canvas {
+        position: absolute; z-index: 0; inset: -2.5%; display: block; width: 105% !important; height: 105% !important;
+        transform: translate3d(var(--shift-x), var(--shift-y), 0) scale(1.02);
+        filter: saturate(1.2) contrast(1.04); transition: transform 900ms cubic-bezier(.2,.8,.2,1);
+      }
+      .app::before {
+        content: ""; position: absolute; z-index: 1; inset: -30%; pointer-events: none;
+        background:
+          radial-gradient(circle at 72% 48%, rgb(78 233 255 / .10), transparent 19%),
+          conic-gradient(from 210deg at 70% 50%, transparent, rgb(170 57 255 / .08), transparent 32%, rgb(31 222 255 / .06), transparent 67%);
+        mix-blend-mode: screen; filter: blur(34px); animation: atmosphere 14s ease-in-out infinite alternate;
+      }
+      .app::after {
+        content: ""; position: absolute; z-index: 1; inset: 0; pointer-events: none; opacity: .26;
+        background: repeating-linear-gradient(180deg, transparent 0 3px, rgb(151 197 255 / .028) 4px);
+        mask-image: radial-gradient(circle at 68% 50%, black, transparent 76%);
+      }
+      @keyframes atmosphere { to { transform: translate3d(2.5%, -1.5%, 0) rotate(4deg) scale(1.05); filter: blur(42px) hue-rotate(24deg); } }
+      .brand {
+        position: absolute; z-index: 2; top: clamp(1.25rem, 4vw, 3rem); left: clamp(1.25rem, 4vw, 3rem);
+        display: flex; align-items: center; gap: .7rem; color: rgb(238 244 255 / .92);
+        font-size: .72rem; font-weight: 750; letter-spacing: .16em; text-transform: uppercase;
+        pointer-events: none;
+      }
+      .mark {
+        width: .8rem; height: .8rem; border: 1px solid rgb(118 222 255 / .95);
+        transform: rotate(45deg); box-shadow: 0 0 1.3rem rgb(76 172 255 / .72);
+      }
+      .intro {
+        position: absolute; z-index: 2; top: 50%; left: clamp(1.25rem, 6vw, 5rem);
+        max-width: 28rem; transform: translateY(-50%); pointer-events: none;
+      }
+      .eyebrow { margin: 0 0 .9rem; color: #86edff; font-size: .68rem; font-weight: 760; letter-spacing: .2em; text-transform: uppercase; text-shadow: 0 0 1.4rem rgb(93 222 255 / .48); }
+      h1 { margin: 0; max-width: 7ch; font-size: clamp(2.6rem, 6vw, 6.2rem); font-weight: 560; letter-spacing: -.065em; line-height: .88; text-shadow: 0 1rem 4rem rgb(0 0 0 / .35); }
+      h1 span { color: transparent; background: linear-gradient(110deg, #fff 15%, #bceeff 52%, #d7c1ff); background-clip: text; -webkit-background-clip: text; }
+      .lede { margin: 1.1rem 0 0; max-width: 28rem; color: rgb(220 231 255 / .64); font-size: clamp(.86rem, 1.2vw, 1rem); line-height: 1.6; }
+      .chapter {
+        position: absolute; z-index: 2; left: clamp(1.25rem, 4vw, 3rem); bottom: clamp(1.25rem, 4vw, 3rem);
+        color: rgb(197 216 255 / .38); font: 650 .62rem/1 ui-monospace, SFMono-Regular, Menlo, monospace;
+        letter-spacing: .14em; text-transform: uppercase; pointer-events: none;
+      }
+      .chapter::before { content: ""; display: inline-block; width: 2.5rem; height: 1px; margin: 0 .75rem .2rem 0; background: rgb(128 204 255 / .35); }
+      .status {
+        position: absolute; z-index: 2; right: clamp(1rem, 3vw, 2rem); bottom: clamp(1rem, 3vw, 2rem);
+        margin: 0; padding: .68rem .9rem; border: 1px solid rgb(142 191 255 / .18); border-radius: 999px;
+        background: rgb(5 9 25 / .66); color: rgb(223 235 255 / .72); font: 600 .68rem/1 ui-monospace, SFMono-Regular, Menlo, monospace;
+        letter-spacing: .03em; backdrop-filter: blur(14px); pointer-events: none; transition: border-color .4s, color .4s;
+      }
+      .is-ready .status { border-color: rgb(126 232 255 / .34); color: rgb(231 245 255 / .88); }
+      .has-error .status { max-width: min(34rem, calc(100vw - 2rem)); border-color: rgb(255 113 137 / .55); color: #ffdbe2; }
+      @media (max-width: 720px) {
+        .intro { top: 40%; }
+        .lede { max-width: 20rem; }
+        .chapter { display: none; }
+        .status { right: auto; left: 1rem; max-width: calc(100vw - 2rem); }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        canvas { transition: none; }
+        .app::before { animation: none; }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="app">
+      <div class="brand" aria-label="Doof standard game library"><span class="mark"></span>std/game</div>
+      <section class="intro">
+        <p class="eyebrow">WebGL 2 / Wasm</p>
+        <h1><span>Prism</span> Field</h1>
+        <p class="lede">An interactive spectral tunnel rendered through Doof’s custom GLSL ES pipeline—one draw call, hundreds of crystalline instances.</p>
+      </section>
+      <div class="chapter" aria-hidden="true">Experiment 01 · Custom pipeline</div>
+      <p id="status" class="status" aria-live="polite">Compiling custom shaders…</p>
+      <noscript>This demo needs JavaScript and WebGL 2.</noscript>
+    </main>
+    <script type="module" src="./main.js?v=prism-field-6"></script>
+  </body>
+</html>

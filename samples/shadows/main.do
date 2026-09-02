@@ -23,6 +23,7 @@ import {
   ShaderDraw,
   ShaderPipeline,
   ShaderPipelineDescriptor,
+  ShaderProgram,
   ShaderTextureBinding,
   ShaderVertexAttribute,
   ShaderVertexFormat,
@@ -139,9 +140,11 @@ function createShadowPipeline(surface: GameSurface): ShaderPipeline {
   return try! ShaderPipeline(
     surface,
     ShaderPipelineDescriptor {
-      source: shaderSource(),
-      vertexFunction: "shadow_scene_vertex",
-      fragmentFunction: "shadow_scene_fragment",
+      program: ShaderProgram {
+        vertexSource: shaderSource(),
+        vertexFunction: "shadow_scene_vertex",
+        fragmentFunction: "shadow_scene_fragment",
+      },
       attributes: [
         ShaderVertexAttribute { attribute: 0, offset: 0, format: ShaderVertexFormat.Float3 },
         ShaderVertexAttribute { attribute: 1, offset: 12, format: ShaderVertexFormat.Float3 },

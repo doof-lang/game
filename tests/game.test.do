@@ -63,6 +63,7 @@ import {
   ShaderDraw,
   ShaderPipeline,
   ShaderPipelineDescriptor,
+  ShaderProgram,
   ShaderTextureBinding,
   ShaderVertexAttribute,
   ShaderVertexFormat,
@@ -420,9 +421,11 @@ function createShaderPipeline(surface: GameSurface): ShaderPipeline {
   return try! ShaderPipeline(
     surface,
     ShaderPipelineDescriptor {
-      source: customShaderSource(),
-      vertexFunction: "shader_vertex",
-      fragmentFunction: "shader_fragment",
+      program: ShaderProgram {
+        vertexSource: customShaderSource(),
+        vertexFunction: "shader_vertex",
+        fragmentFunction: "shader_fragment",
+      },
       attributes: [
         ShaderVertexAttribute {
           attribute: 0,
@@ -460,9 +463,11 @@ function createInstancedShaderPipeline(surface: GameSurface): ShaderPipeline {
   return try! ShaderPipeline(
     surface,
     ShaderPipelineDescriptor {
-      source: instancedShaderSource(),
-      vertexFunction: "shader_vertex",
-      fragmentFunction: "shader_fragment",
+      program: ShaderProgram {
+        vertexSource: instancedShaderSource(),
+        vertexFunction: "shader_vertex",
+        fragmentFunction: "shader_fragment",
+      },
       attributes: [
         ShaderVertexAttribute {
           attribute: 0,
@@ -591,9 +596,11 @@ function compileShaderSmoke(texture: Texture, surface: GameSurface, pass: Render
   emptyPipeline := ShaderPipeline(
     surface,
     ShaderPipelineDescriptor {
-      source: "",
-      vertexFunction: "shader_vertex",
-      fragmentFunction: "shader_fragment",
+      program: ShaderProgram {
+        vertexSource: "",
+        vertexFunction: "shader_vertex",
+        fragmentFunction: "shader_fragment",
+      },
       attributes: [],
       layouts: [],
     },
@@ -603,9 +610,11 @@ function compileShaderSmoke(texture: Texture, surface: GameSurface, pass: Render
   missingFunction := ShaderPipeline(
     surface,
     ShaderPipelineDescriptor {
-      source: customShaderSource(),
-      vertexFunction: "",
-      fragmentFunction: "shader_fragment",
+      program: ShaderProgram {
+        vertexSource: customShaderSource(),
+        vertexFunction: "",
+        fragmentFunction: "shader_fragment",
+      },
       attributes: [],
       layouts: [ShaderVertexLayout { stride: 24 }],
     },
@@ -615,9 +624,11 @@ function compileShaderSmoke(texture: Texture, surface: GameSurface, pass: Render
   invalidLayout := ShaderPipeline(
     surface,
     ShaderPipelineDescriptor {
-      source: customShaderSource(),
-      vertexFunction: "shader_vertex",
-      fragmentFunction: "shader_fragment",
+      program: ShaderProgram {
+        vertexSource: customShaderSource(),
+        vertexFunction: "shader_vertex",
+        fragmentFunction: "shader_fragment",
+      },
       attributes: [],
       layouts: [ShaderVertexLayout { stride: 0 }],
     },
@@ -627,9 +638,11 @@ function compileShaderSmoke(texture: Texture, surface: GameSurface, pass: Render
   invalidStepRate := ShaderPipeline(
     surface,
     ShaderPipelineDescriptor {
-      source: customShaderSource(),
-      vertexFunction: "shader_vertex",
-      fragmentFunction: "shader_fragment",
+      program: ShaderProgram {
+        vertexSource: customShaderSource(),
+        vertexFunction: "shader_vertex",
+        fragmentFunction: "shader_fragment",
+      },
       attributes: [],
       layouts: [ShaderVertexLayout { stride: 24, stepRate: 0 }],
     },

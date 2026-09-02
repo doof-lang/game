@@ -110,6 +110,7 @@ function main(): int {
 | [`samples/cards`](../samples/cards) | Texture atlases and instanced model batches |
 | [`samples/skymap`](../samples/skymap) | Sky maps, spheres, OBJ meshes, and camera steering |
 | [`samples/asteroids-shader`](../samples/asteroids-shader) | Custom Metal shaders and instanced buffers |
+| [`samples/custom-shader-web`](../samples/custom-shader-web) | A consumer-supplied GLSL ES shader on WebGL 2/Wasm |
 | [`samples/jigsaw`](../samples/jigsaw) | A larger app with UI, input, rendering, and storage |
 
 ## App Host
@@ -714,17 +715,21 @@ and alignment fields. `rectContains(rect, point)` is exported for hit testing.
 
 ## Custom Shaders
 
-Custom shaders compile Metal source and draw with explicit buffer, byte, and
-texture bindings. Use this path for custom vertex formats, indexed draws,
-instancing, normal maps, and material effects beyond `SimpleMesh`.
+Custom shaders compile a consumer-selected platform program and draw with
+explicit buffer, byte, and texture bindings. Use this path for custom vertex
+formats, indexed draws, instancing, normal maps, and material effects beyond
+`SimpleMesh`.
 
 ```doof
+program := ShaderProgram {
+  vertexSource: source,
+  vertexFunction: "vertex_main",
+  fragmentFunction: "fragment_main",
+}
 pipeline := try! ShaderPipeline(
   app.surface,
   ShaderPipelineDescriptor {
-    source,
-    vertexFunction: "vertex_main",
-    fragmentFunction: "fragment_main",
+    program,
     attributes: [
       ShaderVertexAttribute { attribute: 0, offset: 0, format: ShaderVertexFormat.Float2 },
       ShaderVertexAttribute { attribute: 1, offset: 8, format: ShaderVertexFormat.Float4 },
@@ -736,13 +741,14 @@ pipeline := try! ShaderPipeline(
 
 | API | Description |
 | --- | --- |
+| `ShaderProgram` | Vertex/fragment source and entry points for the consumer-selected backend. |
 | `ShaderVertexFormat` | `Float`, `Float2`, `Float3`, `Float4`, `UInt`, `UChar4Normalized`. |
 | `ShaderVertexStepFunction` | `PerVertex` or `PerInstance`. |
 | `ShaderVertexAttribute` | Attribute index, buffer index, byte offset, and format. |
 | `ShaderVertexLayout` | Buffer index, stride, step function, and step rate. |
-| `ShaderPipelineDescriptor` | Metal source, entry point names, attributes, and layouts. |
+| `ShaderPipelineDescriptor` | Consumer-selected program, attributes, and layouts. |
 | `ShaderPipeline(surface, desc)` | Compile a pipeline. |
-| `ShaderBuffer.create(surface, data)` | Upload bytes to a Metal buffer. |
+| `ShaderBuffer.create(surface, data)` | Upload bytes to a backend-native GPU buffer. |
 | `ShaderBufferBinding` | Bind a vertex buffer at an index and offset. |
 | `ShaderBytesBinding.create(surface, index, bytes)` | Create a temporary-style bytes binding backed by a buffer. |
 | `ShaderTextureBinding` | Bind a fragment color texture or depth texture at an index. |
@@ -751,6 +757,20 @@ pipeline := try! ShaderPipeline(
 
 Indexed draws use a `uint32` index buffer. Non-indexed draws use `vertexCount`.
 `instanceCount` defaults to `1`.
+
+Platform variant selection belongs entirely to the consumer. A target-specific
+module can load its shader resources and return one `ShaderProgram`; shared
+render code then passes that program to `ShaderPipelineDescriptor`. When
+`fragmentSource` is omitted it reuses `vertexSource`. Metal custom pipelines are
+implemented on macOS and iOS. Wasm supports GLSL ES vertex/index buffers,
+non-indexed draws, and instancing; uniform-byte and texture bindings currently
+return explicit not-implemented errors. Windows custom pipelines are not yet
+implemented.
+
+On Wasm, custom GLSL ES programs may declare optional `float doofTime`,
+`vec2 doofViewport`, and `vec2 doofPointer` uniforms. The host updates them on
+every draw with elapsed seconds, physical viewport pixels, and normalized
+bottom-left pointer coordinates respectively.
 
 ## Sky And Space Effects
 

@@ -11,6 +11,7 @@ export class GameSurface {
   pixelHeight(): int => this.native.pixelHeight()
   scale(): double => this.native.scale()
 
+  nativeDeviceHandle(): long => this.native.metalDeviceHandle()
   metalDeviceHandle(): long => this.native.metalDeviceHandle()
   metalCommandQueueHandle(): long => this.native.metalCommandQueueHandle()
   metalLayerHandle(): long => this.native.metalLayerHandle()

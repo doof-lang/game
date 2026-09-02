@@ -1,0 +1,11 @@
+{
+  "name": "std-game-custom-shader-web-sample",
+  "version": "0.1.0",
+  "license": "ISC",
+  "build": {
+    "entry": "index.do",
+    "target": "wasm",
+    "resources": ["web", "shaders"]
+  },
+  "dependencies": {}
+}

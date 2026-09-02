@@ -52,6 +52,7 @@ function createGameBridge(document, onError, textureAssets) {
     return decoder.decode(bytes.subarray(pointer, end));
   };
   const doubles = (pointer, count) => Array.from(new Float64Array(memory(), pointer, count));
+  const ints = (pointer, count) => Array.from(new Int32Array(memory(), pointer, count));
   const matrix4 = (pointer) => {
     const m = doubles(pointer, 16);
     return new Float32Array([m[0],m[4],m[8],m[12],m[1],m[5],m[9],m[13],m[2],m[6],m[10],m[14],m[3],m[7],m[11],m[15]]);
@@ -144,7 +145,10 @@ function createGameBridge(document, onError, textureAssets) {
       const gl = canvas.getContext("webgl2", { alpha: false, antialias: true, depth: true });
       if (!gl) return 0;
       const id = nextWindow++;
-      windows.set(id, { id, canvas, gl, window: document.defaultView ?? globalThis, running: false, frame: 0, cleanup: [] });
+      windows.set(id, {
+        id, canvas, gl, window: document.defaultView ?? globalThis,
+        running: false, frame: 0, timeSeconds: 0, pointerX: 0.5, pointerY: 0.5, cleanup: [],
+      });
       resize(windows.get(id));
       return id;
     },
@@ -160,13 +164,17 @@ function createGameBridge(document, onError, textureAssets) {
       const listen = (target, type, handler, options) => { target.addEventListener(type, handler, options); entry.cleanup.push(() => target.removeEventListener(type, handler, options)); };
       listen(entry.window, "keydown", value => { const key=keyCode(value.code); if(key){event(2,key);if(key===43)value.preventDefault();} });
       listen(entry.window, "keyup", value => { const key=keyCode(value.code); if(key)event(3,key); });
-      listen(entry.canvas, "pointerdown", value => { entry.canvas.focus();entry.canvas.setPointerCapture?.(value.pointerId);event(4,0,mouseButton(value.button),value.offsetX,value.offsetY); });
+      const updatePointer = value => {
+        entry.pointerX = entry.canvas.clientWidth > 0 ? value.offsetX / entry.canvas.clientWidth : 0.5;
+        entry.pointerY = entry.canvas.clientHeight > 0 ? 1 - value.offsetY / entry.canvas.clientHeight : 0.5;
+      };
+      listen(entry.canvas, "pointerdown", value => { updatePointer(value);entry.canvas.focus();entry.canvas.setPointerCapture?.(value.pointerId);event(4,0,mouseButton(value.button),value.offsetX,value.offsetY); });
       listen(entry.window, "pointerup", value => event(5,0,mouseButton(value.button),value.offsetX||0,value.offsetY||0));
-      listen(entry.canvas, "pointermove", value => event(6,0,0,value.offsetX,value.offsetY,value.movementX,value.movementY));
+      listen(entry.canvas, "pointermove", value => { updatePointer(value);event(6,0,0,value.offsetX,value.offsetY,value.movementX,value.movementY); });
       listen(entry.canvas, "wheel", value => { event(7,0,0,value.offsetX,value.offsetY,0,0,value.deltaX,value.deltaY);value.preventDefault(); }, { passive:false });
       listen(entry.window, "resize", () => { if(resize(entry))event(1); });
       entry.running = true;
-      const tick = (timestamp) => { if(!entry.running)return;if(resize(entry))event(1);try{frame(timestamp);}catch(error){entry.running=false;onError(error);}if(entry.running)entry.frame=entry.window.requestAnimationFrame(tick); };
+      const tick = (timestamp) => { if(!entry.running)return;entry.timeSeconds=timestamp*0.001;if(resize(entry))event(1);try{frame(timestamp);}catch(error){entry.running=false;onError(error);}if(entry.running)entry.frame=entry.window.requestAnimationFrame(tick); };
       entry.frame = entry.window.requestAnimationFrame(tick);
     },
     window_stop(id) { const entry=gameWindow(id);entry.running=false;if(entry.frame)entry.window.cancelAnimationFrame(entry.frame);for(const cleanup of entry.cleanup)cleanup();entry.cleanup=[]; },
@@ -197,7 +205,35 @@ function createGameBridge(document, onError, textureAssets) {
     batch_create(id, capacity) { const {gl}=gameWindow(id);if(capacity<=0)return 0;const buffer=gl.createBuffer();if(!buffer)return 0;gl.bindBuffer(gl.ARRAY_BUFFER,buffer);gl.bufferData(gl.ARRAY_BUFFER,capacity*BATCH_INSTANCE_STRIDE,gl.DYNAMIC_DRAW);return saveResource("batch",{window:id,buffer,capacity}); },
     batch_set_instance(id, batchId, slot, pointer, count) { const {gl}=gameWindow(id),batch=resource(batchId,"batch");if(slot<0||slot>=batch.capacity||count!==BATCH_INSTANCE_FLOATS)throw new Error("Invalid Doof game model batch instance upload");const values=new Float32Array(memory(),pointer,count).slice();gl.bindBuffer(gl.ARRAY_BUFFER,batch.buffer);gl.bufferSubData(gl.ARRAY_BUFFER,slot*BATCH_INSTANCE_STRIDE,values); },
     dust_create(id, pointer, count) { const {gl}=gameWindow(id);const buffer=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,buffer);gl.bufferData(gl.ARRAY_BUFFER,new Float32Array(doubles(pointer,count)),gl.STATIC_DRAW);return saveResource("dust",{window:id,buffer,count:count/4}); },
-    resource_delete(id, kind, resourceId) { const {gl}=gameWindow(id),names=["mesh","dust","batch"],item=resource(resourceId,names[kind]);if(item.vertex)gl.deleteBuffer(item.vertex);if(item.index)gl.deleteBuffer(item.index);if(item.buffer)gl.deleteBuffer(item.buffer);resources.delete(resourceId); },
+    shader_buffer_create(id, pointer, count) { const {gl}=gameWindow(id);if(count<=0)return 0;const buffer=gl.createBuffer();if(!buffer)return 0;gl.bindBuffer(gl.ARRAY_BUFFER,buffer);gl.bufferData(gl.ARRAY_BUFFER,new Uint8Array(memory(),pointer,count).slice(),gl.STATIC_DRAW);return saveResource("shaderBuffer",{window:id,buffer,byteLength:count}); },
+    shader_pipeline_create(id, vertexSourcePointer, fragmentSourcePointer, attributeIndicesPointer, attributeBuffersPointer, attributeOffsetsPointer, attributeFormatsPointer, attributeCount, layoutBuffersPointer, layoutStridesPointer, layoutStepFunctionsPointer, layoutStepRatesPointer, layoutCount) {
+      const {gl}=gameWindow(id);
+      try {
+        const value=program(gl,readString(vertexSourcePointer),readString(fragmentSourcePointer));
+        return saveResource("shaderPipeline",{window:id,value,
+          runtimeUniforms:{
+            time:gl.getUniformLocation(value,"doofTime"),
+            viewport:gl.getUniformLocation(value,"doofViewport"),
+            pointer:gl.getUniformLocation(value,"doofPointer"),
+          },
+          attributeIndices:ints(attributeIndicesPointer,attributeCount),attributeBuffers:ints(attributeBuffersPointer,attributeCount),attributeOffsets:ints(attributeOffsetsPointer,attributeCount),attributeFormats:ints(attributeFormatsPointer,attributeCount),
+          layoutBuffers:ints(layoutBuffersPointer,layoutCount),layoutStrides:ints(layoutStridesPointer,layoutCount),layoutStepFunctions:ints(layoutStepFunctionsPointer,layoutCount),layoutStepRates:ints(layoutStepRatesPointer,layoutCount)});
+      } catch(error) { onError(error);return 0; }
+    },
+    shader_draw(id, pipelineId, vertexBufferIndicesPointer, vertexBufferHandlesPointer, vertexBufferOffsetsPointer, vertexBufferCount, indexBufferId, indexCount, vertexCount, instanceCount) {
+      const entry=gameWindow(id),{gl,canvas}=entry,pipeline=resource(pipelineId,"shaderPipeline");
+      const bindingIndices=ints(vertexBufferIndicesPointer,vertexBufferCount),bindingHandles=ints(vertexBufferHandlesPointer,vertexBufferCount),bindingOffsets=ints(vertexBufferOffsetsPointer,vertexBufferCount);
+      const bindings=new Map();for(let i=0;i<vertexBufferCount;i+=1)bindings.set(bindingIndices[i],{buffer:resource(bindingHandles[i],"shaderBuffer"),offset:bindingOffsets[i]});
+      const layouts=new Map();for(let i=0;i<pipeline.layoutBuffers.length;i+=1)layouts.set(pipeline.layoutBuffers[i],{stride:pipeline.layoutStrides[i],stepFunction:pipeline.layoutStepFunctions[i],stepRate:pipeline.layoutStepRates[i]});
+      const enabled=[];gl.useProgram(pipeline.value);
+      if(pipeline.runtimeUniforms.time!==null)gl.uniform1f(pipeline.runtimeUniforms.time,entry.timeSeconds);
+      if(pipeline.runtimeUniforms.viewport!==null)gl.uniform2f(pipeline.runtimeUniforms.viewport,canvas.width,canvas.height);
+      if(pipeline.runtimeUniforms.pointer!==null)gl.uniform2f(pipeline.runtimeUniforms.pointer,entry.pointerX,entry.pointerY);
+      for(let i=0;i<pipeline.attributeIndices.length;i+=1){const location=pipeline.attributeIndices[i],binding=bindings.get(pipeline.attributeBuffers[i]),layout=layouts.get(pipeline.attributeBuffers[i]);if(!binding||!layout)throw new Error(`Missing WebGL 2 shader buffer ${pipeline.attributeBuffers[i]}`);gl.bindBuffer(gl.ARRAY_BUFFER,binding.buffer.buffer);gl.enableVertexAttribArray(location);enabled.push(location);const offset=binding.offset+pipeline.attributeOffsets[i],format=pipeline.attributeFormats[i];if(format===5)gl.vertexAttribIPointer(location,1,gl.UNSIGNED_INT,layout.stride,offset);else{const sizes=[0,1,2,3,4,1,4],types=[0,gl.FLOAT,gl.FLOAT,gl.FLOAT,gl.FLOAT,gl.UNSIGNED_INT,gl.UNSIGNED_BYTE];gl.vertexAttribPointer(location,sizes[format],types[format],format===6,layout.stride,offset);}gl.vertexAttribDivisor(location,layout.stepFunction===2?layout.stepRate:0);}
+      if(indexBufferId){const index=resource(indexBufferId,"shaderBuffer");gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER,index.buffer);if(instanceCount>1)gl.drawElementsInstanced(gl.TRIANGLES,indexCount,gl.UNSIGNED_INT,0,instanceCount);else gl.drawElements(gl.TRIANGLES,indexCount,gl.UNSIGNED_INT,0);}else if(instanceCount>1)gl.drawArraysInstanced(gl.TRIANGLES,0,vertexCount,instanceCount);else gl.drawArrays(gl.TRIANGLES,0,vertexCount);
+      for(const location of enabled){gl.vertexAttribDivisor(location,0);gl.disableVertexAttribArray(location);}return 1;
+    },
+    resource_delete(id, kind, resourceId) { const {gl}=gameWindow(id),names=["mesh","dust","batch","shaderBuffer","shaderPipeline"],item=resource(resourceId,names[kind]);if(item.vertex)gl.deleteBuffer(item.vertex);if(item.index)gl.deleteBuffer(item.index);if(item.buffer)gl.deleteBuffer(item.buffer);if(item.value&&kind===4)gl.deleteProgram(item.value);resources.delete(resourceId); },
     draw_mesh(id, meshId, textureId, textured, blendMode, viewPointer, modelPointer, normalPointer, ambient, directional, lightX, lightY, lightZ, red, green, blue, alpha) {
       const entry=gameWindow(id),gl=entry.gl,mesh=resource(meshId,"mesh");if(!entry.meshProgram)entry.meshProgram=program(gl,
         "#version 300 es\nin vec3 position;in vec4 color;in vec2 uv;in vec3 normal;uniform mat4 viewProjection;uniform mat4 model;uniform mat3 normalMatrix;out vec4 vertexColor;out vec2 textureUv;out vec3 worldNormal;void main(){gl_Position=viewProjection*model*vec4(position,1.0);vertexColor=color;textureUv=uv;worldNormal=normalize(normalMatrix*normal);}",

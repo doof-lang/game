@@ -568,12 +568,15 @@ source := "#include <metal_stdlib>\n" +
   "vertex VertexOut vertex_main(VertexIn in [[stage_in]]) { VertexOut out; out.position = float4(in.position, 0.0, 1.0); out.color = in.color; return out; }\n" +
   "fragment float4 fragment_main(VertexOut in [[stage_in]]) { return in.color; }\n"
 
+program := ShaderProgram {
+  vertexSource: source,
+  vertexFunction: "vertex_main",
+  fragmentFunction: "fragment_main",
+}
 pipeline := try! ShaderPipeline(
   app.surface,
   ShaderPipelineDescriptor {
-    source,
-    vertexFunction: "vertex_main",
-    fragmentFunction: "fragment_main",
+    program,
     attributes: [
       ShaderVertexAttribute { attribute: 0, offset: 0, format: ShaderVertexFormat.Float2 },
       ShaderVertexAttribute { attribute: 1, offset: 8, format: ShaderVertexFormat.Float4 },
@@ -589,9 +592,12 @@ vertices.writeFloat(0.0f); vertices.writeFloat(0.6f); vertices.writeFloat(0.0f);
 vertexBuffer := try! ShaderBuffer.create(app.surface, vertices.build())
 ```
 
-`ShaderPipeline` compiles Metal shader source from Doof and caches render
-pipeline variants for the active pass blend mode and depth attachment. Custom
-draws use explicit Metal-like numeric binding indices: vertex buffers,
+The consumer supplies the complete program for its build target, for example
+through a platform-specific shader module. `fragmentSource` can be supplied
+for backends that compile shader stages separately; otherwise it reuses
+`vertexSource`. Metal programs compile on macOS and iOS; GLSL ES programs on
+Wasm support vertex/index buffers and instancing. Custom draws use explicit
+numeric binding indices: vertex buffers,
 vertex-byte buffers, fragment-byte buffers, and fragment textures are bound to
 the indices requested by the shader. `drawShader(...)` renders triangles, either
 from a vertex count or from a `uint32` index buffer. Set
@@ -814,8 +820,8 @@ starting a pinch.
 - Windows uses a Win32 app loop and D3D11 surface. Keyboard, mouse, resize,
   requested rendering, built-in colored/textured meshes, model batches, sky
   maps, space dust, WIC-backed textures, Radiance HDR textures, and
-  WAV/generated sound are supported. Metal shader source and native gestures
-  remain Apple-only.
+  WAV/generated sound are supported. Custom HLSL pipelines and native gestures
+  are not implemented yet.
 - Wasm uses WebGL 2 and supports the built-in mesh and model-batch paths,
   including 32-bit mesh indices and core instanced drawing.
 - Doof's `ios-app` target is supported with a Metal-backed UIKit surface.
@@ -839,3 +845,5 @@ starting a pinch.
   and demonstrates wrapping, line spacing, and alignment.
 - `samples/skymap` draws an equirectangular panorama, a textured sphere planet,
   and a loaded OBJ mesh while mouse movement steers the camera.
+- `samples/custom-shader-web` draws an animated, pointer-reactive 384-prism
+  tunnel with one instanced consumer-supplied GLSL ES draw on WebGL 2/Wasm.

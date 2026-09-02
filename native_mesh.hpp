@@ -158,7 +158,8 @@ class NativeShaderPipeline {
 public:
     static doof::Result<std::shared_ptr<NativeShaderPipeline>, std::string> create(
         int64_t metalDeviceHandle,
-        const std::string& source,
+        const std::string& vertexSource,
+        const std::string& fragmentSource,
         const std::string& vertexFunction,
         const std::string& fragmentFunction,
         const std::shared_ptr<std::vector<int32_t>>& attributeIndices,
@@ -172,7 +173,8 @@ public:
     );
     NativeShaderPipeline(
         void* device,
-        void* library,
+        void* vertexLibrary,
+        void* fragmentLibrary,
         void* vertexDescriptor,
         std::string vertexFunction,
         std::string fragmentFunction

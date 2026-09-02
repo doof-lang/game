@@ -382,7 +382,8 @@ export class Texture {
 
   pixelWidth(): int => native.pixelWidth()
   pixelHeight(): int => native.pixelHeight()
-  metalTextureHandle(): long => native.metalTextureHandle()
+  nativeTextureHandle(): long => native.metalTextureHandle()
+  metalTextureHandle(): long => nativeTextureHandle()
 }
 
 export class DepthTexture {
@@ -390,7 +391,8 @@ export class DepthTexture {
 
   pixelWidth(): int => native.pixelWidth()
   pixelHeight(): int => native.pixelHeight()
-  metalTextureHandle(): long => native.metalTextureHandle()
+  nativeTextureHandle(): long => native.metalTextureHandle()
+  metalTextureHandle(): long => nativeTextureHandle()
 }
 
 export class Atlas {
@@ -661,7 +663,8 @@ export class RenderPass {
 
   surface(): GameSurface => gameSurface
   camera(): Camera => passCamera
-  metalRenderCommandEncoderHandle(): long => native.metalRenderCommandEncoderHandle()
+  nativeCommandEncoderHandle(): long => native.metalRenderCommandEncoderHandle()
+  metalRenderCommandEncoderHandle(): long => nativeCommandEncoderHandle()
   metalCommandBufferHandle(): long => native.metalCommandBufferHandle()
   metalDeviceHandle(): long => native.metalDeviceHandle()
   nativeBlendModeCode(): int => passBlendModeCode

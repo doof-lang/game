@@ -5,6 +5,7 @@ import {
 } from "./native"
 import { GameSurface } from "./surface"
 import { DepthTexture, RenderPass, Texture } from "./render"
+import { ShaderProgram } from "./shader_program"
 
 export enum ShaderVertexFormat {
   Float,
@@ -62,9 +63,7 @@ export class ShaderVertexLayout {
 }
 
 export class ShaderPipelineDescriptor {
-  readonly source: string
-  readonly vertexFunction: string
-  readonly fragmentFunction: string
+  readonly program: ShaderProgram
   readonly attributes: ShaderVertexAttribute[]
   readonly layouts: ShaderVertexLayout[]
 }
@@ -76,27 +75,32 @@ export class ShaderBuffer {
     if data.length == 0 {
       return Failure("Shader buffer data must not be empty")
     }
-    native := NativeShaderBuffer.create(surface.metalDeviceHandle(), data) else error {
+    native := NativeShaderBuffer.create(surface.nativeDeviceHandle(), data) else error {
       return Failure(error)
     }
     return Success(ShaderBuffer { native })
   }
 
   byteLength(): int => native.byteLength()
-  metalBufferHandle(): long => native.metalBufferHandle()
+  nativeHandle(): long => native.metalBufferHandle()
 }
 
 export class ShaderPipeline {
   private readonly native: NativeShaderPipeline
 
   static constructor(surface: GameSurface, desc: ShaderPipelineDescriptor): Result<ShaderPipeline, string> {
-    if desc.source.length == 0 {
-      return Failure("Shader source must not be empty")
+    program := desc.program
+    if program.vertexSource.length == 0 {
+      return Failure("Shader vertex source must not be empty")
     }
-    if desc.vertexFunction.length == 0 {
+    fragmentSource := program.fragmentSource ?? program.vertexSource
+    if fragmentSource.length == 0 {
+      return Failure("Shader fragment source must not be empty")
+    }
+    if program.vertexFunction.length == 0 {
       return Failure("Shader vertex function name must not be empty")
     }
-    if desc.fragmentFunction.length == 0 {
+    if program.fragmentFunction.length == 0 {
       return Failure("Shader fragment function name must not be empty")
     }
     if desc.layouts.length == 0 {
@@ -138,10 +142,11 @@ export class ShaderPipeline {
     }
 
     native := NativeShaderPipeline.create(
-      surface.metalDeviceHandle(),
-      desc.source,
-      desc.vertexFunction,
-      desc.fragmentFunction,
+      surface.nativeDeviceHandle(),
+      program.vertexSource,
+      fragmentSource,
+      program.vertexFunction,
+      program.fragmentFunction,
       attributeIndices,
       attributeBuffers,
       attributeOffsets,
@@ -186,12 +191,12 @@ export class ShaderTextureBinding {
   readonly texture: Texture | none = none
   readonly depthTexture: DepthTexture | none = none
 
-  metalTextureHandle(): long {
+  nativeHandle(): long {
     if texture != none {
-      return texture!.metalTextureHandle()
+      return texture!.nativeTextureHandle()
     }
     if depthTexture != none {
-      return depthTexture!.metalTextureHandle()
+      return depthTexture!.nativeTextureHandle()
     }
     return 0L
   }
@@ -220,7 +225,7 @@ function collectBufferBindingIndices(bindings: readonly ShaderBufferBinding[]): 
 function collectBufferBindingHandles(bindings: readonly ShaderBufferBinding[]): long[] {
   let handles: long[] = []
   for binding of bindings {
-    handles.push(binding.buffer.metalBufferHandle())
+    handles.push(binding.buffer.nativeHandle())
   }
   return handles
 }
@@ -244,7 +249,7 @@ function collectBytesBindingIndices(bindings: readonly ShaderBytesBinding[]): in
 function collectBytesBindingHandles(bindings: readonly ShaderBytesBinding[]): long[] {
   let handles: long[] = []
   for binding of bindings {
-    handles.push(binding.buffer.metalBufferHandle())
+    handles.push(binding.buffer.nativeHandle())
   }
   return handles
 }
@@ -268,7 +273,7 @@ function collectTextureBindingIndices(bindings: readonly ShaderTextureBinding[])
 function collectTextureBindingHandles(bindings: readonly ShaderTextureBinding[]): long[] {
   let handles: long[] = []
   for binding of bindings {
-    handles.push(binding.metalTextureHandle())
+    handles.push(binding.nativeHandle())
   }
   return handles
 }
@@ -341,7 +346,7 @@ export function drawShader(pass: RenderPass, draw: ShaderDraw): Result<none, str
     if draw.indexCount * 4 > draw.indexBuffer!.byteLength() {
       return Failure("Shader index count exceeds index buffer length")
     }
-    indexBufferHandle = draw.indexBuffer!.metalBufferHandle()
+    indexBufferHandle = draw.indexBuffer!.nativeHandle()
   } else if draw.vertexCount <= 0 {
     return Failure("Shader non-indexed draw must include a positive vertex count")
   }
@@ -363,7 +368,7 @@ export function drawShader(pass: RenderPass, draw: ShaderDraw): Result<none, str
     draw.indexCount,
     draw.vertexCount,
     draw.instanceCount,
-    pass.metalRenderCommandEncoderHandle(),
+    pass.nativeCommandEncoderHandle(),
     pass.nativeBlendModeCode(),
     pass.hasColorAttachment(),
     pass.hasDepthAttachment(),
