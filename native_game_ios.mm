@@ -5,6 +5,7 @@
 #import <GameController/GameController.h>
 #import <ImageIO/ImageIO.h>
 #import <Metal/Metal.h>
+#import <MetalKit/MetalKit.h>
 #import <QuartzCore/CADisplayLink.h>
 #import <QuartzCore/CAMetalLayer.h>
 #import <UIKit/UIKit.h>
@@ -228,6 +229,53 @@ bool pathHasHdrExtension(const std::string& path) {
         return static_cast<char>(std::tolower(c));
     });
     return ext == ".hdr";
+}
+
+bool pathHasKtxExtension(const std::string& path) {
+    if (path.size() < 4) {
+        return false;
+    }
+
+    std::string ext = path.substr(path.size() - 4);
+    std::transform(ext.begin(), ext.end(), ext.begin(), [](unsigned char c) {
+        return static_cast<char>(std::tolower(c));
+    });
+    return ext == ".ktx";
+}
+
+doof::Result<std::shared_ptr<NativeTexture>, std::string> loadKtxTexture(
+    const std::string& path,
+    id<MTLDevice> device
+) {
+    std::string resolvedPath = resolveReadableAssetPath(path);
+    MTKTextureLoader* loader = [[MTKTextureLoader alloc] initWithDevice:device];
+    NSError* error = nil;
+    NSString* texturePath = [NSString stringWithUTF8String:resolvedPath.c_str()];
+    id<MTLTexture> texture = [loader
+        newTextureWithContentsOfURL:[NSURL fileURLWithPath:texturePath]
+        options:@{
+            // Ordinary images are uploaded as linear RGBA8 while retaining
+            // their display-space values. Keep KTX sampling consistent.
+            MTKTextureLoaderOptionSRGB: @NO,
+            MTKTextureLoaderOptionGenerateMipmaps: @NO,
+            MTKTextureLoaderOptionTextureUsage: @(MTLTextureUsageShaderRead),
+        }
+        error:&error];
+    [loader release];
+    if (texture == nil) {
+        std::string detail = error == nil
+            ? "unknown MetalKit error"
+            : std::string([[error localizedDescription] UTF8String]);
+        return doof::Failure<std::string>{"Failed to load KTX texture " + path + ": " + detail};
+    }
+
+    auto native = std::make_shared<NativeTexture>(
+        (__bridge void*)texture,
+        static_cast<int32_t>(texture.width),
+        static_cast<int32_t>(texture.height)
+    );
+    [texture release];
+    return doof::Success<std::shared_ptr<NativeTexture>>{native};
 }
 
 bool readHdrLine(const std::vector<uint8_t>& bytes, size_t& offset, std::string& line) {
@@ -1900,6 +1948,15 @@ doof::Result<std::shared_ptr<NativeTexture>, std::string> NativeTexture::load(
 
     if (pathHasHdrExtension(path)) {
         auto loaded = loadRadianceHdrTexture(path, device);
+        if (doof::is_success(loaded)) {
+            std::lock_guard<std::mutex> lock(textureCacheMutex());
+            textureCache()[cacheKey] = doof::success_value(loaded);
+        }
+        return loaded;
+    }
+
+    if (pathHasKtxExtension(path)) {
+        auto loaded = loadKtxTexture(path, device);
         if (doof::is_success(loaded)) {
             std::lock_guard<std::mutex> lock(textureCacheMutex());
             textureCache()[cacheKey] = doof::success_value(loaded);
