@@ -72,3 +72,49 @@ export function testSoundCanBeCreatedFromSynthSamples(): none {
   Assert.isFalse(sound.isPlaying())
   sound.stop()
 }
+
+export function testSoundPreparationIsSilentAndIdempotent(): none {
+  sound := try! Sound.fromSamples(SoundSamples { sampleRate: 8000, samples: [0.0, 0.0, 0.0, 0.0] })
+  try! sound.prepare()
+  try! sound.prepare()
+  Assert.isFalse(sound.isPlaying())
+  sound.stop()
+  Assert.isFalse(sound.isPlaying())
+  // Stopping releases playback resources; explicit preparation works again.
+  try! sound.prepare()
+  Assert.isFalse(sound.isPlaying())
+  sound.stop()
+}
+
+class BackgroundSound {
+  private let sound: Sound | none = none
+
+  prepare(): Result<none, string> {
+    try prepared := Sound.fromSamples(SoundSamples { sampleRate: 8000, samples: [0.0, 0.0, 0.0, 0.0] })
+    try prepared.prepare()
+    sound = prepared
+    return Success {}
+  }
+
+  isPlaying(): bool => if sound == none then false else sound!.isPlaying()
+
+  play(): Result<none, string> {
+    prepared := sound else { return Failure("Sound was not prepared") }
+    return prepared.play({ volume: 0.0 })
+  }
+
+  stop(): none { if sound != none { sound!.stop() } }
+}
+
+export function testSoundPreparationAndPlaybackCanRunOnWorker(): none {
+  worker := Actor<BackgroundSound>()
+  task := async worker.prepare()
+  result := try! task.get()
+  try! result
+  Assert.isFalse(worker.isPlaying())
+  playback := async worker.play()
+  played := try! playback.get()
+  try! played
+  sound := retire worker
+  sound.stop()
+}

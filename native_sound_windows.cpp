@@ -5,11 +5,14 @@
 #include <mmsystem.h>
 
 #include <algorithm>
+#include <atomic>
 #include <chrono>
 #include <cmath>
 #include <cstring>
 #include <fstream>
 #include <mutex>
+#include <thread>
+#include <cstdio>
 
 namespace doof_game {
 namespace {
@@ -23,6 +26,7 @@ struct NativeSound::Impl {
     double seconds = 0;
     std::chrono::steady_clock::time_point started{};
     bool playing = false;
+    std::atomic<uint64_t> generation{0};
     std::mutex mutex;
     Impl(void* data, double duration) : bytes(static_cast<std::vector<uint8_t>*>(data)), seconds(duration) {}
 };
@@ -54,8 +58,23 @@ doof::Result<std::shared_ptr<NativeSound>, std::string> NativeSound::fromMonoSam
 }
 
 double NativeSound::duration() const { return impl_->seconds; }
-doof::Result<void, std::string> NativeSound::play(double, double) { std::lock_guard<std::mutex> lock(impl_->mutex); if (!PlaySoundA(reinterpret_cast<LPCSTR>(impl_->bytes->data()), nullptr, SND_ASYNC | SND_MEMORY | SND_NODEFAULT)) return doof::Failure<std::string>{"Failed to play WAV audio"}; impl_->started = std::chrono::steady_clock::now(); impl_->playing = true; return doof::Success<void>{}; }
-void NativeSound::stop() { std::lock_guard<std::mutex> lock(impl_->mutex); PlaySoundW(nullptr, nullptr, 0); impl_->playing = false; }
+// WAV bytes are already resident; the Windows backend has no separate player
+// object to preload. Keep preparation silent and idempotent on this backend.
+doof::Result<void, std::string> NativeSound::prepare() { return doof::Success<void>{}; }
+doof::Result<void, std::string> NativeSound::play(double volume, double pan) { return playInternal(volume, pan, 0, false); }
+doof::Result<void, std::string> NativeSound::playInternal(double, double, uint64_t generation, bool queued) { std::lock_guard<std::mutex> lock(impl_->mutex); if (queued && generation != impl_->generation.load()) return doof::Success<void>{}; if (!PlaySoundA(reinterpret_cast<LPCSTR>(impl_->bytes->data()), nullptr, SND_ASYNC | SND_MEMORY | SND_NODEFAULT)) return doof::Failure<std::string>{"Failed to play WAV audio"}; impl_->started = std::chrono::steady_clock::now(); impl_->playing = true; return doof::Success<void>{}; }
+doof::Result<void, std::string> NativeSound::playAsync(double volume, double pan) {
+    auto retained = std::shared_ptr<NativeSound>(new NativeSound(*this));
+    auto generation = impl_->generation.load();
+    std::thread([retained, volume, pan, generation] {
+        auto result = retained->playInternal(volume, pan, generation, true);
+        if (auto* failure = std::get_if<doof::Failure<std::string>>(&result)) {
+            std::fprintf(stderr, "Doof sound playback failed: %s\n", failure->error.c_str());
+        }
+    }).detach();
+    return doof::Success<void>{};
+}
+void NativeSound::stop() { std::lock_guard<std::mutex> lock(impl_->mutex); impl_->generation.fetch_add(1); PlaySoundW(nullptr, nullptr, 0); impl_->playing = false; }
 bool NativeSound::isPlaying() { std::lock_guard<std::mutex> lock(impl_->mutex); if (impl_->playing && std::chrono::duration<double>(std::chrono::steady_clock::now() - impl_->started).count() >= impl_->seconds) impl_->playing = false; return impl_->playing; }
 
 } // namespace doof_game

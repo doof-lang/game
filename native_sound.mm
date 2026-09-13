@@ -2,8 +2,10 @@
 
 #import <AVFoundation/AVFoundation.h>
 #import <TargetConditionals.h>
+#include <dispatch/dispatch.h>
 
 #include <algorithm>
+#include <atomic>
 #include <cmath>
 #include <cstdint>
 #include <cstring>
@@ -97,17 +99,25 @@ struct NativeSound::Impl {
     NSData* data = nil;
     double duration = 0.0;
     std::vector<AVAudioPlayer*> players;
+    // Retain one idle, decoded voice instead of rebuilding a player per click.
+    // Active voices remain separate so overlapping effects still work.
+    AVAudioPlayer* readyPlayer = nil;
+    dispatch_queue_t playbackQueue;
+    std::atomic<uint64_t> generation{0};
     std::mutex mutex;
 
     Impl(void* rawData, double duration)
         : data((__bridge NSData*)rawData),
           duration(duration) {
         [data retain];
+        auto attributes = dispatch_queue_attr_make_with_qos_class(DISPATCH_QUEUE_SERIAL, QOS_CLASS_USER_INTERACTIVE, 0);
+        playbackQueue = dispatch_queue_create("doof.game.sound", attributes);
     }
 
     ~Impl() {
         stop();
         [data release];
+        dispatch_release(playbackQueue);
     }
 
     void pruneStopped() {
@@ -115,7 +125,12 @@ struct NativeSound::Impl {
         while (it != players.end()) {
             AVAudioPlayer* player = *it;
             if (player == nil || ![player isPlaying]) {
-                [player release];
+                if (player != nil && readyPlayer == nil) {
+                    readyPlayer = player;
+                    [readyPlayer setCurrentTime:0.0];
+                } else {
+                    [player release];
+                }
                 it = players.erase(it);
             } else {
                 ++it;
@@ -125,11 +140,15 @@ struct NativeSound::Impl {
 
     void stop() {
         std::lock_guard<std::mutex> lock(mutex);
+        generation.fetch_add(1);
         for (AVAudioPlayer* player : players) {
             [player stop];
             [player release];
         }
         players.clear();
+        [readyPlayer stop];
+        [readyPlayer release];
+        readyPlayer = nil;
     }
 };
 
@@ -190,32 +209,86 @@ double NativeSound::duration() const {
     return impl_ ? impl_->duration : 0.0;
 }
 
-doof::Result<void, std::string> NativeSound::play(double volume, double pan) {
+doof::Result<void, std::string> NativeSound::prepare() {
     if (!impl_ || impl_->data == nil) {
         return doof::Failure<std::string>{"Sound is not loaded"};
     }
-
     configureAudioSession();
-
+    std::lock_guard<std::mutex> lock(impl_->mutex);
+    impl_->pruneStopped();
+    if (impl_->readyPlayer != nil) {
+        return doof::Success<void>{};
+    }
     NSError* error = nil;
     AVAudioPlayer* player = [[AVAudioPlayer alloc] initWithData:impl_->data error:&error];
     if (player == nil) {
         return doof::Failure<std::string>{"Failed to create sound player: " + nsErrorMessage(error, "unknown audio player error")};
     }
+    if (![player prepareToPlay]) {
+        [player release];
+        return doof::Failure<std::string>{"Failed to prepare sound playback"};
+    }
+    impl_->readyPlayer = player;
+    return doof::Success<void>{};
+}
+
+doof::Result<void, std::string> NativeSound::play(double volume, double pan) {
+    return playInternal(volume, pan, 0, false);
+}
+
+doof::Result<void, std::string> NativeSound::playAsync(double volume, double pan) {
+    if (!impl_ || impl_->data == nil) {
+        return doof::Failure<std::string>{"Sound is not loaded"};
+    }
+    // The retained facade keeps sample data and the queue alive until execution.
+    // FIFO warmup/playback is independent of the Doof computation scheduler.
+    auto retained = std::shared_ptr<NativeSound>(new NativeSound(*this));
+    const auto generation = impl_->generation.load();
+    dispatch_async(impl_->playbackQueue, ^{
+        @autoreleasepool {
+            auto result = retained->playInternal(volume, pan, generation, true);
+            if (auto* failure = std::get_if<doof::Failure<std::string>>(&result)) {
+                NSLog(@"Doof sound playback failed: %s", failure->error.c_str());
+            }
+        }
+    });
+    return doof::Success<void>{};
+}
+
+doof::Result<void, std::string> NativeSound::playInternal(double volume, double pan, uint64_t generation, bool queued) {
+    if (!impl_ || impl_->data == nil) {
+        return doof::Failure<std::string>{"Sound is not loaded"};
+    }
+
+    configureAudioSession();
+    std::lock_guard<std::mutex> lock(impl_->mutex);
+    if (queued && generation != impl_->generation.load()) {
+        return doof::Success<void>{};
+    }
+    impl_->pruneStopped();
+    AVAudioPlayer* player = impl_->readyPlayer;
+    impl_->readyPlayer = nil;
+    if (player == nil) {
+        // Allocate only when every existing voice is playing concurrently.
+        NSError* error = nil;
+        player = [[AVAudioPlayer alloc] initWithData:impl_->data error:&error];
+        if (player == nil) {
+            return doof::Failure<std::string>{"Failed to create sound player: " + nsErrorMessage(error, "unknown audio player error")};
+        }
+        if (![player prepareToPlay]) {
+            [player release];
+            return doof::Failure<std::string>{"Failed to prepare sound playback"};
+        }
+    }
 
     [player setVolume:static_cast<float>(std::max(0.0, std::min(1.0, volume)))];
     [player setPan:static_cast<float>(std::max(-1.0, std::min(1.0, pan)))];
-    [player prepareToPlay];
     if (![player play]) {
         [player release];
         return doof::Failure<std::string>{"Failed to start sound playback"};
     }
 
-    {
-        std::lock_guard<std::mutex> lock(impl_->mutex);
-        impl_->pruneStopped();
-        impl_->players.push_back(player);
-    }
+    impl_->players.push_back(player);
     return doof::Success<void>{};
 }
 

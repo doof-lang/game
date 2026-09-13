@@ -164,7 +164,8 @@ try! musicSting.play(SoundPlayOptions { volume: 0.8 })
 `loadSoundResource(path)` decode package-resource audio files such as WAV, MP3,
 AAC, and CAF into a reusable sound object. Use `loadSound(path)` when you
 already have a filesystem path. `Sound.play(...)` starts playback immediately;
-repeated calls can overlap, which keeps one-shot effects simple. `Sound.stop()`
+repeated calls can overlap, which keeps one-shot effects simple. `Sound.prepare()`
+preloads a voice silently before an interaction; macOS/iOS reuse idle voices. `Sound.stop()`
 stops active voices for that sound, `duration()` reports seconds, and
 `isPlaying()` reports whether any voices are still active.
 

@@ -27,8 +27,18 @@ export class Sound {
 
   duration(): double => native.duration()
 
+  // Preload a playback voice before a latency-sensitive interaction. Repeated
+  // preparation is safe; this does not start audible playback.
+  prepare(): Result<none, string> => native.prepare()
+
   play(options: SoundPlayOptions = SoundPlayOptions {}): Result<none, string> {
     return native.play(options.volume, options.pan)
+  }
+
+  // Success means queued. Native playback errors are logged on the worker.
+  // Apple hosts use a dedicated serial queue with user-interactive priority.
+  playAsync(options: SoundPlayOptions = SoundPlayOptions {}): Result<none, string> {
+    return native.playAsync(options.volume, options.pan)
   }
 
   stop(): none {
