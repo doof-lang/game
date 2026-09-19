@@ -93,14 +93,14 @@ export function loadJigsawServerState(path: string): Result<PuzzleState, string>
   }
 
   try json := parseJsonValue(text)
-  try state := PuzzleState.fromJsonValue(json)
+  try state := PuzzleState.fromSerialValue(json)
   try validatePuzzleState(state)
   return Success(state)
 }
 
 export function saveJigsawServerState(path: string, state: PuzzleState): Result<none, string> {
   try validatePuzzleState(state)
-  writeText(path, formatJsonValue(state.toJsonObject())) else error {
+  writeText(path, formatJsonValue(state.toSerialObject())) else error {
     return Failure(ioErrorMessage("write", path, error))
   }
   return Success()

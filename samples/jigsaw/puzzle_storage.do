@@ -30,7 +30,7 @@ export function loadPuzzleState(path: string): Result<PuzzleState, string> {
   }
 
   try json := parseJsonValue(text)
-  try state := PuzzleState.fromJsonValue(json)
+  try state := PuzzleState.fromSerialValue(json)
   try validatePuzzleState(state)
   return Success(state)
 }
@@ -39,7 +39,7 @@ export function savePuzzleState(path: string, pieces: Piece[], drawOrder: int[],
   state := createPuzzleState(pieces, drawOrder, camera)
   try validatePuzzleState(state)
 
-  writeText(path, formatJsonValue(state.toJsonObject())) else error {
+  writeText(path, formatJsonValue(state.toSerialObject())) else error {
     return Failure(ioErrorMessage("write", path, error))
   }
 

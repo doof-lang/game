@@ -31,16 +31,16 @@ export readonly JIGSAW_WEBSOCKET_PATH = "/jigsaw"
 readonly JIGSAW_MOVE_FLUSH_INTERVAL_MILLIS = 16L
 
 export function encodeJigsawCommandFrame(command: JigsawClientCommand): string {
-  frame: JsonObject := {
+  frame: SerialObject := {
     "type": "command",
-    "command": command.toJsonObject(),
+    "command": command.toSerialObject(),
   }
   return formatJsonValue(frame)
 }
 
 export function decodeJigsawCommandFrame(text: string): Result<JigsawClientCommand, string> {
   try json := parseJsonValue(text)
-  object := json as JsonObject else {
+  object := json as SerialObject else {
     return Failure("Expected jigsaw command frame object")
   }
   frameType := object.get("type") as string else {
@@ -49,15 +49,15 @@ export function decodeJigsawCommandFrame(text: string): Result<JigsawClientComma
   if frameType != "command" {
     return Failure("Expected jigsaw command frame")
   }
-  payload: JsonValue := object.get("command") else {
+  payload: SerialValue := object.get("command") else {
     return Failure("Expected jigsaw command payload")
   }
-  try command := JigsawClientCommand.fromJsonValue(payload)
+  try command := JigsawClientCommand.fromSerialValue(payload)
   return Success(command)
 }
 
 export function encodeJigsawEventFrame(event: JigsawServerEvent): string {
-  frame: JsonObject := {
+  frame: SerialObject := {
     "type": "event",
     "event": eventToJsonObject(event),
   }
@@ -66,7 +66,7 @@ export function encodeJigsawEventFrame(event: JigsawServerEvent): string {
 
 export function decodeJigsawEventFrame(text: string): Result<JigsawServerEvent, string> {
   try json := parseJsonValue(text)
-  object := json as JsonObject else {
+  object := json as SerialObject else {
     return Failure("Expected jigsaw event frame object")
   }
   frameType := object.get("type") as string else {
@@ -75,7 +75,7 @@ export function decodeJigsawEventFrame(text: string): Result<JigsawServerEvent, 
   if frameType != "event" {
     return Failure("Expected jigsaw event frame")
   }
-  payloadValue: JsonValue := object.get("event") else {
+  payloadValue: SerialValue := object.get("event") else {
     return Failure("Expected jigsaw event payload")
   }
   try event := eventFromJsonValue(payloadValue)
@@ -83,7 +83,7 @@ export function decodeJigsawEventFrame(text: string): Result<JigsawServerEvent, 
 }
 
 export function encodeJigsawErrorFrame(message: string): string {
-  frame: JsonObject := {
+  frame: SerialObject := {
     "type": "error",
     "message": message,
   }
@@ -109,24 +109,24 @@ function parseEventKind(name: string): Result<JigsawServerEventKind, string> {
   }
 }
 
-function intArrayToJson(values: int[]): JsonValue[] {
-  result: JsonValue[] := []
+function intArrayToJson(values: int[]): SerialValue[] {
+  result: SerialValue[] := []
   for value of values {
     result.push(value)
   }
   return result
 }
 
-function groupPositionsToJson(values: GroupPosition[]): JsonValue[] {
-  result: JsonValue[] := []
+function groupPositionsToJson(values: GroupPosition[]): SerialValue[] {
+  result: SerialValue[] := []
   for value of values {
-    result.push(value.toJsonObject())
+    result.push(value.toSerialObject())
   }
   return result
 }
 
-function eventToJsonObject(event: JigsawServerEvent): JsonObject {
-  payload: JsonObject := {}
+function eventToJsonObject(event: JigsawServerEvent): SerialObject {
+  payload: SerialObject := {}
   payload.set("kind", eventKindName(event.kind))
   payload.set("clientId", event.clientId)
   payload.set("groupId", event.groupId)
@@ -137,26 +137,26 @@ function eventToJsonObject(event: JigsawServerEvent): JsonObject {
   if event.position == none {
     payload.set("position", none)
   } else {
-    payload.set("position", event.position!.toJsonObject())
+    payload.set("position", event.position!.toSerialObject())
   }
   if event.state == none {
     payload.set("state", none)
   } else {
-    payload.set("state", event.state!.toJsonObject())
+    payload.set("state", event.state!.toSerialObject())
   }
   payload.set("drawOrder", intArrayToJson(event.drawOrder))
   payload.set("cancelledGroups", groupPositionsToJson(event.cancelledGroups))
   return payload
 }
 
-function readStringField(object: JsonObject, name: string): Result<string, string> {
+function readStringField(object: SerialObject, name: string): Result<string, string> {
   value := object.get(name) as string else {
     return Failure("Expected string field ${name}")
   }
   return Success(value)
 }
 
-function readIntField(object: JsonObject, name: string, defaultValue: int): Result<int, string> {
+function readIntField(object: SerialObject, name: string, defaultValue: int): Result<int, string> {
   if !object.has(name) {
     return Success(defaultValue)
   }
@@ -166,7 +166,7 @@ function readIntField(object: JsonObject, name: string, defaultValue: int): Resu
   return Success(value)
 }
 
-function readDoubleField(object: JsonObject, name: string, defaultValue: double): Result<double, string> {
+function readDoubleField(object: SerialObject, name: string, defaultValue: double): Result<double, string> {
   if !object.has(name) {
     return Success(defaultValue)
   }
@@ -186,7 +186,7 @@ function readDoubleField(object: JsonObject, name: string, defaultValue: double)
   return Failure("Expected double field ${name}")
 }
 
-function readIntArrayField(object: JsonObject, name: string): Result<int[], string> {
+function readIntArrayField(object: SerialObject, name: string): Result<int[], string> {
   if !object.has(name) {
     empty: int[] := []
     return Success(empty)
@@ -194,7 +194,7 @@ function readIntArrayField(object: JsonObject, name: string): Result<int[], stri
   value := object.get(name) else {
     return Failure("Expected int array field ${name}")
   }
-  raw := value as JsonValue[] else {
+  raw := value as SerialValue[] else {
     return Failure("Expected int array field ${name}")
   }
   result: int[] := []
@@ -207,7 +207,7 @@ function readIntArrayField(object: JsonObject, name: string): Result<int[], stri
   return Success(result)
 }
 
-function readGroupPositionsField(object: JsonObject, name: string): Result<GroupPosition[], string> {
+function readGroupPositionsField(object: SerialObject, name: string): Result<GroupPosition[], string> {
   if !object.has(name) {
     empty: GroupPosition[] := []
     return Success(empty)
@@ -215,18 +215,18 @@ function readGroupPositionsField(object: JsonObject, name: string): Result<Group
   value := object.get(name) else {
     return Failure("Expected group position array field ${name}")
   }
-  raw := value as JsonValue[] else {
+  raw := value as SerialValue[] else {
     return Failure("Expected group position array field ${name}")
   }
   result: GroupPosition[] := []
   for item of raw {
-    try position := GroupPosition.fromJsonValue(item)
+    try position := GroupPosition.fromSerialValue(item)
     result.push(position)
   }
   return Success(result)
 }
 
-function readGroupPositionField(object: JsonObject, name: string): Result<GroupPosition | none, string> {
+function readGroupPositionField(object: SerialObject, name: string): Result<GroupPosition | none, string> {
   if !object.has(name) {
     empty: GroupPosition | none := none
     return Success(empty)
@@ -234,15 +234,15 @@ function readGroupPositionField(object: JsonObject, name: string): Result<GroupP
   value := object.get(name) else {
     return Failure("Expected group position field ${name}")
   }
-  positionObject := value as JsonObject else {
+  positionObject := value as SerialObject else {
     empty: GroupPosition | none := none
     return Success(empty)
   }
-  try position := GroupPosition.fromJsonValue(positionObject)
+  try position := GroupPosition.fromSerialValue(positionObject)
   return Success(position)
 }
 
-function readStateField(object: JsonObject, name: string): Result<PuzzleState | none, string> {
+function readStateField(object: SerialObject, name: string): Result<PuzzleState | none, string> {
   if !object.has(name) {
     empty: PuzzleState | none := none
     return Success(empty)
@@ -250,16 +250,16 @@ function readStateField(object: JsonObject, name: string): Result<PuzzleState | 
   value := object.get(name) else {
     return Failure("Expected state field ${name}")
   }
-  stateObject := value as JsonObject else {
+  stateObject := value as SerialObject else {
     empty: PuzzleState | none := none
     return Success(empty)
   }
-  try state := PuzzleState.fromJsonValue(stateObject)
+  try state := PuzzleState.fromSerialValue(stateObject)
   return Success(state)
 }
 
-function eventFromJsonValue(value: JsonValue): Result<JigsawServerEvent, string> {
-  object := value as JsonObject else {
+function eventFromJsonValue(value: SerialValue): Result<JigsawServerEvent, string> {
+  object := value as SerialObject else {
     return Failure("Expected jigsaw event object")
   }
   try kindName := readStringField(object, "kind")
