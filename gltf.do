@@ -258,7 +258,7 @@ function jsonArrayField(object: SerialObject, name: string, path: string): Resul
     return Success(none)
   }
 
-  array := value! as SerialValue[] else {
+  array := value! as readonly SerialValue[] else {
     return Failure(gltfError("json", path + "." + name, "Expected JSON array"))
   }
   return Success(array)
