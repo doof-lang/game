@@ -252,7 +252,7 @@ function jsonField(object: SerialObject, name: string): SerialValue | none {
   }
 }
 
-function jsonArrayField(object: SerialObject, name: string, path: string): Result<SerialValue[] | none, GltfError> {
+function jsonArrayField(object: SerialObject, name: string, path: string): Result<readonly SerialValue[] | none, GltfError> {
   value := jsonField(object, name)
   if value == none {
     return Success(none)

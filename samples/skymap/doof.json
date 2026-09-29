@@ -2,5 +2,6 @@
   "name": "std-game-skymap-sample",
   "version": "0.2.0",
   "license": "ISC",
+  "resources": ["images", "models"],
   "dependencies": {}
 }

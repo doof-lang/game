@@ -24,18 +24,15 @@ function cardUvOffset(column: int, row: int, columns: int, rows: int): Vec2 {
 }
 
 function main(): int {
-  readonly cardAtlasPath = "/Users/andrew/develop/doof-stdlib/game/samples/cards/images/card_atlas.png"
+  readonly cardAtlasPath = "images/card_atlas.png"
   readonly cardColumns = 14
   readonly cardRows = 4
   readonly cardWidth = 121.0
   readonly cardHeight = 176.0
   app := initGameApp{ title: "Doof Game Cards" }
 
-  loadedAtlasTexture := app.loadTexture(cardAtlasPath) else {
-    case loadedAtlasTexture {
-      f: Failure -> println(f.error)
-      _: Success -> println("Failed to load card atlas texture")
-    }
+  loadedAtlasTexture := app.loadTextureResource(cardAtlasPath) else error {
+    println("Failed to load card atlas texture: " + error)
     return 1
   }
   cardAtlas := Atlas {
@@ -115,12 +112,9 @@ function main(): int {
     )
   })
 
-  result := app.run()
-  case result {
-    s: Success -> return 0
-    f: Failure -> {
-      println(f.error)
-      return 1
-    }
+  app.run() else error {
+    println(error)
+    return 1
   }
+  return 0
 }
