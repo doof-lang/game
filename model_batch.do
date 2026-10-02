@@ -104,7 +104,7 @@ export class SimpleModelBatch {
 
   private syncNative(): NativeSimpleModelBatch {
     if native == none {
-      native = try! NativeSimpleModelBatch.create(surface.metalDeviceHandle(), capacity)
+      native = NativeSimpleModelBatch.create(surface.metalDeviceHandle(), capacity)!
     }
 
     target := native!

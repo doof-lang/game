@@ -41,7 +41,7 @@ export function start(
   prismFragmentSource: string,
 ): none {
   app := initGameApp("Doof WebGL 2 Prism Field")
-  backdropPipeline := try! ShaderPipeline(
+  backdropPipeline := ShaderPipeline(
     app.surface,
     ShaderPipelineDescriptor {
       program: ShaderProgram {
@@ -53,8 +53,8 @@ export function start(
       ],
       layouts: [ShaderVertexLayout { stride: 8 }],
     },
-  )
-  prismPipeline := try! ShaderPipeline(
+  )!
+  prismPipeline := ShaderPipeline(
     app.surface,
     ShaderPipelineDescriptor {
       program: ShaderProgram {
@@ -67,9 +67,9 @@ export function start(
       ],
       layouts: [ShaderVertexLayout { stride: 20 }],
     },
-  )
-  backdrop := try! ShaderBuffer.create(app.surface, backdropBytes())
-  prism := try! ShaderBuffer.create(app.surface, prismBytes())
+  )!
+  backdrop := ShaderBuffer.create(app.surface, backdropBytes())!
+  prism := ShaderBuffer.create(app.surface, prismBytes())!
 
   app.onRender((renderer): none => {
     renderer.pass(
@@ -79,14 +79,14 @@ export function start(
         blend: Blend.opaque(),
       },
       (pass): none => {
-        try! drawShader(
+        drawShader(
           pass,
           ShaderDraw {
             pipeline: backdropPipeline,
             vertexBuffers: [ShaderBufferBinding { index: 0, buffer: backdrop }],
             vertexCount: 3,
           },
-        )
+        )!
       },
     )
     renderer.pass(
@@ -96,7 +96,7 @@ export function start(
         blend: Blend.alpha(),
       },
       (pass): none => {
-        try! drawShader(
+        drawShader(
           pass,
           ShaderDraw {
             pipeline: prismPipeline,
@@ -104,7 +104,7 @@ export function start(
             vertexCount: 3,
             instanceCount: 384,
           },
-        )
+        )!
       },
     )
   })

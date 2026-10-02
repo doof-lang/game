@@ -27,7 +27,7 @@ function main(): int {
       windowHeight: 720,
     },
   }
-  font := try! loadIntrinsicBitmapFontForSurface(app.surface)
+  font := loadIntrinsicBitmapFontForSurface(app.surface)!
   demo := createLayoutDemo(app, font)
   demo.reflow(app.surface)
 

@@ -418,7 +418,7 @@ function instancedShaderSource(): string {
 }
 
 function createShaderPipeline(surface: GameSurface): ShaderPipeline {
-  return try! ShaderPipeline(
+  return ShaderPipeline(
     surface,
     ShaderPipelineDescriptor {
       program: ShaderProgram {
@@ -447,7 +447,7 @@ function createShaderPipeline(surface: GameSurface): ShaderPipeline {
         },
       ],
     },
-  )
+  )!
 }
 
 function shaderInstanceBytes(): readonly byte[] {
@@ -460,7 +460,7 @@ function shaderInstanceBytes(): readonly byte[] {
 }
 
 function createInstancedShaderPipeline(surface: GameSurface): ShaderPipeline {
-  return try! ShaderPipeline(
+  return ShaderPipeline(
     surface,
     ShaderPipelineDescriptor {
       program: ShaderProgram {
@@ -506,7 +506,7 @@ function createInstancedShaderPipeline(surface: GameSurface): ShaderPipeline {
         },
       ],
     },
-  )
+  )!
 }
 
 function assertShaderDrawFailure(result: Result<none, string>): none {
@@ -525,12 +525,12 @@ function assertShaderPipelineFailure(result: Result<ShaderPipeline, string>): no
 
 function compileShaderSmoke(texture: Texture, surface: GameSurface, pass: RenderPass): none {
   pipeline := createShaderPipeline(surface)
-  vertexBuffer := try! ShaderBuffer.create(surface, shaderVertexBytes())
-  instanceBuffer := try! ShaderBuffer.create(surface, shaderInstanceBytes())
-  indexBuffer := try! ShaderBuffer.create(surface, shaderIndexBytes())
-  tint := try! ShaderBytesBinding.create(surface, 0, shaderTintBytes())
+  vertexBuffer := ShaderBuffer.create(surface, shaderVertexBytes())!
+  instanceBuffer := ShaderBuffer.create(surface, shaderInstanceBytes())!
+  indexBuffer := ShaderBuffer.create(surface, shaderIndexBytes())!
+  tint := ShaderBytesBinding.create(surface, 0, shaderTintBytes())!
 
-  try! drawShader(
+  drawShader(
     pass,
     ShaderDraw {
       pipeline,
@@ -549,9 +549,9 @@ function compileShaderSmoke(texture: Texture, surface: GameSurface, pass: Render
         },
       ],
     },
-  )
+  )!
 
-  try! drawShader(
+  drawShader(
     pass,
     ShaderDraw {
       pipeline,
@@ -571,10 +571,10 @@ function compileShaderSmoke(texture: Texture, surface: GameSurface, pass: Render
         },
       ],
     },
-  )
+  )!
 
   instancedPipeline := createInstancedShaderPipeline(surface)
-  try! drawShader(
+  drawShader(
     pass,
     ShaderDraw {
       pipeline: instancedPipeline,
@@ -591,7 +591,7 @@ function compileShaderSmoke(texture: Texture, surface: GameSurface, pass: Render
       vertexCount: 3,
       instanceCount: 2,
     },
-  )
+  )!
 
   emptyPipeline := ShaderPipeline(
     surface,
@@ -649,7 +649,7 @@ function compileShaderSmoke(texture: Texture, surface: GameSurface, pass: Render
   )
   assertShaderPipelineFailure(invalidStepRate)
 
-  badIndexBuffer := try! ShaderBuffer.create(surface, [0, 1, 2])
+  badIndexBuffer := ShaderBuffer.create(surface, [0, 1, 2])!
   badIndexDraw := drawShader(
     pass,
     ShaderDraw {
@@ -700,9 +700,9 @@ function compileGameAppSmoke(): Result<none, string> {
   Assert.equal(windowedApp.options.windowWidth, 800)
   Assert.equal(windowedApp.options.windowHeight, 600)
   inMemoryPixels := PixelBytes(1, 1, [255, 255, 255, 255])
-  inMemoryImage := try! Image.fromPixelBytes(inMemoryPixels)
-  inMemoryTexture := try! app.createTexture(inMemoryImage)
-  pixelTexture := try! app.createTextureFromPixels(inMemoryPixels)
+  inMemoryImage := Image.fromPixelBytes(inMemoryPixels)!
+  inMemoryTexture := app.createTexture(inMemoryImage)!
+  pixelTexture := app.createTextureFromPixels(inMemoryPixels)!
   Assert.equal(inMemoryTexture.pixelWidth(), 1)
   Assert.equal(inMemoryTexture.pixelHeight(), 1)
   Assert.equal(pixelTexture.pixelWidth(), 1)
@@ -733,9 +733,9 @@ function compileGameAppSmoke(): Result<none, string> {
   })
 
   app.onRender((renderer): none => {
-    rendererTexture := try! renderer.createTexture(inMemoryImage)
-    rendererPixelTexture := try! renderer.createTextureFromPixels(inMemoryPixels)
-    depthTexture := try! renderer.createDepthTexture(64, 64)
+    rendererTexture := renderer.createTexture(inMemoryImage)!
+    rendererPixelTexture := renderer.createTextureFromPixels(inMemoryPixels)!
+    depthTexture := renderer.createDepthTexture(64, 64)!
     Assert.equal(rendererTexture.pixelWidth(), 1)
     Assert.equal(rendererPixelTexture.pixelWidth(), 1)
     Assert.equal(depthTexture.pixelWidth(), 64)

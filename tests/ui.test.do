@@ -25,7 +25,7 @@ function testFont(): BitmapFont {
   rootFont := app.loadBitmapFont("game/samples/text/fonts/handwriting.fnt")
   return case rootFont {
     s: Success -> s.value,
-    f: Failure -> try! app.loadBitmapFont("samples/text/fonts/handwriting.fnt"),
+    f: Failure -> app.loadBitmapFont("samples/text/fonts/handwriting.fnt")!,
   }
 }
 

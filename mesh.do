@@ -137,7 +137,7 @@ export class SimpleMesh {
       index += 3
     }
 
-    native := try! nativeBuilder.build(surface.metalDeviceHandle())
+    native := nativeBuilder.build(surface.metalDeviceHandle())!
     return SimpleMesh { native: native }
   }
 

@@ -133,7 +133,7 @@ function hudStatus(surface: GameSurface, font: BitmapFont, speed: double, paused
 }
 
 function createHud(app: GameApp): Hud {
-  font := try! app.loadIntrinsicFont()
+  font := app.loadIntrinsicFont()!
   panel := SimpleMeshBuilder()
     .quad{
       a: Point3(16.0, 16.0, 0.0),

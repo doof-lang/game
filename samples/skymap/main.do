@@ -37,10 +37,10 @@ function clampPitch(value: double): double {
 
 function main(): int {
   app := initGameApp{ title: "Doof Game Equirectangular Sky Map" }
-  texture := try! app.loadTextureResource("images/panorama.jpg")
-  earthTexture := try! app.loadTextureResource("images/earth_daymap.jpg")
+  texture := app.loadTextureResource("images/panorama.jpg")!
+  earthTexture := app.loadTextureResource("images/earth_daymap.jpg")!
   skyMap := SkyMap { texture: texture }
-  markerSpec := try! loadObjMeshSpecResource("models/marker.obj", Color(0.98, 0.78, 0.28))
+  markerSpec := loadObjMeshSpecResource("models/marker.obj", Color(0.98, 0.78, 0.28))!
   marker := SimpleModel(SimpleMesh(app.surface, markerSpec))
   marker.setTransform(
     Transform

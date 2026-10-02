@@ -36,7 +36,7 @@ export class SpaceDust {
       builder.addParticle(x, y, z, brightness)
     }
 
-    native := try! builder.build(surface.metalDeviceHandle())
+    native := builder.build(surface.metalDeviceHandle())!
     return SpaceDust { native: native, config: config }
   }
 

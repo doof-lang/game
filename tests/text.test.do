@@ -31,7 +31,7 @@ readonly FONT_TEXT =
 
 function requireFont(): BitmapFontData {
   parsed := parseBitmapFontData(FONT_TEXT, "tiny.fnt")
-  return try! parsed
+  return parsed!
 }
 
 function assertApprox(actual: double, expected: double): none {
@@ -57,7 +57,7 @@ export function testParseBitmapFontReadsMetricsGlyphsKerningAndTextureFile(): no
 }
 
 export function testIntrinsicBitmapFontDataIsUseful(): none {
-  font := try! intrinsicBitmapFontData()
+  font := intrinsicBitmapFontData()!
 
   Assert.equal(font.lineHeight, 19)
   Assert.equal(font.base, 15)

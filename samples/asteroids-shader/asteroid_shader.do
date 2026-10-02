@@ -176,18 +176,18 @@ function createPipeline(
   attributes: readonly ShaderVertexAttribute[],
   layouts: readonly ShaderVertexLayout[],
 ): ShaderPipeline {
-  return try! ShaderPipeline(
+  return ShaderPipeline(
     surface,
     ShaderPipelineDescriptor {
       program: ShaderProgram { vertexSource: source, vertexFunction, fragmentFunction },
       attributes,
       layouts,
     },
-  )
+  )!
 }
 
 export function createAsteroidShaderResources(surface: GameSurface): AsteroidShaderResources {
-  source := try! readTextResource(SHADER_PATH)
+  source := readTextResource(SHADER_PATH)!
   asteroidPipeline := createPipeline(
     surface,
     source,
@@ -222,10 +222,10 @@ export function createAsteroidShaderResources(surface: GameSurface): AsteroidSha
   return AsteroidShaderResources {
     asteroidPipeline,
     backdropPipeline,
-    vertexBuffer: try! ShaderBuffer.create(surface, asteroidVertexBytes(geometry)),
-    indexBuffer: try! ShaderBuffer.create(surface, asteroidIndexBytes(geometry)),
-    instanceBuffer: try! ShaderBuffer.create(surface, asteroidInstanceBytes()),
-    backdropBuffer: try! ShaderBuffer.create(surface, backdropVertexBytes()),
+    vertexBuffer: ShaderBuffer.create(surface, asteroidVertexBytes(geometry))!,
+    indexBuffer: ShaderBuffer.create(surface, asteroidIndexBytes(geometry))!,
+    instanceBuffer: ShaderBuffer.create(surface, asteroidInstanceBytes())!,
+    backdropBuffer: ShaderBuffer.create(surface, backdropVertexBytes())!,
     indexCount: geometry.indices.length,
   }
 }
@@ -240,9 +240,9 @@ export function drawAsteroidField(
   sun: Sun,
 ): none {
   bytes := sceneUniformBytes(viewProjection, cameraPosition, time, sun)
-  fragmentScene := try! ShaderBytesBinding.create(pass.surface(), 0, bytes)
+  fragmentScene := ShaderBytesBinding.create(pass.surface(), 0, bytes)!
 
-  try! drawShader(
+  drawShader(
     pass,
     ShaderDraw {
       pipeline: resources.backdropPipeline,
@@ -250,9 +250,9 @@ export function drawAsteroidField(
       vertexCount: 3,
       fragmentBytes: [fragmentScene],
     },
-  )
+  )!
 
-  try! drawShader(
+  drawShader(
     pass,
     ShaderDraw {
       pipeline: resources.asteroidPipeline,
@@ -263,8 +263,8 @@ export function drawAsteroidField(
       indexBuffer: resources.indexBuffer,
       indexCount: resources.indexCount,
       instanceCount: ASTEROID_COUNT,
-      vertexBytes: [try! ShaderBytesBinding.create(pass.surface(), 2, bytes)],
+      vertexBytes: [ShaderBytesBinding.create(pass.surface(), 2, bytes)!],
       fragmentBytes: [fragmentScene],
     },
-  )
+  )!
 }

@@ -67,21 +67,21 @@ export function testSoundCanBeCreatedFromSynthSamples(): none {
     decayTime: 0.01,
   })
 
-  sound := try! Sound.fromSamples(samples)
+  sound := Sound.fromSamples(samples)!
   Assert.equal(sound.duration(), samples.duration())
   Assert.isFalse(sound.isPlaying())
   sound.stop()
 }
 
 export function testSoundPreparationIsSilentAndIdempotent(): none {
-  sound := try! Sound.fromSamples(SoundSamples { sampleRate: 8000, samples: [0.0, 0.0, 0.0, 0.0] })
-  try! sound.prepare()
-  try! sound.prepare()
+  sound := Sound.fromSamples(SoundSamples { sampleRate: 8000, samples: [0.0, 0.0, 0.0, 0.0] })!
+  sound.prepare()!
+  sound.prepare()!
   Assert.isFalse(sound.isPlaying())
   sound.stop()
   Assert.isFalse(sound.isPlaying())
   // Stopping releases playback resources; explicit preparation works again.
-  try! sound.prepare()
+  sound.prepare()!
   Assert.isFalse(sound.isPlaying())
   sound.stop()
 }
@@ -109,12 +109,12 @@ class BackgroundSound {
 export function testSoundPreparationAndPlaybackCanRunOnWorker(): none {
   worker := Actor<BackgroundSound>()
   task := async worker.prepare()
-  result := try! task.get()
-  try! result
+  result := task.get()!
+  result!
   Assert.isFalse(worker.isPlaying())
   playback := async worker.play()
-  played := try! playback.get()
-  try! played
+  played := playback.get()!
+  played!
   sound := retire worker
   sound.stop()
 }

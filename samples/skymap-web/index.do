@@ -8,10 +8,10 @@ import { Instant } from "std/time"
 
 export function start(markerObj: string): none {
   app := initGameApp("Doof Game Equirectangular Sky Map")
-  panorama := try! app.loadTexture("images/panorama.jpg")
-  earthTexture := try! app.loadTexture("images/earth_daymap.jpg")
+  panorama := app.loadTexture("images/panorama.jpg")!
+  earthTexture := app.loadTexture("images/earth_daymap.jpg")!
   skyMap := SkyMap { texture: panorama }
-  markerSpec := try! parseObjMeshSpec(markerObj, "models/marker.obj", Color(0.98, 0.78, 0.28))
+  markerSpec := parseObjMeshSpec(markerObj, "models/marker.obj", Color(0.98, 0.78, 0.28))!
   marker := SimpleModel(SimpleMesh(app.surface, markerSpec))
   marker.setTransform(
     Transform.identity().withPosition(Point3(0.0, -0.18, -3.0)).withScale(Vec3.xyz(0.62, 0.62, 0.62)),

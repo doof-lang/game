@@ -13,7 +13,7 @@ export function testParseObjMeshSpecTriangulatesQuad(): none {
     Color.red,
   )
 
-  spec := try! parsed
+  spec := parsed!
 
   Assert.equal(spec.vertexCount(), 6)
   Assert.equal(spec.indexCount(), 6)
@@ -44,7 +44,7 @@ export function testParseObjMeshSpecReadsTexCoordsNormalsAndRelativeIndices(): n
     "relative.obj",
   )
 
-  spec := try! parsed
+  spec := parsed!
 
   Assert.equal(spec.vertexCount(), 3)
   Assert.equal(spec.indexCount(), 3)
@@ -67,7 +67,7 @@ export function testParseObjMeshSpecTokenizesMixedLineEndingsWhitespaceAndCommen
     "mixed.obj",
   )
 
-  spec := try! parsed
+  spec := parsed!
 
   Assert.equal(spec.vertexCount(), 3)
   Assert.equal(spec.indexCount(), 3)

@@ -144,8 +144,8 @@ function indexBytes(indices: readonly int[]): readonly byte[] {
 function uploadMesh(surface: GameSurface, spec: SimpleMeshSpec): SceneMesh {
   return SceneMesh {
     depthMesh: SimpleMesh(surface, spec),
-    vertexBuffer: try! ShaderBuffer.create(surface, vertexBytes(spec)),
-    indexBuffer: try! ShaderBuffer.create(surface, indexBytes(spec.indices)),
+    vertexBuffer: ShaderBuffer.create(surface, vertexBytes(spec))!,
+    indexBuffer: ShaderBuffer.create(surface, indexBytes(spec.indices))!,
     indexCount: spec.indices.length,
   }
 }
@@ -265,7 +265,7 @@ function createScene(renderer: Renderer): ShadowScene {
   ]
 
   return ShadowScene {
-    shadowMap: try! renderer.createDepthTexture(SHADOW_SIZE, SHADOW_SIZE),
+    shadowMap: renderer.createDepthTexture(SHADOW_SIZE, SHADOW_SIZE)!,
     pipeline: createShadowPipeline(surface),
     objects,
     sunMarker: SceneObject {
@@ -280,11 +280,11 @@ function createScene(renderer: Renderer): ShadowScene {
 // Pipeline
 
 function createShadowPipeline(surface: GameSurface): ShaderPipeline {
-  return try! ShaderPipeline(
+  return ShaderPipeline(
     surface,
     ShaderPipelineDescriptor {
       program: ShaderProgram {
-        vertexSource: try! readTextResource(SHADOW_SHADER_PATH),
+        vertexSource: readTextResource(SHADOW_SHADER_PATH)!,
         vertexFunction: "shadow_scene_vertex",
         fragmentFunction: "shadow_scene_fragment",
       },
@@ -295,7 +295,7 @@ function createShadowPipeline(surface: GameSurface): ShaderPipeline {
       ],
       layouts: [ShaderVertexLayout { stride: VERTEX_STRIDE }],
     },
-  )
+  )!
 }
 
 // ---------------------------------------------------------------------------
@@ -435,18 +435,18 @@ function drawLitObject(
 ): none {
   // The same uniform block feeds both stages, at different Metal buffer slots.
   bytes := objectUniformBytes(model, viewProjection, sun, eye, preset, object.material)
-  try! drawShader(
+  drawShader(
     pass,
     ShaderDraw {
       pipeline: scene.pipeline,
       vertexBuffers: [ShaderBufferBinding { index: 0, buffer: object.mesh.vertexBuffer }],
-      vertexBytes: [try! ShaderBytesBinding.create(pass.surface(), 1, bytes)],
-      fragmentBytes: [try! ShaderBytesBinding.create(pass.surface(), 0, bytes)],
+      vertexBytes: [ShaderBytesBinding.create(pass.surface(), 1, bytes)!],
+      fragmentBytes: [ShaderBytesBinding.create(pass.surface(), 0, bytes)!],
       fragmentTextures: [ShaderTextureBinding { index: 0, depthTexture: scene.shadowMap }],
       indexBuffer: object.mesh.indexBuffer,
       indexCount: object.mesh.indexCount,
     },
-  )
+  )!
 }
 
 function cameraFromMatrix(matrix: Mat4): Camera {
@@ -534,7 +534,7 @@ class Hud {
 }
 
 function createHud(app: GameApp, presetName: string, paused: bool): Hud {
-  font := try! app.loadIntrinsicFont()
+  font := app.loadIntrinsicFont()!
   panel := SimpleMeshBuilder()
     .quad{
       a: Point3(16.0, 16.0, 0.0),
