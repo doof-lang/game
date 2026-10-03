@@ -947,8 +947,12 @@ function usableColorAccessor(asset: GltfAsset, accessorIndex: int, path: string)
     return Failure(gltfError("convert", path, "Accessor index is out of range"))
   }
   accessor := asset.accessors[accessorIndex]
-  if accessor.componentType != GLTF_COMPONENT_FLOAT || (accessor.typeName != "VEC3" && accessor.typeName != "VEC4") {
-    asset.warnings.push(gltfWarning("convert", path, "Unsupported color accessor format; expected VEC3 or VEC4 float data"))
+  // glTF permits float or normalized unsigned byte/short colours.
+  normalizedInteger := accessor.normalized && (accessor.componentType == GLTF_COMPONENT_UNSIGNED_BYTE ||
+    accessor.componentType == GLTF_COMPONENT_UNSIGNED_SHORT)
+  if (accessor.componentType != GLTF_COMPONENT_FLOAT && !normalizedInteger) ||
+     (accessor.typeName != "VEC3" && accessor.typeName != "VEC4") {
+    asset.warnings.push(gltfWarning("convert", path, "Unsupported color accessor format; expected VEC3 or VEC4 float or normalized unsigned data"))
     return Success(false)
   }
   if accessor.sparse {
@@ -1001,13 +1005,30 @@ function readPoint(asset: GltfAsset, accessorIndex: int, elementIndex: int, path
   return Success(Point(x, y))
 }
 
+function readColorComponent(asset: GltfAsset, accessorIndex: int, elementIndex: int, componentIndex: int, path: string): Result<double, GltfError> {
+  accessor := asset.accessors[accessorIndex]
+  if accessor.componentType == GLTF_COMPONENT_FLOAT {
+    return readFloatComponent(asset, accessorIndex, elementIndex, componentIndex, path)
+  }
+  view := asset.bufferViews[accessor.bufferView]
+  stride := accessorStride(accessor, view)
+  if stride <= 0 {
+    return Failure(gltfError("convert", path, "Accessor stride is invalid"))
+  }
+  size := componentByteSize(accessor.componentType)
+  try base := accessorByteOffset(asset, accessorIndex, path)
+  try value := readIndexAt(asset.binChunk, accessor.componentType, base + elementIndex * stride + componentIndex * size, path)
+  maximum := if accessor.componentType == GLTF_COMPONENT_UNSIGNED_BYTE then 255.0 else 65535.0
+  return Success(double(value) / maximum)
+}
+
 function readColor(asset: GltfAsset, accessorIndex: int, elementIndex: int, fallbackAlpha: double, path: string): Result<Color, GltfError> {
   accessor := asset.accessors[accessorIndex]
-  try r := readFloatComponent(asset, accessorIndex, elementIndex, 0, path)
-  try g := readFloatComponent(asset, accessorIndex, elementIndex, 1, path)
-  try b := readFloatComponent(asset, accessorIndex, elementIndex, 2, path)
+  try r := readColorComponent(asset, accessorIndex, elementIndex, 0, path)
+  try g := readColorComponent(asset, accessorIndex, elementIndex, 1, path)
+  try b := readColorComponent(asset, accessorIndex, elementIndex, 2, path)
   if accessor.typeName == "VEC4" {
-    try a := readFloatComponent(asset, accessorIndex, elementIndex, 3, path)
+    try a := readColorComponent(asset, accessorIndex, elementIndex, 3, path)
     return Success(Color(r, g, b, a))
   }
   return Success(Color(r, g, b, fallbackAlpha))

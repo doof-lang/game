@@ -534,3 +534,43 @@ export function testGlbConversionRejectsInvalidAccessorsAndBufferOverruns(): non
   overrun := parseGlb(buildGlb(overrunJson, bin), "overrun.glb")!
   Assert.isTrue(isFailure(glbAssetToSimpleMeshSpecs(overrun)), "expected buffer overrun to fail")
 }
+
+function normalizedColorGlb(componentType: int): readonly byte[] {
+  builder := BlobBuilder()
+  builder.writeBytes(trianglePositionBin())
+  short := componentType == 5123
+  for value of [65535, 0, 32768, 65535, 0, 65535, 0, 0, 0, 0, 65535, 16384] {
+    if short {
+      builder.writeUnsignedShort(value)
+    } else {
+      builder.writeByte(byte(value \ 257))
+    }
+  }
+  bin := builder.build()
+  colorLength := bin.length - 36
+  json := "{" +
+    "\"asset\":{\"version\":\"2.0\"}," +
+    "\"buffers\":[{\"byteLength\":" + string(bin.length) + "}]," +
+    "\"bufferViews\":[{\"buffer\":0,\"byteOffset\":0,\"byteLength\":36}," +
+      "{\"buffer\":0,\"byteOffset\":36,\"byteLength\":" + string(colorLength) + "}]," +
+    "\"accessors\":[{\"bufferView\":0,\"componentType\":5126,\"count\":3,\"type\":\"VEC3\"}," +
+      "{\"bufferView\":1,\"componentType\":" + string(componentType) +
+      ",\"normalized\":true,\"count\":3,\"type\":\"VEC4\"}]," +
+    "\"meshes\":[{\"name\":\"Tinted\",\"primitives\":[{\"attributes\":{\"POSITION\":0,\"COLOR_0\":1}}]}]" +
+    "}"
+  return buildGlb(json, bin)
+}
+
+export function testParseGlbConvertsNormalizedUnsignedColors(): none {
+  for componentType of [5121, 5123] {
+    asset := try! parseGlb(normalizedColorGlb(componentType), "tinted.glb")
+    spec := (try! glbAssetToSimpleMeshSpecs(asset))[0].spec
+    Assert.equal(asset.warnings.length, 0)
+    assertApprox(spec.colors[0].r, 1.0)
+    assertApprox(spec.colors[0].g, 0.0)
+    Assert.isTrue(spec.colors[0].b > 0.49 && spec.colors[0].b < 0.51)
+    assertApprox(spec.colors[1].g, 1.0)
+    assertApprox(spec.colors[2].b, 1.0)
+    Assert.isTrue(spec.colors[2].a > 0.24 && spec.colors[2].a < 0.26)
+  }
+}
