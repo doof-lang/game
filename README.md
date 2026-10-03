@@ -848,6 +848,8 @@ starting a pinch.
   deadzoned movement stick, and an analog trigger.
 - `samples/text` contrasts the intrinsic font with a loaded handwriting BMFont,
   and demonstrates wrapping, line spacing, and alignment.
+- `samples/layout` uses `std/layout` for a resizable wrapping card grid,
+  intrinsic measurement, absolute overlays, and scrolling retained controls.
 - `samples/skymap` draws an equirectangular panorama, a textured sphere planet,
   and a loaded OBJ mesh while mouse movement steers the camera.
 - `samples/custom-shader-web` draws an animated, pointer-reactive 384-prism

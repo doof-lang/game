@@ -9,7 +9,7 @@ export readonly SCROLL_STEP = CARD_HEIGHT + CARD_GAP
 
 export function createCardNodes(ui: UiLayer, font: BitmapFont): LayoutNode[] {
   titles := [
-    "Measure intrinsic content",
+    "Form lines before flexing",
     "Distribute free space",
     "Freeze at min / max",
     "Align on the cross axis",
@@ -19,7 +19,7 @@ export function createCardNodes(ui: UiLayer, font: BitmapFont): LayoutNode[] {
     "Notify retained controls",
   ]
   details := [
-    "Text callbacks receive content constraints.",
+    "Card bases choose lines before each line grows.",
     "Grow factors share the remaining main axis.",
     "Constrained items freeze before redistribution.",
     "Containers stretch, center, start, or end children.",
@@ -44,6 +44,8 @@ export function createCardNodes(ui: UiLayer, font: BitmapFont): LayoutNode[] {
     detailNode := measuredLabelNode(font, details[index])
     card := LayoutNode {
       style: LayoutStyle {
+        flexBasis: 300.0,
+        grow: 1.0,
         height: CARD_HEIGHT,
         shrink: 0.0,
         direction: .Column,

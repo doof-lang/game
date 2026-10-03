@@ -85,12 +85,12 @@ export function createLayoutDemo(app: GameApp, font: BitmapFont): LayoutDemo {
     labelStyle(Color(0.70, 0.76, 0.84, 1.0)),
   )
   navLabels: UiLabel[] := []
-  for text of ["Responsive row", "Nested columns", "Intrinsic text", "Live overflow"] {
+  for text of ["Responsive row", "Wrapping cards", "Intrinsic text", "Live overflow"] {
     navLabels.push(ui.addLabel(text, Rect(0.0, 0.0, 0.0, 0.0), labelStyle(Color(0.84, 0.88, 0.94, 1.0))))
   }
 
   title := ui.addLabel("Layout activity", Rect(0.0, 0.0, 0.0, 0.0), labelStyle(Color(0.96, 0.97, 1.0, 1.0)))
-  badge := ui.addLabel("FLEX", Rect(0.0, 0.0, 0.0, 0.0), labelStyle(Color(0.40, 0.90, 0.68, 1.0)))
+  badge := ui.addLabel("WRAP", Rect(0.0, 0.0, 0.0, 0.0), labelStyle(Color(0.40, 0.90, 0.68, 1.0)))
   status := ui.addLabel("", Rect(0.0, 0.0, 0.0, 0.0), labelStyle(Color(0.62, 0.70, 0.80, 1.0)))
 
   cardNodes := createCardNodes(ui, font)
@@ -138,7 +138,7 @@ export function createLayoutDemo(app: GameApp, font: BitmapFont): LayoutDemo {
   bindLabel(badgeNode, badge)
 
   content := LayoutNode {
-    style: LayoutStyle { direction: .Column, shrink: 0.0, gap: CARD_GAP },
+    style: LayoutStyle { flexWrap: .Wrap, shrink: 0.0, gap: CARD_GAP },
     children: cardNodes,
   }
   scroller := LayoutNode {
