@@ -71,7 +71,7 @@ export class BitmapFont {
   readonly base: int
   readonly scaleWidth: int
   readonly scaleHeight: int
-  readonly texture: Texture
+  texture: Texture
   glyphs: Map<int, BitmapGlyph>
   kernings: Map<string, int>
 

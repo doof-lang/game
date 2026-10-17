@@ -1,7 +1,7 @@
 import { NativeGameSurface } from "./native"
 
 export class GameSurface {
-  private readonly native: NativeGameSurface
+  private native: NativeGameSurface
 
   static constructor(native: NativeGameSurface): GameSurface => GameSurface { native }
 

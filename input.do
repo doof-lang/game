@@ -5,14 +5,14 @@ import { mouseButtonCode } from "./mouse"
 import { ControllerAxis, ControllerButton, ControllerSlot, Key, MouseButton } from "./types"
 
 export class ControllerQuery {
-  private readonly native: NativeInputState
+  private native: NativeInputState
 
   connected(slot: ControllerSlot): bool => this.native.isControllerConnectedCode(controllerSlotCode(slot))
   name(slot: ControllerSlot): string => this.native.controllerNameCode(controllerSlotCode(slot))
 }
 
 export class InputState {
-  private readonly native: NativeInputState
+  private native: NativeInputState
 
   static constructor(native: NativeInputState): InputState => InputState { native }
 

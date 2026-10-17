@@ -19,7 +19,7 @@ readonly KIND_CONTROLLER_CONNECTED = 11
 readonly KIND_CONTROLLER_DISCONNECTED = 12
 
 export class ControllerEvent {
-  private readonly native: NativeGameEvent
+  private native: NativeGameEvent
 
   slot(): ControllerSlot => controllerSlotFromCode(this.native.controllerSlotCode())
   connected(): bool => this.native.kindCode() == KIND_CONTROLLER_CONNECTED
@@ -27,7 +27,7 @@ export class ControllerEvent {
 }
 
 export class GameEvent {
-  private readonly native: NativeGameEvent
+  private native: NativeGameEvent
 
   static constructor(native: NativeGameEvent): GameEvent => GameEvent { native }
 

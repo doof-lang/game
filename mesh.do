@@ -78,7 +78,7 @@ export class SimpleMaterial {
 }
 
 export class SimpleMesh {
-  private readonly native: NativeSimpleMesh
+  private native: NativeSimpleMesh
 
   static constructor(surface: GameSurface, spec: SimpleMeshSpec): SimpleMesh {
     if spec.positions.length == 0 && spec.indices.length != 0 {

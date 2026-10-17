@@ -378,7 +378,7 @@ export struct Rect {
 }
 
 export class Texture {
-  private readonly native: NativeTexture
+  private native: NativeTexture
 
   pixelWidth(): int => native.pixelWidth()
   pixelHeight(): int => native.pixelHeight()
@@ -387,7 +387,7 @@ export class Texture {
 }
 
 export class DepthTexture {
-  private readonly native: NativeDepthTexture
+  private native: NativeDepthTexture
 
   pixelWidth(): int => native.pixelWidth()
   pixelHeight(): int => native.pixelHeight()
@@ -396,7 +396,7 @@ export class DepthTexture {
 }
 
 export class Atlas {
-  readonly texture: Texture
+  texture: Texture
   readonly columns: int
   readonly rows: int
 
@@ -656,10 +656,10 @@ export class RenderPassDescriptor {
 }
 
 export class RenderPass {
-  private readonly gameSurface: GameSurface
+  private gameSurface: GameSurface
   private passCamera: Camera
   private readonly passBlendModeCode: int
-  private readonly native: NativeRenderPass
+  private native: NativeRenderPass
 
   surface(): GameSurface => gameSurface
   camera(): Camera => passCamera
@@ -673,8 +673,8 @@ export class RenderPass {
 }
 
 export class Renderer {
-  private readonly gameSurface: GameSurface
-  private readonly nativeFrame: NativeRenderFrame
+  private gameSurface: GameSurface
+  private nativeFrame: NativeRenderFrame
   private let isFinished: bool = false
 
   surface(): GameSurface => gameSurface

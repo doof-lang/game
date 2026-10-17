@@ -3,7 +3,7 @@ import { Point3, RenderPass, Texture } from "./render"
 import { Rotation, Transform, Vec3 } from "./transform"
 
 export class SimpleModel {
-  readonly mesh: SimpleMesh
+  mesh: SimpleMesh
   let texture: Texture | none = none
   let transform: Transform = Transform.identity()
   let material: SimpleMaterial = SimpleMaterial {}

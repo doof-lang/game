@@ -69,7 +69,7 @@ export class ShaderPipelineDescriptor {
 }
 
 export class ShaderBuffer {
-  private readonly native: NativeShaderBuffer
+  private native: NativeShaderBuffer
 
   static create(surface: GameSurface, data: readonly byte[]): Result<ShaderBuffer, string> {
     if data.length == 0 {
@@ -86,7 +86,7 @@ export class ShaderBuffer {
 }
 
 export class ShaderPipeline {
-  private readonly native: NativeShaderPipeline
+  private native: NativeShaderPipeline
 
   static constructor(surface: GameSurface, desc: ShaderPipelineDescriptor): Result<ShaderPipeline, string> {
     program := desc.program
@@ -166,13 +166,13 @@ export class ShaderPipeline {
 
 export class ShaderBufferBinding {
   readonly index: int
-  readonly buffer: ShaderBuffer
+  buffer: ShaderBuffer
   readonly offset: int = 0
 }
 
 export class ShaderBytesBinding {
   readonly index: int
-  readonly buffer: ShaderBuffer
+  buffer: ShaderBuffer
   readonly offset: int = 0
 
   static create(surface: GameSurface, index: int, bytes: readonly byte[]): Result<ShaderBytesBinding, string> {
@@ -188,8 +188,8 @@ export class ShaderBytesBinding {
 
 export class ShaderTextureBinding {
   readonly index: int
-  readonly texture: Texture | none = none
-  readonly depthTexture: DepthTexture | none = none
+  texture: Texture | none = none
+  depthTexture: DepthTexture | none = none
 
   nativeHandle(): long {
     if texture != none {
@@ -203,15 +203,15 @@ export class ShaderTextureBinding {
 }
 
 export class ShaderDraw {
-  readonly pipeline: ShaderPipeline
-  readonly vertexBuffers: ShaderBufferBinding[]
+  pipeline: ShaderPipeline
+  vertexBuffers: readonly ShaderBufferBinding[]
   readonly vertexCount: int = 0
   readonly instanceCount: int = 1
-  readonly indexBuffer: ShaderBuffer | none = none
+  indexBuffer: ShaderBuffer | none = none
   readonly indexCount: int = 0
-  readonly vertexBytes: ShaderBytesBinding[] = []
-  readonly fragmentBytes: ShaderBytesBinding[] = []
-  readonly fragmentTextures: ShaderTextureBinding[] = []
+  vertexBytes: readonly ShaderBytesBinding[] = []
+  fragmentBytes: readonly ShaderBytesBinding[] = []
+  fragmentTextures: readonly ShaderTextureBinding[] = []
 }
 
 function collectBufferBindingIndices(bindings: readonly ShaderBufferBinding[]): int[] {

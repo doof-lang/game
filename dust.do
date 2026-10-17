@@ -15,7 +15,7 @@ export class SpaceDustConfig {
 }
 
 export class SpaceDust {
-  private readonly native: NativeSpaceDust
+  private native: NativeSpaceDust
   config: SpaceDustConfig
 
   static constructor(surface: GameSurface, config: SpaceDustConfig = SpaceDustConfig {}): SpaceDust {

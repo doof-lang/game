@@ -49,12 +49,12 @@ export class Sun {
 }
 
 export class AsteroidShaderResources {
-  readonly asteroidPipeline: ShaderPipeline
-  readonly backdropPipeline: ShaderPipeline
-  readonly vertexBuffer: ShaderBuffer
-  readonly indexBuffer: ShaderBuffer
-  readonly instanceBuffer: ShaderBuffer
-  readonly backdropBuffer: ShaderBuffer
+  asteroidPipeline: ShaderPipeline
+  backdropPipeline: ShaderPipeline
+  vertexBuffer: ShaderBuffer
+  indexBuffer: ShaderBuffer
+  instanceBuffer: ShaderBuffer
+  backdropBuffer: ShaderBuffer
   readonly indexCount: int
 }
 

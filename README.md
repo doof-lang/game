@@ -134,7 +134,7 @@ result := app.run()
 Creates a native app host. It defaults to full-screen; pass
 `GameAppOptions { windowMode: GameWindowMode.Windowed, ... }` to use a normal
 resizable window. Register event and render callbacks, set up any `std/event`
-timers or channels, then call `run()`. By default,
+timers, then call `run()`. By default,
 `GameRenderMode.Continuous` calls `onRender` on each display tick, which is the
 right mode for animated games and simulations.
 

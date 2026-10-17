@@ -5,7 +5,7 @@ import { Color, Mat4, Point, Point3 } from "./render"
 import { Vec3 } from "./transform"
 
 export class ShaderBytesBuilder {
-  private readonly builder: BlobBuilder
+  private builder: BlobBuilder
 
   static constructor(size: long = 0L): ShaderBytesBuilder {
     return ShaderBytesBuilder {

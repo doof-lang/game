@@ -83,7 +83,7 @@ function hiddenTransform(): Transform {
 }
 
 export class ParticleLayer {
-  readonly surface: GameSurface
+  surface: GameSurface
   readonly capacity: int
   private states: ParticleState[] = []
   private instances: SimpleModelInstance[] = []

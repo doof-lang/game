@@ -19,8 +19,8 @@ class SimpleModelInstanceState {
 }
 
 export class SimpleModelBatch {
-  readonly surface: GameSurface
-  readonly mesh: SimpleMesh
+  surface: GameSurface
+  mesh: SimpleMesh
   texture: Texture | none = none
   readonly capacity: int
 

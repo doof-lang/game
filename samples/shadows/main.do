@@ -92,24 +92,24 @@ class SceneMaterial {
 // One mesh uploaded twice: as a SimpleMesh for the built-in depth-only pass,
 // and as raw vertex/index buffers for the custom lit shader.
 class SceneMesh {
-  readonly depthMesh: SimpleMesh
-  readonly vertexBuffer: ShaderBuffer
-  readonly indexBuffer: ShaderBuffer
+  depthMesh: SimpleMesh
+  vertexBuffer: ShaderBuffer
+  indexBuffer: ShaderBuffer
   readonly indexCount: int
 }
 
 class SceneObject {
-  readonly mesh: SceneMesh
+  mesh: SceneMesh
   readonly material: SceneMaterial = SceneMaterial {}
   readonly castsShadow: bool = true
   readonly placement: (time: double): Mat4 = (time: double): Mat4 => Mat4.translation(0.0, 0.0, 0.0)
 }
 
 class ShadowScene {
-  readonly shadowMap: DepthTexture
-  readonly pipeline: ShaderPipeline
+  shadowMap: DepthTexture
+  pipeline: ShaderPipeline
   objects: SceneObject[]
-  readonly sunMarker: SceneObject
+  sunMarker: SceneObject
 }
 
 // Everything the frame needs to know about the sun.

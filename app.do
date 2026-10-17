@@ -52,7 +52,7 @@ export class GameApp {
   readonly title: string
   readonly renderMode: GameRenderMode
   readonly options: GameAppOptions
-  private readonly native: NativeGameApp
+  private native: NativeGameApp
   let input: InputState
   let surface: GameSurface
   private inputButtons: InputButton[] = []

@@ -2,7 +2,7 @@ import { drawNativeEquirectangularSkyMap } from "./native"
 import { RenderPass, Texture } from "./render"
 
 export class SkyMap {
-  readonly texture: Texture
+  texture: Texture
 
   pixelWidth(): int => texture.pixelWidth()
   pixelHeight(): int => texture.pixelHeight()

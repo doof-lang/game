@@ -8,7 +8,7 @@ export class SoundPlayOptions {
 }
 
 export class Sound {
-  private readonly native: NativeSound
+  private native: NativeSound
 
   static load(path: string): Result<Sound, string> {
     try native := NativeSound.load(path)
