@@ -564,50 +564,74 @@ staggered celebration preset with bursts, sparkles, and a closing finale.
 ### Custom Shaders
 
 ```doof
-import { BlobBuilder } from "std/blob"
-
-source := "#include <metal_stdlib>\n" +
-  "using namespace metal;\n" +
-  "struct VertexIn { float2 position [[attribute(0)]]; float4 color [[attribute(1)]]; };\n" +
-  "struct VertexOut { float4 position [[position]]; float4 color; };\n" +
-  "vertex VertexOut vertex_main(VertexIn in [[stage_in]]) { VertexOut out; out.position = float4(in.position, 0.0, 1.0); out.color = in.color; return out; }\n" +
-  "fragment float4 fragment_main(VertexOut in [[stage_in]]) { return in.color; }\n"
-
-program := ShaderProgram {
-  vertexSource: source,
-  vertexFunction: "vertex_main",
-  fragmentFunction: "fragment_main",
+source := `#include <metal_stdlib>
+using namespace metal;
+struct VertexIn { float2 position [[attribute(0)]]; float4 color [[attribute(1)]]; };
+struct VertexOut { float4 position [[position]]; float4 color; };
+struct Tint { float4 color; };
+vertex VertexOut vertex_main(VertexIn in [[stage_in]]) {
+  VertexOut out;
+  out.position = float4(in.position, 0.0, 1.0);
+  out.color = in.color;
+  return out;
 }
-pipeline := try! ShaderPipeline(
+fragment float4 fragment_main(VertexOut in [[stage_in]], constant Tint& tint [[buffer(1)]]) {
+  return in.color * tint.color;
+}
+`
+
+pipeline := ShaderPipeline(
   app.surface,
   ShaderPipelineDescriptor {
-    program,
+    program: ShaderProgram { vertexSource: source, vertexFunction: "vertex_main", fragmentFunction: "fragment_main" },
     attributes: [
       ShaderVertexAttribute { attribute: 0, offset: 0, format: ShaderVertexFormat.Float2 },
       ShaderVertexAttribute { attribute: 1, offset: 8, format: ShaderVertexFormat.Float4 },
     ],
     layouts: [ShaderVertexLayout { stride: 24 }],
+    uniforms: [ShaderUniformSlot { name: "Tint", index: 1, stages: ShaderStages.Fragment }],
   },
-)
+)!
 
-vertices := BlobBuilder {}
-vertices.writeFloat(-0.6f); vertices.writeFloat(-0.6f); vertices.writeFloat(1.0f); vertices.writeFloat(0.0f); vertices.writeFloat(0.0f); vertices.writeFloat(1.0f)
-vertices.writeFloat(0.6f); vertices.writeFloat(-0.6f); vertices.writeFloat(0.0f); vertices.writeFloat(1.0f); vertices.writeFloat(0.0f); vertices.writeFloat(1.0f)
-vertices.writeFloat(0.0f); vertices.writeFloat(0.6f); vertices.writeFloat(0.0f); vertices.writeFloat(0.0f); vertices.writeFloat(1.0f); vertices.writeFloat(1.0f)
-vertexBuffer := try! ShaderBuffer.create(app.surface, vertices.build())
+vertexBuffer := ShaderBuffer.create(
+  app.surface,
+  ShaderBytesBuilder()
+    .float2(-0.6, -0.6).float4(1.0, 0.0, 0.0, 1.0)
+    .float2(0.6, -0.6).float4(0.0, 1.0, 0.0, 1.0)
+    .float2(0.0, 0.6).float4(0.0, 0.0, 1.0, 1.0)
+    .build(),
+)!
+
+drawShader(
+  pass,
+  ShaderDraw {
+    pipeline,
+    vertexBuffers: [ShaderVertexBufferBinding { index: 0, buffer: vertexBuffer }],
+    vertexCount: 3,
+    uniforms: [ShaderUniformBinding { name: "Tint", bytes: ShaderBytesBuilder().color(Color(1.0, 1.0, 1.0, 1.0)).build() }],
+  },
+)!
 ```
 
 The consumer supplies the complete program for its build target, for example
 through a platform-specific shader module. `fragmentSource` can be supplied
 for backends that compile shader stages separately; otherwise it reuses
 `vertexSource`. Metal programs compile on macOS and iOS; GLSL ES programs on
-Wasm support vertex/index buffers and instancing. Custom draws use explicit
-numeric binding indices: vertex buffers,
-vertex-byte buffers, fragment-byte buffers, and fragment textures are bound to
-the indices requested by the shader. `drawShader(...)` renders triangles, either
-from a vertex count or from a `uint32` index buffer. Set
-`ShaderDraw.instanceCount` for instanced custom draws, and mark per-instance
-buffers with `ShaderVertexLayout { stepFunction: ShaderVertexStepFunction.PerInstance }`.
+Wasm support vertex/index buffers, instancing, `std140` uniform blocks, and 2D
+textures. HLSL programs on Windows compile with `vs_5_0`/`ps_5_0` and read
+vertex attribute `N` through the `TEXCOORDN` semantic.
+
+Vertex buffers bind by `ShaderVertexLayout` buffer index. Uniform blocks and
+textures are declared once on the pipeline as `ShaderUniformSlot` and
+`ShaderTextureSlot`, each with a `name` (the GLSL block or sampler name) and an
+`index` (the Metal buffer/texture index or HLSL register), and are bound by
+name on every draw. A `ShaderUniformBinding` either copies `bytes` into the
+draw or binds a range of a persistent `ShaderBuffer`, which `update(...)` can
+rewrite in place. `drawShader(...)` reports unknown, duplicate, or missing
+bindings by slot name. It renders triangles, either from a vertex count or from
+a `uint32` index buffer. Set `ShaderDraw.instanceCount` for instanced custom
+draws, and mark per-instance buffers with
+`ShaderVertexLayout { stepFunction: ShaderVertexStepFunction.PerInstance }`.
 The default layout step function is per-vertex, and the default draw instance
 count is `1`.
 
@@ -825,7 +849,9 @@ starting a pinch.
 - Windows uses a Win32 app loop and D3D11 surface. Keyboard, mouse, resize,
   requested rendering, built-in colored/textured meshes, model batches, sky
   maps, space dust, WIC-backed textures, Radiance HDR textures, and
-  WAV/generated sound are supported. Custom HLSL pipelines and native gestures
+  WAV/generated sound are supported, as are custom HLSL pipelines (vertex and
+  index buffers, instancing, `b#` uniform registers, and `t#`/`s#` color
+  textures). Sampling depth textures from custom shaders and native gestures
   are not implemented yet.
 - Wasm uses WebGL 2 and supports the built-in mesh and model-batch paths,
   including 32-bit mesh indices and core instanced drawing.
@@ -853,4 +879,6 @@ starting a pinch.
 - `samples/skymap` draws an equirectangular panorama, a textured sphere planet,
   and a loaded OBJ mesh while mouse movement steers the camera.
 - `samples/custom-shader-web` draws an animated, pointer-reactive 384-prism
-  tunnel with one instanced consumer-supplied GLSL ES draw on WebGL 2/Wasm.
+  tunnel with one instanced consumer-supplied GLSL ES draw on WebGL 2/Wasm,
+  using inline uniform bytes, an in-place updated uniform buffer, and a
+  palette texture.

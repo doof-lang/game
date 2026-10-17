@@ -109,7 +109,7 @@ function main(): int {
 | [`samples/controller`](../samples/controller) | Gamepad connection, buttons, sticks, and triggers |
 | [`samples/cards`](../samples/cards) | Texture atlases and instanced model batches |
 | [`samples/skymap`](../samples/skymap) | Sky maps, spheres, OBJ meshes, and camera steering |
-| [`samples/asteroids-shader`](../samples/asteroids-shader) | Custom Metal shaders and instanced buffers |
+| [`samples/asteroids-shader`](../samples/asteroids-shader) | Custom Metal and HLSL shaders and instanced buffers |
 | [`samples/custom-shader-web`](../samples/custom-shader-web) | A consumer-supplied GLSL ES shader on WebGL 2/Wasm |
 | [`samples/jigsaw`](../samples/jigsaw) | A larger app with UI, input, rendering, and storage |
 
@@ -370,7 +370,8 @@ Defaults: `Camera.screen()`, `Clear.disabled()`, `Depth.disabled()`,
 | `hasDepthAttachment()` | `bool` | Whether the pass has a depth attachment. |
 
 Depth textures can be rendered with `renderer.depthPass(...)` and then sampled
-from custom shaders by using `ShaderTextureBinding { index, depthTexture }`.
+from custom shaders by declaring a `ShaderTextureSlot` and binding
+`ShaderTextureBinding { name, depthTexture }`.
 The `game/samples/shadows` package demonstrates a directional-light shadow map.
 
 ### Cameras And Matrices
@@ -716,27 +717,35 @@ and alignment fields. `rectContains(rect, point)` is exported for hit testing.
 ## Custom Shaders
 
 Custom shaders compile a consumer-selected platform program and draw with
-explicit buffer, byte, and texture bindings. Use this path for custom vertex
-formats, indexed draws, instancing, normal maps, and material effects beyond
-`SimpleMesh`.
+explicit vertex buffers plus named uniform and texture slots. Use this path for
+custom vertex formats, indexed draws, instancing, normal maps, and material
+effects beyond `SimpleMesh`.
 
 ```doof
-program := ShaderProgram {
-  vertexSource: source,
-  vertexFunction: "vertex_main",
-  fragmentFunction: "fragment_main",
-}
-pipeline := try! ShaderPipeline(
+pipeline := ShaderPipeline(
   app.surface,
   ShaderPipelineDescriptor {
-    program,
+    program: ShaderProgram { vertexSource: source, vertexFunction: "vertex_main", fragmentFunction: "fragment_main" },
     attributes: [
       ShaderVertexAttribute { attribute: 0, offset: 0, format: ShaderVertexFormat.Float2 },
       ShaderVertexAttribute { attribute: 1, offset: 8, format: ShaderVertexFormat.Float4 },
     ],
     layouts: [ShaderVertexLayout { stride: 24 }],
+    uniforms: [ShaderUniformSlot { name: "Scene", index: 1 }],
+    textures: [ShaderTextureSlot { name: "albedo", index: 0 }],
   },
-)
+)!
+
+drawShader(
+  pass,
+  ShaderDraw {
+    pipeline,
+    vertexBuffers: [ShaderVertexBufferBinding { index: 0, buffer: vertices }],
+    vertexCount: 3,
+    uniforms: [ShaderUniformBinding { name: "Scene", bytes: sceneBytes }],
+    textures: [ShaderTextureBinding { name: "albedo", texture }],
+  },
+)!
 ```
 
 | API | Description |
@@ -746,14 +755,42 @@ pipeline := try! ShaderPipeline(
 | `ShaderVertexStepFunction` | `PerVertex` or `PerInstance`. |
 | `ShaderVertexAttribute` | Attribute index, buffer index, byte offset, and format. |
 | `ShaderVertexLayout` | Buffer index, stride, step function, and step rate. |
-| `ShaderPipelineDescriptor` | Consumer-selected program, attributes, and layouts. |
+| `ShaderStages` | `Vertex`, `Fragment`, or `VertexAndFragment`. |
+| `ShaderUniformSlot` | Uniform block `name`, backend `index`, and `stages` (default both). |
+| `ShaderTextureSlot` | Sampled texture `name`, backend `index`, and `stages` (default fragment). |
+| `ShaderPipelineDescriptor` | Program, attributes, layouts, uniform slots, and texture slots. |
 | `ShaderPipeline(surface, desc)` | Compile a pipeline. |
 | `ShaderBuffer.create(surface, data)` | Upload bytes to a backend-native GPU buffer. |
-| `ShaderBufferBinding` | Bind a vertex buffer at an index and offset. |
-| `ShaderBytesBinding.create(surface, index, bytes)` | Create a temporary-style bytes binding backed by a buffer. |
-| `ShaderTextureBinding` | Bind a fragment color texture or depth texture at an index. |
-| `ShaderDraw` | Pipeline, vertex buffers, counts, optional index buffer, bytes, textures, and instance count. |
+| `ShaderBuffer.allocate(surface, byteLength)` | Create a zero-filled buffer. |
+| `buffer.update(data, offset = 0)` | Overwrite part of a buffer in place. |
+| `ShaderVertexBufferBinding` | Bind a vertex buffer at a layout buffer index and offset. |
+| `ShaderUniformBinding` | Supply a uniform slot by name from inline `bytes` or a `buffer` range. |
+| `ShaderTextureBinding` | Supply a texture slot by name with a color or depth texture. |
+| `ShaderDraw` | Pipeline, vertex buffers, counts, optional index buffer, uniforms, textures, and instance count. |
 | `drawShader(pass, draw)` | Validate and issue the draw. |
+| `SHADER_UNIFORM_BUFFER_OFFSET_ALIGNMENT` | `256`, the required alignment for uniform buffer offsets. |
+
+Slots are declared once on the pipeline and bound by name on every draw. The
+`name` is the GLSL uniform block or sampler name; the `index` is the Metal
+buffer/texture index or HLSL register. A portable program uses the same slot
+name and index in each backend's source. Every declared slot must be bound on
+every draw, and unknown or repeated names fail with an error naming the slot.
+Metal shares one buffer table between vertex buffers and vertex-visible
+uniforms, so a uniform slot visible to the vertex stage must not reuse a
+`ShaderVertexLayout` buffer index.
+
+Uniform data comes from one of two places:
+
+- `bytes` are copied into the draw. Use this for per-draw data such as
+  matrices; nothing is allocated per frame on Metal for blocks up to 4 KiB.
+- `buffer` plus `offset` binds a range of a persistent `ShaderBuffer`, which
+  `update(...)` can rewrite. Offsets must be multiples of
+  `SHADER_UNIFORM_BUFFER_OFFSET_ALIGNMENT`. Updates are visible to draws
+  encoded afterwards; avoid rewriting a range a frame still in flight reads.
+
+Pack uniform bytes with `ShaderBytesBuilder` using GLSL `std140` rules, which
+Metal and HLSL also accept for `float4`/`float4x4`-aligned structs: keep
+`vec3` members padded to 16 bytes and matrices as four 16-byte rows or columns.
 
 Indexed draws use a `uint32` index buffer. Non-indexed draws use `vertexCount`.
 `instanceCount` defaults to `1`.
@@ -762,10 +799,15 @@ Platform variant selection belongs entirely to the consumer. A target-specific
 module can load its shader resources and return one `ShaderProgram`; shared
 render code then passes that program to `ShaderPipelineDescriptor`. When
 `fragmentSource` is omitted it reuses `vertexSource`. Metal custom pipelines are
-implemented on macOS and iOS. Wasm supports GLSL ES vertex/index buffers,
-non-indexed draws, and instancing; uniform-byte and texture bindings currently
-return explicit not-implemented errors. Windows custom pipelines are not yet
-implemented.
+implemented on macOS and iOS. Wasm supports GLSL ES programs with vertex and
+index buffers, instancing, `std140` uniform blocks, and 2D textures; entry
+points must be named `main`. Windows compiles HLSL programs with `vs_5_0` and
+`ps_5_0` using the given entry points: vertex attribute `N` is read through the
+`TEXCOORDN` semantic, uniform slot `index` is the `b#` constant-buffer register,
+and texture slot `index` is both the `t#` texture and `s#` sampler register
+(linear filtering, clamped). Uniform buffer ranges at a nonzero offset need a
+Direct3D 11.1 runtime. Depth textures cannot be sampled by Windows custom
+shaders yet.
 
 On Wasm, custom GLSL ES programs may declare optional `float doofTime`,
 `vec2 doofViewport`, and `vec2 doofPointer` uniforms. The host updates them on
@@ -827,8 +869,9 @@ Helper functions:
 
 - Windows uses a Win32 app loop and D3D11 surface, with keyboard/mouse input,
   resizing, built-in colored/textured meshes, model batches, sky maps, space
-  dust, WIC textures, Radiance HDR textures, and WAV/generated sound. Metal
-  shader source and native gestures are not available on Windows.
+  dust, WIC textures, Radiance HDR textures, WAV/generated sound, and custom
+  HLSL shader pipelines. Metal shader source and native gestures are not
+  available on Windows.
 - Wasm uses WebGL 2 for built-in colored/textured meshes, model batches, sky
   maps, and space dust. Model batches use core WebGL 2 instancing and 32-bit
   element indices.

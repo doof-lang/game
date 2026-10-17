@@ -57,15 +57,18 @@ import {
   WindingMode,
   RenderPassDescriptor,
   ShaderBuffer,
-  ShaderBufferBinding,
   ShaderBytesBuilder,
-  ShaderBytesBinding,
   ShaderDraw,
   ShaderPipeline,
   ShaderPipelineDescriptor,
   ShaderProgram,
+  ShaderStages,
   ShaderTextureBinding,
+  ShaderTextureSlot,
+  ShaderUniformBinding,
+  ShaderUniformSlot,
   ShaderVertexAttribute,
+  ShaderVertexBufferBinding,
   ShaderVertexFormat,
   ShaderVertexLayout,
   ShaderVertexStepFunction,
@@ -446,6 +449,8 @@ function createShaderPipeline(surface: GameSurface): ShaderPipeline {
           stride: 24,
         },
       ],
+      uniforms: [ShaderUniformSlot { name: "Tint", index: 0, stages: ShaderStages.Fragment }],
+      textures: [ShaderTextureSlot { name: "tex", index: 0 }],
     },
   )!
 }
@@ -528,26 +533,24 @@ function compileShaderSmoke(texture: Texture, surface: GameSurface, pass: Render
   vertexBuffer := ShaderBuffer.create(surface, shaderVertexBytes())!
   instanceBuffer := ShaderBuffer.create(surface, shaderInstanceBytes())!
   indexBuffer := ShaderBuffer.create(surface, shaderIndexBytes())!
-  tint := ShaderBytesBinding.create(surface, 0, shaderTintBytes())!
+  tintBuffer := ShaderBuffer.allocate(surface, 16)!
+  tintBuffer.update(shaderTintBytes())!
+  tint := ShaderUniformBinding { name: "Tint", bytes: shaderTintBytes() }
+  bufferedTint := ShaderUniformBinding { name: "Tint", buffer: tintBuffer }
 
   drawShader(
     pass,
     ShaderDraw {
       pipeline,
       vertexBuffers: [
-        ShaderBufferBinding {
+        ShaderVertexBufferBinding {
           index: 0,
           buffer: vertexBuffer,
         },
       ],
       vertexCount: 3,
-      fragmentBytes: [tint],
-      fragmentTextures: [
-        ShaderTextureBinding {
-          index: 0,
-          texture,
-        },
-      ],
+      uniforms: [tint],
+      textures: [ShaderTextureBinding { name: "tex", texture }],
     },
   )!
 
@@ -556,20 +559,15 @@ function compileShaderSmoke(texture: Texture, surface: GameSurface, pass: Render
     ShaderDraw {
       pipeline,
       vertexBuffers: [
-        ShaderBufferBinding {
+        ShaderVertexBufferBinding {
           index: 0,
           buffer: vertexBuffer,
         },
       ],
       indexBuffer,
       indexCount: 3,
-      fragmentBytes: [tint],
-      fragmentTextures: [
-        ShaderTextureBinding {
-          index: 0,
-          texture,
-        },
-      ],
+      uniforms: [bufferedTint],
+      textures: [ShaderTextureBinding { name: "tex", texture }],
     },
   )!
 
@@ -579,11 +577,11 @@ function compileShaderSmoke(texture: Texture, surface: GameSurface, pass: Render
     ShaderDraw {
       pipeline: instancedPipeline,
       vertexBuffers: [
-        ShaderBufferBinding {
+        ShaderVertexBufferBinding {
           index: 0,
           buffer: vertexBuffer,
         },
-        ShaderBufferBinding {
+        ShaderVertexBufferBinding {
           index: 1,
           buffer: instanceBuffer,
         },
@@ -655,7 +653,7 @@ function compileShaderSmoke(texture: Texture, surface: GameSurface, pass: Render
     ShaderDraw {
       pipeline,
       vertexBuffers: [
-        ShaderBufferBinding {
+        ShaderVertexBufferBinding {
           index: 0,
           buffer: vertexBuffer,
         },
@@ -671,7 +669,7 @@ function compileShaderSmoke(texture: Texture, surface: GameSurface, pass: Render
     ShaderDraw {
       pipeline,
       vertexBuffers: [
-        ShaderBufferBinding {
+        ShaderVertexBufferBinding {
           index: 0,
           buffer: vertexBuffer,
         },

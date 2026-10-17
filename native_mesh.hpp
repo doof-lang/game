@@ -5,6 +5,7 @@
 #include <cstdint>
 #include <memory>
 #include <string>
+#include <vector>
 
 namespace doof_game {
 
@@ -148,6 +149,7 @@ public:
 
     int32_t byteLength() const;
     int64_t metalBufferHandle() const;
+    doof::Result<void, std::string> update(const std::shared_ptr<std::vector<uint8_t>>& data, int32_t offset);
 
 private:
     struct Impl;
@@ -169,7 +171,13 @@ public:
         const std::shared_ptr<std::vector<int32_t>>& layoutBuffers,
         const std::shared_ptr<std::vector<int32_t>>& layoutStrides,
         const std::shared_ptr<std::vector<int32_t>>& layoutStepFunctions,
-        const std::shared_ptr<std::vector<int32_t>>& layoutStepRates
+        const std::shared_ptr<std::vector<int32_t>>& layoutStepRates,
+        const std::shared_ptr<std::vector<std::string>>& uniformNames,
+        const std::shared_ptr<std::vector<int32_t>>& uniformIndices,
+        const std::shared_ptr<std::vector<int32_t>>& uniformStages,
+        const std::shared_ptr<std::vector<std::string>>& textureNames,
+        const std::shared_ptr<std::vector<int32_t>>& textureIndices,
+        const std::shared_ptr<std::vector<int32_t>>& textureStages
     );
     NativeShaderPipeline(
         void* device,
@@ -179,12 +187,15 @@ public:
         std::string vertexFunction,
         std::string fragmentFunction
     );
+
     ~NativeShaderPipeline();
 
     doof::Result<int64_t, std::string> metalPipelineHandle(int32_t blendMode, bool hasColorAttachment, bool hasDepthAttachment);
 
-private:
     struct Impl;
+    std::shared_ptr<Impl> impl() const { return impl_; }
+
+private:
     std::shared_ptr<Impl> impl_;
 };
 
@@ -428,14 +439,13 @@ doof::Result<void, std::string> drawNativeShader(
     const std::shared_ptr<std::vector<int32_t>>& vertexBufferIndices,
     const std::shared_ptr<std::vector<int64_t>>& vertexBufferHandles,
     const std::shared_ptr<std::vector<int32_t>>& vertexBufferOffsets,
-    const std::shared_ptr<std::vector<int32_t>>& vertexBytesIndices,
-    const std::shared_ptr<std::vector<int64_t>>& vertexBytesHandles,
-    const std::shared_ptr<std::vector<int32_t>>& vertexBytesOffsets,
-    const std::shared_ptr<std::vector<int32_t>>& fragmentBytesIndices,
-    const std::shared_ptr<std::vector<int64_t>>& fragmentBytesHandles,
-    const std::shared_ptr<std::vector<int32_t>>& fragmentBytesOffsets,
-    const std::shared_ptr<std::vector<int32_t>>& fragmentTextureIndices,
-    const std::shared_ptr<std::vector<int64_t>>& fragmentTextureHandles,
+    const std::shared_ptr<std::vector<int32_t>>& uniformSlots,
+    const std::shared_ptr<std::vector<int64_t>>& uniformBufferHandles,
+    const std::shared_ptr<std::vector<int32_t>>& uniformOffsets,
+    const std::shared_ptr<std::vector<int32_t>>& uniformLengths,
+    const std::shared_ptr<std::vector<uint8_t>>& uniformBytes,
+    const std::shared_ptr<std::vector<int32_t>>& textureSlots,
+    const std::shared_ptr<std::vector<int64_t>>& textureHandles,
     int64_t indexBufferHandle,
     int32_t indexCount,
     int32_t vertexCount,

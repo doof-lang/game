@@ -21,15 +21,17 @@ import {
   RenderPassDescriptor,
   Renderer,
   ShaderBuffer,
-  ShaderBufferBinding,
   ShaderBytesBuilder,
-  ShaderBytesBinding,
   ShaderDraw,
   ShaderPipeline,
   ShaderPipelineDescriptor,
   ShaderProgram,
   ShaderTextureBinding,
+  ShaderTextureSlot,
+  ShaderUniformBinding,
+  ShaderUniformSlot,
   ShaderVertexAttribute,
+  ShaderVertexBufferBinding,
   ShaderVertexFormat,
   ShaderVertexLayout,
   SimpleMesh,
@@ -294,6 +296,8 @@ function createShadowPipeline(surface: GameSurface): ShaderPipeline {
         ShaderVertexAttribute { attribute: 2, offset: 24, format: ShaderVertexFormat.Float4 },
       ],
       layouts: [ShaderVertexLayout { stride: VERTEX_STRIDE }],
+      uniforms: [ShaderUniformSlot { name: "Uniforms", index: 1 }],
+      textures: [ShaderTextureSlot { name: "shadowMap", index: 0 }],
     },
   )!
 }
@@ -433,16 +437,14 @@ function drawLitObject(
   eye: Point3,
   preset: ShadowPreset,
 ): none {
-  // The same uniform block feeds both stages, at different Metal buffer slots.
   bytes := objectUniformBytes(model, viewProjection, sun, eye, preset, object.material)
   drawShader(
     pass,
     ShaderDraw {
       pipeline: scene.pipeline,
-      vertexBuffers: [ShaderBufferBinding { index: 0, buffer: object.mesh.vertexBuffer }],
-      vertexBytes: [ShaderBytesBinding.create(pass.surface(), 1, bytes)!],
-      fragmentBytes: [ShaderBytesBinding.create(pass.surface(), 0, bytes)!],
-      fragmentTextures: [ShaderTextureBinding { index: 0, depthTexture: scene.shadowMap }],
+      vertexBuffers: [ShaderVertexBufferBinding { index: 0, buffer: object.mesh.vertexBuffer }],
+      uniforms: [ShaderUniformBinding { name: "Uniforms", bytes }],
+      textures: [ShaderTextureBinding { name: "shadowMap", depthTexture: scene.shadowMap }],
       indexBuffer: object.mesh.indexBuffer,
       indexCount: object.mesh.indexCount,
     },

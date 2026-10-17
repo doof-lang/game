@@ -79,14 +79,18 @@ export {
 } from "./gltf"
 export { mouseButtonCode, mouseButtonFromCode } from "./mouse"
 export {
+  SHADER_UNIFORM_BUFFER_OFFSET_ALIGNMENT,
   ShaderBuffer,
-  ShaderBufferBinding,
-  ShaderBytesBinding,
   ShaderDraw,
   ShaderPipeline,
   ShaderPipelineDescriptor,
+  ShaderStages,
   ShaderTextureBinding,
+  ShaderTextureSlot,
+  ShaderUniformBinding,
+  ShaderUniformSlot,
   ShaderVertexAttribute,
+  ShaderVertexBufferBinding,
   ShaderVertexFormat,
   ShaderVertexLayout,
   ShaderVertexStepFunction,

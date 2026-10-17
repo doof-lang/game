@@ -193,7 +193,7 @@ vertex VertexOut asteroid_vertex(VertexIn in [[stage_in]], constant Scene& scene
   return out;
 }
 
-fragment float4 asteroid_fragment(VertexOut in [[stage_in]], constant Scene& scene [[buffer(0)]]) {
+fragment float4 asteroid_fragment(VertexOut in [[stage_in]], constant Scene& scene [[buffer(2)]]) {
   float3 grit = float3(
     valueNoise(in.local * 14.0 + in.seed),
     valueNoise(in.local * 14.0 + in.seed + 19.1),
@@ -300,7 +300,7 @@ float3 planetColor(float3 n, float3 l, float3 v, float time) {
   return albedo * diffuse * terminator + atmosphere;
 }
 
-fragment BackdropFragment backdrop_fragment(BackdropOut in [[stage_in]], constant Scene& scene [[buffer(0)]]) {
+fragment BackdropFragment backdrop_fragment(BackdropOut in [[stage_in]], constant Scene& scene [[buffer(2)]]) {
   float4 farPoint = mulInverse(scene, float4(in.ndc, 1.0, 1.0));
   float3 origin = scene.cameraTime.xyz;
   float3 dir = normalize(farPoint.xyz / farPoint.w - origin);

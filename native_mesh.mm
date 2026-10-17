@@ -1,6 +1,7 @@
 #include "native_mesh_internal.hpp"
 
 #include <climits>
+#include <cstring>
 #include <memory>
 #include <string>
 #include <vector>
@@ -62,15 +63,14 @@ MTLVertexStepFunction shaderVertexStepFunction(int32_t stepFunction) {
     }
 }
 
-doof::Result<void, std::string> bindBuffers(
+doof::Result<void, std::string> bindVertexBuffers(
     id<MTLRenderCommandEncoder> encoder,
     const std::shared_ptr<std::vector<int32_t>>& indices,
     const std::shared_ptr<std::vector<int64_t>>& handles,
-    const std::shared_ptr<std::vector<int32_t>>& offsets,
-    bool fragment
+    const std::shared_ptr<std::vector<int32_t>>& offsets
 ) {
     if (!sameSize3(indices, handles, offsets)) {
-        return doof::Failure<std::string>{"Shader buffer binding arrays must have matching lengths"};
+        return doof::Failure<std::string>{"Shader vertex buffer binding arrays must have matching lengths"};
     }
 
     for (size_t i = 0; i < indices->size(); ++i) {
@@ -83,44 +83,7 @@ doof::Result<void, std::string> bindBuffers(
         }
         NSUInteger offset = static_cast<NSUInteger>((*offsets)[i]);
         NSUInteger index = static_cast<NSUInteger>((*indices)[i]);
-        if (fragment) {
-            [encoder setFragmentBuffer:buffer offset:offset atIndex:index];
-        } else {
-            [encoder setVertexBuffer:buffer offset:offset atIndex:index];
-        }
-    }
-    return doof::Success<void>{};
-}
-
-doof::Result<void, std::string> bindTextures(
-    id<MTLRenderCommandEncoder> encoder,
-    id<MTLDevice> device,
-    const std::shared_ptr<std::vector<int32_t>>& indices,
-    const std::shared_ptr<std::vector<int64_t>>& handles
-) {
-    if (!sameSize2(indices, handles)) {
-        return doof::Failure<std::string>{"Shader texture binding arrays must have matching lengths"};
-    }
-    if (indices->empty()) {
-        return doof::Success<void>{};
-    }
-
-    id<MTLSamplerState> sampler = native_mesh::linearSampler(device, MTLSamplerAddressModeClampToEdge);
-    if (sampler == nil) {
-        return doof::Failure<std::string>{"Failed to create shader texture sampler"};
-    }
-
-    for (size_t i = 0; i < indices->size(); ++i) {
-        if ((*indices)[i] < 0) {
-            return doof::Failure<std::string>{"Shader texture binding index must be non-negative"};
-        }
-        id<MTLTexture> texture = native_mesh::bridgeMetalHandle<id<MTLTexture>>((*handles)[i]);
-        if (texture == nil) {
-            return doof::Failure<std::string>{"Shader texture binding has an invalid Metal texture handle"};
-        }
-        NSUInteger index = static_cast<NSUInteger>((*indices)[i]);
-        [encoder setFragmentTexture:texture atIndex:index];
-        [encoder setFragmentSamplerState:sampler atIndex:index];
+        [encoder setVertexBuffer:buffer offset:offset atIndex:index];
     }
     return doof::Success<void>{};
 }
@@ -579,6 +542,14 @@ struct NativeShaderPipeline::Impl {
     id<MTLRenderPipelineState> pipelines[8] = {};
     bool attempted[8] = {};
     std::string errors[8];
+    // Declared uniform and texture slots, addressed by ordinal at draw time.
+    // Stage codes are bit masks: 1 = vertex, 2 = fragment.
+    struct Slot {
+        NSUInteger index = 0;
+        int32_t stages = 0;
+    };
+    std::vector<Slot> uniforms;
+    std::vector<Slot> textures;
 
     Impl(
         void* rawDevice,
@@ -912,6 +883,17 @@ int64_t NativeShaderBuffer::metalBufferHandle() const {
     return native_mesh::metalHandle(impl_->buffer);
 }
 
+doof::Result<void, std::string> NativeShaderBuffer::update(const std::shared_ptr<std::vector<uint8_t>>& data, int32_t offset) {
+    if (!data || data->empty()) {
+        return doof::Failure<std::string>{"Shader buffer update data must not be empty"};
+    }
+    if (offset < 0 || static_cast<size_t>(offset) + data->size() > static_cast<size_t>(impl_->byteLength)) {
+        return doof::Failure<std::string>{"Shader buffer update range exceeds the buffer"};
+    }
+    std::memcpy(static_cast<uint8_t*>([impl_->buffer contents]) + offset, data->data(), data->size());
+    return doof::Success<void>{};
+}
+
 doof::Result<std::shared_ptr<NativeShaderPipeline>, std::string> NativeShaderPipeline::create(
     int64_t metalDeviceHandle,
     const std::string& vertexSource,
@@ -925,8 +907,37 @@ doof::Result<std::shared_ptr<NativeShaderPipeline>, std::string> NativeShaderPip
     const std::shared_ptr<std::vector<int32_t>>& layoutBuffers,
     const std::shared_ptr<std::vector<int32_t>>& layoutStrides,
     const std::shared_ptr<std::vector<int32_t>>& layoutStepFunctions,
-    const std::shared_ptr<std::vector<int32_t>>& layoutStepRates
+    const std::shared_ptr<std::vector<int32_t>>& layoutStepRates,
+    const std::shared_ptr<std::vector<std::string>>& uniformNames,
+    const std::shared_ptr<std::vector<int32_t>>& uniformIndices,
+    const std::shared_ptr<std::vector<int32_t>>& uniformStages,
+    const std::shared_ptr<std::vector<std::string>>& textureNames,
+    const std::shared_ptr<std::vector<int32_t>>& textureIndices,
+    const std::shared_ptr<std::vector<int32_t>>& textureStages
 ) {
+    if (!uniformNames || !uniformIndices || !uniformStages
+        || uniformNames->size() != uniformIndices->size() || uniformNames->size() != uniformStages->size()) {
+        return doof::Failure<std::string>{"Shader uniform slot arrays must have matching lengths"};
+    }
+    if (!textureNames || !textureIndices || !textureStages
+        || textureNames->size() != textureIndices->size() || textureNames->size() != textureStages->size()) {
+        return doof::Failure<std::string>{"Shader texture slot arrays must have matching lengths"};
+    }
+    std::vector<NativeShaderPipeline::Impl::Slot> uniforms;
+    for (size_t i = 0; i < uniformIndices->size(); ++i) {
+        if ((*uniformIndices)[i] < 0 || ((*uniformStages)[i] & 3) == 0) {
+            return doof::Failure<std::string>{"Shader uniform slot index or stages are invalid"};
+        }
+        uniforms.push_back({static_cast<NSUInteger>((*uniformIndices)[i]), (*uniformStages)[i]});
+    }
+    std::vector<NativeShaderPipeline::Impl::Slot> textures;
+    for (size_t i = 0; i < textureIndices->size(); ++i) {
+        if ((*textureIndices)[i] < 0 || ((*textureStages)[i] & 3) == 0) {
+            return doof::Failure<std::string>{"Shader texture slot index or stages are invalid"};
+        }
+        textures.push_back({static_cast<NSUInteger>((*textureIndices)[i]), (*textureStages)[i]});
+    }
+
     id<MTLDevice> device = native_mesh::bridgeMetalHandle<id<MTLDevice>>(metalDeviceHandle);
     if (device == nil) {
         return doof::Failure<std::string>{"Metal device handle is invalid"};
@@ -1038,6 +1049,8 @@ doof::Result<std::shared_ptr<NativeShaderPipeline>, std::string> NativeShaderPip
         vertexFunction,
         fragmentFunction
     );
+    pipeline->impl()->uniforms = std::move(uniforms);
+    pipeline->impl()->textures = std::move(textures);
     [vertexDescriptor release];
     [fragmentLibrary release];
     [vertexLibrary release];
@@ -1372,19 +1385,123 @@ void drawNativeSimpleModelBatch(
               instanceCount:static_cast<NSUInteger>(batch->count())];
 }
 
+namespace {
+
+// setVertexBytes/setFragmentBytes copy at most 4 KiB into the command stream.
+constexpr size_t kInlineUniformLimit = 4096;
+
+doof::Result<void, std::string> bindUniforms(
+    id<MTLRenderCommandEncoder> encoder,
+    id<MTLDevice> device,
+    const NativeShaderPipeline::Impl& pipeline,
+    const std::shared_ptr<std::vector<int32_t>>& slots,
+    const std::shared_ptr<std::vector<int64_t>>& handles,
+    const std::shared_ptr<std::vector<int32_t>>& offsets,
+    const std::shared_ptr<std::vector<int32_t>>& lengths,
+    const std::shared_ptr<std::vector<uint8_t>>& bytes
+) {
+    if (!slots || !handles || !offsets || !lengths || !bytes
+        || slots->size() != handles->size() || slots->size() != offsets->size() || slots->size() != lengths->size()) {
+        return doof::Failure<std::string>{"Shader uniform binding arrays must have matching lengths"};
+    }
+    for (size_t i = 0; i < slots->size(); ++i) {
+        int32_t ordinal = (*slots)[i];
+        int32_t offset = (*offsets)[i];
+        int32_t length = (*lengths)[i];
+        if (ordinal < 0 || static_cast<size_t>(ordinal) >= pipeline.uniforms.size() || offset < 0 || length <= 0) {
+            return doof::Failure<std::string>{"Shader uniform binding is invalid"};
+        }
+        const auto& slot = pipeline.uniforms[static_cast<size_t>(ordinal)];
+        bool vertex = (slot.stages & 1) != 0;
+        bool fragment = (slot.stages & 2) != 0;
+
+        if ((*handles)[i] != 0) {
+            id<MTLBuffer> buffer = native_mesh::bridgeMetalHandle<id<MTLBuffer>>((*handles)[i]);
+            if (buffer == nil) {
+                return doof::Failure<std::string>{"Shader uniform binding has an invalid Metal buffer handle"};
+            }
+            if (vertex) [encoder setVertexBuffer:buffer offset:static_cast<NSUInteger>(offset) atIndex:slot.index];
+            if (fragment) [encoder setFragmentBuffer:buffer offset:static_cast<NSUInteger>(offset) atIndex:slot.index];
+            continue;
+        }
+
+        if (static_cast<size_t>(offset) + static_cast<size_t>(length) > bytes->size()) {
+            return doof::Failure<std::string>{"Shader uniform bytes are out of range"};
+        }
+        const uint8_t* data = bytes->data() + offset;
+        if (static_cast<size_t>(length) <= kInlineUniformLimit) {
+            if (vertex) [encoder setVertexBytes:data length:static_cast<NSUInteger>(length) atIndex:slot.index];
+            if (fragment) [encoder setFragmentBytes:data length:static_cast<NSUInteger>(length) atIndex:slot.index];
+            continue;
+        }
+        // Larger blocks go through a transient buffer; the command buffer
+        // retains it until the GPU has finished with it.
+        id<MTLBuffer> buffer = [device newBufferWithBytes:data length:static_cast<NSUInteger>(length) options:MTLResourceStorageModeShared];
+        if (buffer == nil) {
+            return doof::Failure<std::string>{"Failed to create transient shader uniform buffer"};
+        }
+        if (vertex) [encoder setVertexBuffer:buffer offset:0 atIndex:slot.index];
+        if (fragment) [encoder setFragmentBuffer:buffer offset:0 atIndex:slot.index];
+        [buffer release];
+    }
+    return doof::Success<void>{};
+}
+
+doof::Result<void, std::string> bindTextures(
+    id<MTLRenderCommandEncoder> encoder,
+    id<MTLDevice> device,
+    const NativeShaderPipeline::Impl& pipeline,
+    const std::shared_ptr<std::vector<int32_t>>& slots,
+    const std::shared_ptr<std::vector<int64_t>>& handles
+) {
+    if (!sameSize2(slots, handles)) {
+        return doof::Failure<std::string>{"Shader texture binding arrays must have matching lengths"};
+    }
+    if (slots->empty()) {
+        return doof::Success<void>{};
+    }
+
+    id<MTLSamplerState> sampler = native_mesh::linearSampler(device, MTLSamplerAddressModeClampToEdge);
+    if (sampler == nil) {
+        return doof::Failure<std::string>{"Failed to create shader texture sampler"};
+    }
+
+    for (size_t i = 0; i < slots->size(); ++i) {
+        int32_t ordinal = (*slots)[i];
+        if (ordinal < 0 || static_cast<size_t>(ordinal) >= pipeline.textures.size()) {
+            return doof::Failure<std::string>{"Shader texture binding is invalid"};
+        }
+        id<MTLTexture> texture = native_mesh::bridgeMetalHandle<id<MTLTexture>>((*handles)[i]);
+        if (texture == nil) {
+            return doof::Failure<std::string>{"Shader texture binding has an invalid Metal texture handle"};
+        }
+        const auto& slot = pipeline.textures[static_cast<size_t>(ordinal)];
+        if ((slot.stages & 1) != 0) {
+            [encoder setVertexTexture:texture atIndex:slot.index];
+            [encoder setVertexSamplerState:sampler atIndex:slot.index];
+        }
+        if ((slot.stages & 2) != 0) {
+            [encoder setFragmentTexture:texture atIndex:slot.index];
+            [encoder setFragmentSamplerState:sampler atIndex:slot.index];
+        }
+    }
+    return doof::Success<void>{};
+}
+
+}  // namespace
+
 doof::Result<void, std::string> drawNativeShader(
     std::shared_ptr<NativeShaderPipeline> pipeline,
     const std::shared_ptr<std::vector<int32_t>>& vertexBufferIndices,
     const std::shared_ptr<std::vector<int64_t>>& vertexBufferHandles,
     const std::shared_ptr<std::vector<int32_t>>& vertexBufferOffsets,
-    const std::shared_ptr<std::vector<int32_t>>& vertexBytesIndices,
-    const std::shared_ptr<std::vector<int64_t>>& vertexBytesHandles,
-    const std::shared_ptr<std::vector<int32_t>>& vertexBytesOffsets,
-    const std::shared_ptr<std::vector<int32_t>>& fragmentBytesIndices,
-    const std::shared_ptr<std::vector<int64_t>>& fragmentBytesHandles,
-    const std::shared_ptr<std::vector<int32_t>>& fragmentBytesOffsets,
-    const std::shared_ptr<std::vector<int32_t>>& fragmentTextureIndices,
-    const std::shared_ptr<std::vector<int64_t>>& fragmentTextureHandles,
+    const std::shared_ptr<std::vector<int32_t>>& uniformSlots,
+    const std::shared_ptr<std::vector<int64_t>>& uniformBufferHandles,
+    const std::shared_ptr<std::vector<int32_t>>& uniformOffsets,
+    const std::shared_ptr<std::vector<int32_t>>& uniformLengths,
+    const std::shared_ptr<std::vector<uint8_t>>& uniformBytes,
+    const std::shared_ptr<std::vector<int32_t>>& textureSlots,
+    const std::shared_ptr<std::vector<int64_t>>& textureHandles,
     int64_t indexBufferHandle,
     int32_t indexCount,
     int32_t vertexCount,
@@ -1412,23 +1529,17 @@ doof::Result<void, std::string> drawNativeShader(
         return doof::Failure<std::string>{"Shader pipeline handle is invalid"};
     }
 
-    auto boundVertexBuffers = bindBuffers(encoder, vertexBufferIndices, vertexBufferHandles, vertexBufferOffsets, false);
+    auto boundVertexBuffers = bindVertexBuffers(encoder, vertexBufferIndices, vertexBufferHandles, vertexBufferOffsets);
     if (doof::is_failure(boundVertexBuffers)) {
         return boundVertexBuffers;
     }
 
-    auto boundVertexBytes = bindBuffers(encoder, vertexBytesIndices, vertexBytesHandles, vertexBytesOffsets, false);
-    if (doof::is_failure(boundVertexBytes)) {
-        return boundVertexBytes;
+    auto boundUniforms = bindUniforms(encoder, metalPipeline.device, *pipeline->impl(), uniformSlots, uniformBufferHandles, uniformOffsets, uniformLengths, uniformBytes);
+    if (doof::is_failure(boundUniforms)) {
+        return boundUniforms;
     }
 
-    auto boundFragmentBytes = bindBuffers(encoder, fragmentBytesIndices, fragmentBytesHandles, fragmentBytesOffsets, true);
-    if (doof::is_failure(boundFragmentBytes)) {
-        return boundFragmentBytes;
-    }
-
-    id<MTLDevice> device = metalPipeline.device;
-    auto boundTextures = bindTextures(encoder, device, fragmentTextureIndices, fragmentTextureHandles);
+    auto boundTextures = bindTextures(encoder, metalPipeline.device, *pipeline->impl(), textureSlots, textureHandles);
     if (doof::is_failure(boundTextures)) {
         return boundTextures;
     }

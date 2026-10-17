@@ -132,7 +132,7 @@ vertex VertexOut shadow_scene_vertex(VertexIn in [[stage_in]], constant Uniforms
 
 fragment float4 shadow_scene_fragment(
   VertexOut in [[stage_in]],
-  constant Uniforms& uniforms [[buffer(0)]],
+  constant Uniforms& uniforms [[buffer(1)]],
   depth2d<float> shadowMap [[texture(0)]]
 ) {
   float3 n = normalize(in.normal);

@@ -1,7 +1,7 @@
 #include "native_mesh.hpp"
 
 #define NOMINMAX
-#include <d3d11.h>
+#include <d3d11_1.h>
 #include <d3dcompiler.h>
 #include <wrl/client.h>
 
@@ -402,10 +402,229 @@ struct NativeSpaceDust::Impl { ComPtr<ID3D11Device> device;ComPtr<ID3D11Buffer>b
 NativeSpaceDust::NativeSpaceDust(void*d,void*b,int32_t c):impl_(std::make_shared<Impl>(d,b,c)){}NativeSpaceDust::~NativeSpaceDust()=default;int32_t NativeSpaceDust::particleCount()const{return impl_->count;}int64_t NativeSpaceDust::metalDeviceHandle()const{return handle(impl_->device.Get());}int64_t NativeSpaceDust::metalParticleBufferHandle()const{return handle(impl_->buffer.Get());}
 std::shared_ptr<NativeSpaceDustBuilder> NativeSpaceDustBuilder::create(){return std::make_shared<NativeSpaceDustBuilder>();}NativeSpaceDustBuilder::NativeSpaceDustBuilder():impl_(std::make_shared<Impl>()){}NativeSpaceDustBuilder::~NativeSpaceDustBuilder()=default;std::shared_ptr<NativeSpaceDustBuilder> NativeSpaceDustBuilder::addParticle(double x,double y,double z,double b){impl_->particles.push_back(Particle{{float(x),float(y),float(z)},float(b)});return shared_from_this();}doof::Result<std::shared_ptr<NativeSpaceDust>,std::string> NativeSpaceDustBuilder::build(int64_t dh){auto*d=reinterpret_cast<ID3D11Device*>(dh);if(!d)return doof::Failure<std::string>{"D3D11 device handle is invalid"};if(impl_->particles.empty())return doof::Failure<std::string>{"Space dust has no particles"};auto b=immutableBuffer(d,impl_->particles,D3D11_BIND_VERTEX_BUFFER);if(!doof::is_success(b))return doof::Failure<std::string>{doof::failure_error(b)};return doof::Success<std::shared_ptr<NativeSpaceDust>>{std::make_shared<NativeSpaceDust>(d,doof::success_value(b).Get(),static_cast<int32_t>(impl_->particles.size()))};}
 
-struct NativeShaderBuffer::Impl{ComPtr<ID3D11Device>device;ComPtr<ID3D11Buffer>buffer;int32_t size;Impl(void*d,void*b,int32_t s):device(static_cast<ID3D11Device*>(d)),buffer(static_cast<ID3D11Buffer*>(b)),size(s){}};
-doof::Result<std::shared_ptr<NativeShaderBuffer>,std::string> NativeShaderBuffer::create(int64_t dh,const std::shared_ptr<std::vector<uint8_t>>&data){auto*d=reinterpret_cast<ID3D11Device*>(dh);if(!d||!data||data->empty())return doof::Failure<std::string>{"Shader buffer data is empty"};D3D11_BUFFER_DESC desc{};desc.ByteWidth=UINT((data->size()+15)&~size_t(15));desc.Usage=D3D11_USAGE_DEFAULT;desc.BindFlags=D3D11_BIND_CONSTANT_BUFFER;std::vector<uint8_t>padded(desc.ByteWidth);std::memcpy(padded.data(),data->data(),data->size());D3D11_SUBRESOURCE_DATA init{};init.pSysMem=padded.data();ComPtr<ID3D11Buffer>b;if(FAILED(d->CreateBuffer(&desc,&init,&b)))return doof::Failure<std::string>{"Failed to create shader buffer"};return doof::Success<std::shared_ptr<NativeShaderBuffer>>{std::make_shared<NativeShaderBuffer>(d,b.Get(),static_cast<int32_t>(data->size()))};}NativeShaderBuffer::NativeShaderBuffer(void*d,void*b,int32_t s):impl_(std::make_shared<Impl>(d,b,s)){}NativeShaderBuffer::~NativeShaderBuffer()=default;int32_t NativeShaderBuffer::byteLength()const{return impl_->size;}int64_t NativeShaderBuffer::metalBufferHandle()const{return handle(impl_->buffer.Get());}
+namespace {
+// Shader buffers keep a CPU copy and create one D3D11 buffer per role on first
+// use: D3D11 forbids combining D3D11_BIND_CONSTANT_BUFFER with other bind flags.
+struct ShaderBufferStorage {
+    ComPtr<ID3D11Device> device;
+    ComPtr<ID3D11Buffer> geometry;
+    ComPtr<ID3D11Buffer> constants;
+    int32_t size = 0;
+    // Padded to 256 bytes so constant-buffer ranges bound at 256-byte offsets
+    // always cover whole 16-constant blocks inside the buffer.
+    std::vector<uint8_t> contents;
 
-struct NativeShaderPipeline::Impl{};doof::Result<std::shared_ptr<NativeShaderPipeline>,std::string> NativeShaderPipeline::create(int64_t,const std::string&,const std::string&,const std::string&,const std::string&,const std::shared_ptr<std::vector<int32_t>>&,const std::shared_ptr<std::vector<int32_t>>&,const std::shared_ptr<std::vector<int32_t>>&,const std::shared_ptr<std::vector<int32_t>>&,const std::shared_ptr<std::vector<int32_t>>&,const std::shared_ptr<std::vector<int32_t>>&,const std::shared_ptr<std::vector<int32_t>>&,const std::shared_ptr<std::vector<int32_t>>&){return doof::Failure<std::string>{"Custom HLSL shaders are not implemented by the Windows D3D11 backend"};}NativeShaderPipeline::NativeShaderPipeline(void*,void*,void*,void*,std::string,std::string):impl_(std::make_shared<Impl>()){}NativeShaderPipeline::~NativeShaderPipeline()=default;doof::Result<int64_t,std::string> NativeShaderPipeline::metalPipelineHandle(int32_t,bool,bool){return doof::Failure<std::string>{"Custom shader pipelines are not implemented on Windows"};}
+    ID3D11Buffer* buffer(bool constant) {
+        ComPtr<ID3D11Buffer>& target = constant ? constants : geometry;
+        if (target || !device) return target.Get();
+        D3D11_BUFFER_DESC desc{};
+        desc.ByteWidth = static_cast<UINT>(contents.size());
+        desc.Usage = D3D11_USAGE_DEFAULT;
+        desc.BindFlags = constant ? D3D11_BIND_CONSTANT_BUFFER : (D3D11_BIND_VERTEX_BUFFER | D3D11_BIND_INDEX_BUFFER);
+        D3D11_SUBRESOURCE_DATA init{}; init.pSysMem = contents.data();
+        if (FAILED(device->CreateBuffer(&desc, &init, &target))) target.Reset();
+        return target.Get();
+    }
+};
+
+ShaderBufferStorage* shaderBufferStorage(int64_t value) { return reinterpret_cast<ShaderBufferStorage*>(value); }
+
+std::unordered_map<ID3D11Device*, ComPtr<ID3D11SamplerState>> shaderSamplers;
+
+ID3D11SamplerState* shaderClampSampler(ID3D11Device* device) {
+    std::lock_guard<std::mutex> lock(pipelineMutex);
+    auto& sampler = shaderSamplers[device];
+    if (!sampler) {
+        D3D11_SAMPLER_DESC desc{}; desc.Filter = D3D11_FILTER_MIN_MAG_MIP_LINEAR;
+        desc.AddressU = D3D11_TEXTURE_ADDRESS_CLAMP; desc.AddressV = D3D11_TEXTURE_ADDRESS_CLAMP; desc.AddressW = D3D11_TEXTURE_ADDRESS_CLAMP;
+        desc.MaxLOD = D3D11_FLOAT32_MAX;
+        if (FAILED(device->CreateSamplerState(&desc, &sampler))) sampler.Reset();
+    }
+    return sampler.Get();
+}
+
+doof::Result<ComPtr<ID3DBlob>, std::string> compileCustomShader(const std::string& source, const std::string& entry, const char* target, const char* label) {
+    ComPtr<ID3DBlob> code, errors;
+    if (FAILED(D3DCompile(source.data(), source.size(), label, nullptr, D3D_COMPILE_STANDARD_FILE_INCLUDE,
+        entry.c_str(), target, D3DCOMPILE_OPTIMIZATION_LEVEL3, 0, &code, &errors))) {
+        std::string message = std::string("Failed to compile ") + label;
+        if (errors) message += ": " + std::string(static_cast<const char*>(errors->GetBufferPointer()), errors->GetBufferSize());
+        while (!message.empty() && (message.back() == '\0' || message.back() == '\n' || message.back() == '\r')) message.pop_back();
+        return doof::Failure<std::string>{message};
+    }
+    return doof::Success<ComPtr<ID3DBlob>>{code};
+}
+
+DXGI_FORMAT shaderVertexFormat(int32_t format) {
+    switch (format) {
+        case 1: return DXGI_FORMAT_R32_FLOAT;
+        case 2: return DXGI_FORMAT_R32G32_FLOAT;
+        case 3: return DXGI_FORMAT_R32G32B32_FLOAT;
+        case 4: return DXGI_FORMAT_R32G32B32A32_FLOAT;
+        case 5: return DXGI_FORMAT_R32_UINT;
+        case 6: return DXGI_FORMAT_R8G8B8A8_UNORM;
+        default: return DXGI_FORMAT_UNKNOWN;
+    }
+}
+
+template <typename T> bool sameLength(const std::shared_ptr<std::vector<T>>& value, size_t size) { return value && value->size() == size; }
+} // namespace
+
+struct NativeShaderBuffer::Impl : ShaderBufferStorage { Impl(void* d, void*, int32_t s) { device = static_cast<ID3D11Device*>(d); size = s; } };
+doof::Result<std::shared_ptr<NativeShaderBuffer>, std::string> NativeShaderBuffer::create(int64_t dh, const std::shared_ptr<std::vector<uint8_t>>& data) {
+    auto* d = reinterpret_cast<ID3D11Device*>(dh);
+    if (!d) return doof::Failure<std::string>{"D3D11 device handle is invalid"};
+    if (!data || data->empty()) return doof::Failure<std::string>{"Shader buffer data must not be empty"};
+    if (data->size() > static_cast<size_t>(INT32_MAX - 255)) return doof::Failure<std::string>{"Shader buffer data is too large"};
+    auto shaderBuffer = std::make_shared<NativeShaderBuffer>(d, nullptr, static_cast<int32_t>(data->size()));
+    shaderBuffer->impl_->contents.assign((data->size() + 255) & ~size_t(255), 0);
+    std::memcpy(shaderBuffer->impl_->contents.data(), data->data(), data->size());
+    return doof::Success<std::shared_ptr<NativeShaderBuffer>>{shaderBuffer};
+}
+NativeShaderBuffer::NativeShaderBuffer(void* d, void* b, int32_t s) : impl_(std::make_shared<Impl>(d, b, s)) {}
+NativeShaderBuffer::~NativeShaderBuffer() = default;
+int32_t NativeShaderBuffer::byteLength() const { return impl_->size; }
+// Draws resolve this handle back to the storage and pick the role-specific buffer.
+int64_t NativeShaderBuffer::metalBufferHandle() const { return handle(static_cast<ShaderBufferStorage*>(impl_.get())); }
+doof::Result<void, std::string> NativeShaderBuffer::update(const std::shared_ptr<std::vector<uint8_t>>& data, int32_t offset) {
+    if (!data || data->empty()) return doof::Failure<std::string>{"Shader buffer update data must not be empty"};
+    if (offset < 0 || size_t(offset) + data->size() > size_t(impl_->size)) return doof::Failure<std::string>{"Shader buffer update range exceeds the buffer"};
+    std::memcpy(impl_->contents.data() + offset, data->data(), data->size());
+    if (!impl_->geometry && !impl_->constants) return doof::Success<void>{};
+    ComPtr<ID3D11DeviceContext> context; impl_->device->GetImmediateContext(&context);
+    if (!context) return doof::Failure<std::string>{"D3D11 device context is unavailable"};
+    // Constant buffers only accept whole-resource UpdateSubresource calls on D3D11.0.
+    if (impl_->constants) context->UpdateSubresource(impl_->constants.Get(), 0, nullptr, impl_->contents.data(), 0, 0);
+    if (impl_->geometry) {
+        D3D11_BOX box{}; box.left = UINT(offset); box.right = UINT(offset + data->size()); box.bottom = 1; box.back = 1;
+        context->UpdateSubresource(impl_->geometry.Get(), 0, &box, impl_->contents.data() + offset, 0, 0);
+    }
+    return doof::Success<void>{};
+}
+
+struct NativeShaderPipeline::Impl {
+    struct Slot { UINT index = 0; int32_t stages = 0; };
+    ComPtr<ID3D11Device> device;
+    ComPtr<ID3D11VertexShader> vertex;
+    ComPtr<ID3D11PixelShader> fragment;
+    ComPtr<ID3D11InputLayout> layout;
+    ComPtr<ID3D11BlendState> alphaBlend;
+    std::vector<UINT> strides; // indexed by vertex buffer slot; 0 = no layout
+    std::vector<Slot> uniforms;
+    std::vector<Slot> textures;
+    // One dynamic constant buffer per uniform slot for inline uniform bytes.
+    std::vector<ComPtr<ID3D11Buffer>> inlineUniforms;
+    std::vector<UINT> inlineCapacities;
+};
+
+doof::Result<std::shared_ptr<NativeShaderPipeline>, std::string> NativeShaderPipeline::create(
+    int64_t deviceHandle,
+    const std::string& vertexSource,
+    const std::string& fragmentSource,
+    const std::string& vertexFunction,
+    const std::string& fragmentFunction,
+    const std::shared_ptr<std::vector<int32_t>>& attributeIndices,
+    const std::shared_ptr<std::vector<int32_t>>& attributeBuffers,
+    const std::shared_ptr<std::vector<int32_t>>& attributeOffsets,
+    const std::shared_ptr<std::vector<int32_t>>& attributeFormats,
+    const std::shared_ptr<std::vector<int32_t>>& layoutBuffers,
+    const std::shared_ptr<std::vector<int32_t>>& layoutStrides,
+    const std::shared_ptr<std::vector<int32_t>>& layoutStepFunctions,
+    const std::shared_ptr<std::vector<int32_t>>& layoutStepRates,
+    const std::shared_ptr<std::vector<std::string>>& uniformNames,
+    const std::shared_ptr<std::vector<int32_t>>& uniformIndices,
+    const std::shared_ptr<std::vector<int32_t>>& uniformStages,
+    const std::shared_ptr<std::vector<std::string>>& textureNames,
+    const std::shared_ptr<std::vector<int32_t>>& textureIndices,
+    const std::shared_ptr<std::vector<int32_t>>& textureStages
+) {
+    if (!uniformNames || !sameLength(uniformIndices, uniformNames->size()) || !sameLength(uniformStages, uniformNames->size()))
+        return doof::Failure<std::string>{"Shader uniform slot arrays must have matching lengths"};
+    if (!textureNames || !sameLength(textureIndices, textureNames->size()) || !sameLength(textureStages, textureNames->size()))
+        return doof::Failure<std::string>{"Shader texture slot arrays must have matching lengths"};
+    auto impl = std::make_shared<Impl>();
+    for (size_t i = 0; i < uniformIndices->size(); ++i) {
+        int32_t index = (*uniformIndices)[i], stages = (*uniformStages)[i];
+        if (index < 0 || index >= D3D11_COMMONSHADER_CONSTANT_BUFFER_API_SLOT_COUNT || (stages & 3) == 0)
+            return doof::Failure<std::string>{"Shader uniform slot index or stages are invalid"};
+        impl->uniforms.push_back({UINT(index), stages});
+    }
+    for (size_t i = 0; i < textureIndices->size(); ++i) {
+        int32_t index = (*textureIndices)[i], stages = (*textureStages)[i];
+        if (index < 0 || index >= D3D11_COMMONSHADER_SAMPLER_SLOT_COUNT || (stages & 3) == 0)
+            return doof::Failure<std::string>{"Shader texture slot index or stages are invalid"};
+        impl->textures.push_back({UINT(index), stages});
+    }
+    impl->inlineUniforms.resize(impl->uniforms.size());
+    impl->inlineCapacities.resize(impl->uniforms.size());
+
+    auto* device = reinterpret_cast<ID3D11Device*>(deviceHandle);
+    if (!device) return doof::Failure<std::string>{"D3D11 device handle is invalid"};
+    if (vertexSource.empty()) return doof::Failure<std::string>{"Shader vertex source must not be empty"};
+    if (fragmentSource.empty()) return doof::Failure<std::string>{"Shader fragment source must not be empty"};
+    if (vertexFunction.empty()) return doof::Failure<std::string>{"Shader vertex function name must not be empty"};
+    if (fragmentFunction.empty()) return doof::Failure<std::string>{"Shader fragment function name must not be empty"};
+    if (!attributeIndices || !sameLength(attributeBuffers, attributeIndices->size()) ||
+        !sameLength(attributeOffsets, attributeIndices->size()) || !sameLength(attributeFormats, attributeIndices->size()))
+        return doof::Failure<std::string>{"Shader vertex attribute arrays must have matching lengths"};
+    if (!layoutBuffers || !sameLength(layoutStrides, layoutBuffers->size()) ||
+        !sameLength(layoutStepFunctions, layoutBuffers->size()) || !sameLength(layoutStepRates, layoutBuffers->size()))
+        return doof::Failure<std::string>{"Shader vertex layout arrays must have matching lengths"};
+
+    struct Layout { bool instanced = false; UINT stepRate = 0; };
+    std::vector<Layout> layouts;
+    for (size_t i = 0; i < layoutBuffers->size(); ++i) {
+        int32_t buffer = (*layoutBuffers)[i];
+        if (buffer < 0 || buffer >= D3D11_IA_VERTEX_INPUT_RESOURCE_SLOT_COUNT || (*layoutStrides)[i] <= 0 || (*layoutStepRates)[i] <= 0)
+            return doof::Failure<std::string>{"Shader vertex layout buffer index, stride, and step rate must be positive"};
+        int32_t step = (*layoutStepFunctions)[i];
+        if (step != 1 && step != 2) return doof::Failure<std::string>{"Shader vertex layout step function is invalid"};
+        if (impl->strides.size() <= size_t(buffer)) { impl->strides.resize(size_t(buffer) + 1); layouts.resize(size_t(buffer) + 1); }
+        impl->strides[size_t(buffer)] = UINT((*layoutStrides)[i]);
+        layouts[size_t(buffer)] = {step == 2, step == 2 ? UINT((*layoutStepRates)[i]) : 0};
+    }
+
+    // HLSL vertex inputs bind by semantic: attribute index N is TEXCOORDN.
+    std::vector<D3D11_INPUT_ELEMENT_DESC> elements;
+    for (size_t i = 0; i < attributeIndices->size(); ++i) {
+        int32_t index = (*attributeIndices)[i], buffer = (*attributeBuffers)[i], offset = (*attributeOffsets)[i];
+        if (index < 0 || buffer < 0 || offset < 0)
+            return doof::Failure<std::string>{"Shader vertex attribute index, buffer, and offset must be non-negative"};
+        DXGI_FORMAT format = shaderVertexFormat((*attributeFormats)[i]);
+        if (format == DXGI_FORMAT_UNKNOWN) return doof::Failure<std::string>{"Shader vertex attribute format is invalid"};
+        if (size_t(buffer) >= impl->strides.size() || impl->strides[size_t(buffer)] == 0)
+            return doof::Failure<std::string>{"Shader vertex attribute references a buffer without a layout"};
+        const Layout& layout = layouts[size_t(buffer)];
+        elements.push_back({"TEXCOORD", UINT(index), format, UINT(buffer), UINT(offset),
+            layout.instanced ? D3D11_INPUT_PER_INSTANCE_DATA : D3D11_INPUT_PER_VERTEX_DATA, layout.stepRate});
+    }
+
+    auto vertexCode = compileCustomShader(vertexSource, vertexFunction, "vs_5_0", "shader vertex source");
+    if (doof::is_failure(vertexCode)) return doof::Failure<std::string>{doof::failure_error(vertexCode)};
+    auto fragmentCode = compileCustomShader(fragmentSource, fragmentFunction, "ps_5_0", "shader fragment source");
+    if (doof::is_failure(fragmentCode)) return doof::Failure<std::string>{doof::failure_error(fragmentCode)};
+    auto vs = doof::success_value(vertexCode), ps = doof::success_value(fragmentCode);
+    impl->device = device;
+    if (FAILED(device->CreateVertexShader(vs->GetBufferPointer(), vs->GetBufferSize(), nullptr, &impl->vertex)))
+        return doof::Failure<std::string>{"Failed to create shader vertex function: " + vertexFunction};
+    if (FAILED(device->CreatePixelShader(ps->GetBufferPointer(), ps->GetBufferSize(), nullptr, &impl->fragment)))
+        return doof::Failure<std::string>{"Failed to create shader fragment function: " + fragmentFunction};
+    if (!elements.empty() && FAILED(device->CreateInputLayout(elements.data(), UINT(elements.size()), vs->GetBufferPointer(), vs->GetBufferSize(), &impl->layout)))
+        return doof::Failure<std::string>{"Failed to create shader input layout; vertex inputs must use TEXCOORD<attribute index> semantics"};
+    configureAlphaBlend(device, impl->alphaBlend);
+    if (!impl->alphaBlend) return doof::Failure<std::string>{"Failed to create shader blend state"};
+
+    auto pipeline = std::make_shared<NativeShaderPipeline>(device, nullptr, nullptr, nullptr, vertexFunction, fragmentFunction);
+    pipeline->impl_ = std::move(impl);
+    return doof::Success<std::shared_ptr<NativeShaderPipeline>>{pipeline};
+}
+NativeShaderPipeline::NativeShaderPipeline(void*, void*, void*, void*, std::string, std::string) : impl_(std::make_shared<Impl>()) {}
+NativeShaderPipeline::~NativeShaderPipeline() = default;
+// D3D11 has no monolithic pipeline object; blend and attachment state are applied per draw.
+doof::Result<int64_t, std::string> NativeShaderPipeline::metalPipelineHandle(int32_t, bool, bool) {
+    if (!impl_->device || !impl_->vertex || !impl_->fragment) return doof::Failure<std::string>{"Shader pipeline is invalid"};
+    return doof::Success<int64_t>{handle(impl_.get())};
+}
 
 void drawNativeSimpleMesh(
     std::shared_ptr<NativeSimpleMesh> mesh, int64_t contextHandle, int64_t deviceHandle, int32_t blendMode, bool hasColorAttachment, bool,
@@ -465,19 +684,145 @@ void drawNativeSpaceDust(
 }
 
 doof::Result<void,std::string> drawNativeShader(
-    std::shared_ptr<NativeShaderPipeline>,
-    const std::shared_ptr<std::vector<int32_t>>&,
-    const std::shared_ptr<std::vector<int64_t>>&,
-    const std::shared_ptr<std::vector<int32_t>>&,
-    const std::shared_ptr<std::vector<int32_t>>&,
-    const std::shared_ptr<std::vector<int64_t>>&,
-    const std::shared_ptr<std::vector<int32_t>>&,
-    const std::shared_ptr<std::vector<int32_t>>&,
-    const std::shared_ptr<std::vector<int64_t>>&,
-    const std::shared_ptr<std::vector<int32_t>>&,
-    const std::shared_ptr<std::vector<int32_t>>&,
-    const std::shared_ptr<std::vector<int64_t>>&,
-    int64_t,int32_t,int32_t,int32_t,int64_t,int32_t,bool,bool
-) { return doof::Failure<std::string>{"Custom shader drawing is not implemented on Windows"}; }
+    std::shared_ptr<NativeShaderPipeline> pipeline,
+    const std::shared_ptr<std::vector<int32_t>>& vertexBufferIndices,
+    const std::shared_ptr<std::vector<int64_t>>& vertexBufferHandles,
+    const std::shared_ptr<std::vector<int32_t>>& vertexBufferOffsets,
+    const std::shared_ptr<std::vector<int32_t>>& uniformSlots,
+    const std::shared_ptr<std::vector<int64_t>>& uniformBufferHandles,
+    const std::shared_ptr<std::vector<int32_t>>& uniformOffsets,
+    const std::shared_ptr<std::vector<int32_t>>& uniformLengths,
+    const std::shared_ptr<std::vector<uint8_t>>& uniformBytes,
+    const std::shared_ptr<std::vector<int32_t>>& textureSlots,
+    const std::shared_ptr<std::vector<int64_t>>& textureHandles,
+    int64_t indexBufferHandle,
+    int32_t indexCount,
+    int32_t vertexCount,
+    int32_t instanceCount,
+    int64_t contextHandle,
+    int32_t blendMode,
+    bool hasColorAttachment,
+    bool
+) {
+    if (!pipeline) return doof::Failure<std::string>{"Shader pipeline is required"};
+    auto& impl = *pipeline->impl();
+    if (!impl.device || !impl.vertex || !impl.fragment) return doof::Failure<std::string>{"Shader pipeline is invalid"};
+    auto* context = reinterpret_cast<ID3D11DeviceContext*>(contextHandle);
+    if (!context) return doof::Failure<std::string>{"D3D11 device context handle is invalid"};
+    if (instanceCount <= 0) return doof::Failure<std::string>{"Shader instance count must be positive"};
+    if (indexCount <= 0 && vertexCount <= 0) return doof::Failure<std::string>{"Shader vertex count must be positive for non-indexed draws"};
+    ID3D11Device* device = impl.device.Get();
+
+    if (!vertexBufferIndices || !sameLength(vertexBufferHandles, vertexBufferIndices->size()) || !sameLength(vertexBufferOffsets, vertexBufferIndices->size()))
+        return doof::Failure<std::string>{"Shader vertex buffer binding arrays must have matching lengths"};
+    for (size_t i = 0; i < vertexBufferIndices->size(); ++i) {
+        int32_t index = (*vertexBufferIndices)[i], offset = (*vertexBufferOffsets)[i];
+        if (index < 0 || offset < 0) return doof::Failure<std::string>{"Shader buffer binding index and offset must be non-negative"};
+        if (size_t(index) >= impl.strides.size() || impl.strides[size_t(index)] == 0)
+            return doof::Failure<std::string>{"Shader vertex buffer binding has no matching vertex layout"};
+        auto* storage = shaderBufferStorage((*vertexBufferHandles)[i]);
+        ID3D11Buffer* buffer = storage ? storage->buffer(false) : nullptr;
+        if (!buffer) return doof::Failure<std::string>{"Shader buffer binding has an invalid D3D11 buffer handle"};
+        UINT stride = impl.strides[size_t(index)], start = UINT(offset);
+        context->IASetVertexBuffers(UINT(index), 1, &buffer, &stride, &start);
+    }
+
+    if (!uniformSlots || !uniformBytes || !sameLength(uniformBufferHandles, uniformSlots->size()) ||
+        !sameLength(uniformOffsets, uniformSlots->size()) || !sameLength(uniformLengths, uniformSlots->size()))
+        return doof::Failure<std::string>{"Shader uniform binding arrays must have matching lengths"};
+    ComPtr<ID3D11DeviceContext1> context1;
+    for (size_t i = 0; i < uniformSlots->size(); ++i) {
+        int32_t ordinal = (*uniformSlots)[i], offset = (*uniformOffsets)[i], length = (*uniformLengths)[i];
+        if (ordinal < 0 || size_t(ordinal) >= impl.uniforms.size() || offset < 0 || length <= 0)
+            return doof::Failure<std::string>{"Shader uniform binding is invalid"};
+        const auto& slot = impl.uniforms[size_t(ordinal)];
+        bool vertex = (slot.stages & 1) != 0, fragment = (slot.stages & 2) != 0;
+
+        if ((*uniformBufferHandles)[i] != 0) {
+            auto* storage = shaderBufferStorage((*uniformBufferHandles)[i]);
+            ID3D11Buffer* buffer = storage ? storage->buffer(true) : nullptr;
+            if (!buffer) return doof::Failure<std::string>{"Shader uniform binding has an invalid D3D11 buffer handle"};
+            if (offset == 0 && length <= 65536) {
+                if (vertex) context->VSSetConstantBuffers(slot.index, 1, &buffer);
+                if (fragment) context->PSSetConstantBuffers(slot.index, 1, &buffer);
+                continue;
+            }
+            // Ranged binds need D3D11.1. Offsets arrive 256-byte aligned, which is
+            // the 16-constant granularity D3D11.1 requires; the count is rounded
+            // the same way and capped at the 4096 constants a shader can address.
+            if (!context1 && FAILED(context->QueryInterface(IID_PPV_ARGS(&context1))))
+                return doof::Failure<std::string>{"Shader uniform buffer offsets require Direct3D 11.1"};
+            UINT first = UINT(offset) / 16, count = std::min<UINT>((UINT(length) + 255u) / 256u * 16u, 4096u);
+            if (vertex) context1->VSSetConstantBuffers1(slot.index, 1, &buffer, &first, &count);
+            if (fragment) context1->PSSetConstantBuffers1(slot.index, 1, &buffer, &first, &count);
+            continue;
+        }
+
+        if (size_t(offset) + size_t(length) > uniformBytes->size()) return doof::Failure<std::string>{"Shader uniform bytes are out of range"};
+        if (length > 65536) return doof::Failure<std::string>{"Shader inline uniform bytes exceed the 64 KiB constant buffer limit"};
+        UINT padded = (UINT(length) + 15u) & ~15u;
+        auto& buffer = impl.inlineUniforms[size_t(ordinal)];
+        if (!buffer || impl.inlineCapacities[size_t(ordinal)] < padded) {
+            D3D11_BUFFER_DESC desc{}; desc.ByteWidth = padded; desc.Usage = D3D11_USAGE_DYNAMIC;
+            desc.BindFlags = D3D11_BIND_CONSTANT_BUFFER; desc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+            buffer.Reset();
+            if (FAILED(device->CreateBuffer(&desc, nullptr, &buffer))) return doof::Failure<std::string>{"Failed to create shader uniform buffer"};
+            impl.inlineCapacities[size_t(ordinal)] = padded;
+        }
+        D3D11_MAPPED_SUBRESOURCE mapped{};
+        if (FAILED(context->Map(buffer.Get(), 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped))) return doof::Failure<std::string>{"Failed to update shader uniform buffer"};
+        std::memset(mapped.pData, 0, impl.inlineCapacities[size_t(ordinal)]);
+        std::memcpy(mapped.pData, uniformBytes->data() + offset, size_t(length));
+        context->Unmap(buffer.Get(), 0);
+        ID3D11Buffer* raw = buffer.Get();
+        if (vertex) context->VSSetConstantBuffers(slot.index, 1, &raw);
+        if (fragment) context->PSSetConstantBuffers(slot.index, 1, &raw);
+    }
+
+    if (!textureSlots || !sameLength(textureHandles, textureSlots->size()))
+        return doof::Failure<std::string>{"Shader texture binding arrays must have matching lengths"};
+    ID3D11SamplerState* sampler = textureSlots->empty() ? nullptr : shaderClampSampler(device);
+    if (!textureSlots->empty() && !sampler) return doof::Failure<std::string>{"Failed to create shader texture sampler"};
+    std::vector<ComPtr<ID3D11ShaderResourceView>> views;
+    for (size_t i = 0; i < textureSlots->size(); ++i) {
+        int32_t ordinal = (*textureSlots)[i];
+        if (ordinal < 0 || size_t(ordinal) >= impl.textures.size()) return doof::Failure<std::string>{"Shader texture binding is invalid"};
+        // Depth textures hand out depth-stencil views, which cannot be sampled.
+        auto* view = reinterpret_cast<ID3D11View*>((*textureHandles)[i]);
+        ComPtr<ID3D11ShaderResourceView> texture;
+        if (!view || FAILED(view->QueryInterface(IID_PPV_ARGS(&texture))))
+            return doof::Failure<std::string>{"Shader texture binding has an invalid D3D11 shader resource view (depth textures cannot be sampled on Windows)"};
+        const auto& slot = impl.textures[size_t(ordinal)];
+        ID3D11ShaderResourceView* raw = texture.Get();
+        if ((slot.stages & 1) != 0) { context->VSSetShaderResources(slot.index, 1, &raw); context->VSSetSamplers(slot.index, 1, &sampler); }
+        if ((slot.stages & 2) != 0) { context->PSSetShaderResources(slot.index, 1, &raw); context->PSSetSamplers(slot.index, 1, &sampler); }
+        views.push_back(texture);
+    }
+
+    context->IASetInputLayout(impl.layout.Get());
+    context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+    context->VSSetShader(impl.vertex.Get(), nullptr, 0);
+    context->PSSetShader(hasColorAttachment ? impl.fragment.Get() : nullptr, nullptr, 0);
+    float factor[4]{};
+    context->OMSetBlendState(blendMode == 1 ? impl.alphaBlend.Get() : nullptr, factor, 0xffffffff);
+    if (indexCount > 0) {
+        auto* storage = shaderBufferStorage(indexBufferHandle);
+        ID3D11Buffer* indices = storage ? storage->buffer(false) : nullptr;
+        if (!indices) return doof::Failure<std::string>{"Shader index buffer handle is invalid"};
+        context->IASetIndexBuffer(indices, DXGI_FORMAT_R32_UINT, 0);
+        context->DrawIndexedInstanced(UINT(indexCount), UINT(instanceCount), 0, 0, 0);
+    } else {
+        context->DrawInstanced(UINT(vertexCount), UINT(instanceCount), 0, 0);
+    }
+
+    // Unbind sampled views so a texture can become a render target in a later pass.
+    ID3D11ShaderResourceView* none = nullptr;
+    for (size_t i = 0; i < textureSlots->size(); ++i) {
+        const auto& slot = impl.textures[size_t((*textureSlots)[i])];
+        if ((slot.stages & 1) != 0) context->VSSetShaderResources(slot.index, 1, &none);
+        if ((slot.stages & 2) != 0) context->PSSetShaderResources(slot.index, 1, &none);
+    }
+    return doof::Success<void>{};
+}
 
 } // namespace doof_game

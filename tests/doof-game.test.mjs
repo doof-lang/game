@@ -19,6 +19,12 @@ class FakeWebGL2 {
     this.FRAGMENT_SHADER = 35632;
     this.COMPILE_STATUS = 35713;
     this.LINK_STATUS = 35714;
+    this.UNIFORM_BUFFER = 35345;
+    this.UNIFORM_BLOCK_DATA_SIZE = 35392;
+    this.INVALID_INDEX = 4294967295;
+    this.TEXTURE_2D = 3553;
+    this.TEXTURE0 = 33984;
+    this.uniformBlocks = new Map([["Material", 0]]);
   }
   record(name, ...args) { this.calls.push([name, ...args]); }
   createBuffer() { const value = {}; this.record("createBuffer", value); return value; }
@@ -54,13 +60,26 @@ class FakeWebGL2 {
   uniform1f(...args) { this.record("uniform1f", ...args); }
   uniform2f(...args) { this.record("uniform2f", ...args); }
   uniform3f(...args) { this.record("uniform3f", ...args); }
+  uniform1i(...args) { this.record("uniform1i", ...args); }
+  getUniformBlockIndex(program, name) { return this.uniformBlocks.has(name) ? this.uniformBlocks.get(name) : this.INVALID_INDEX; }
+  uniformBlockBinding(...args) { this.record("uniformBlockBinding", ...args); }
+  getActiveUniformBlockParameter() { return 32; }
+  bindBufferBase(...args) { this.record("bindBufferBase", ...args); }
+  bindBufferRange(...args) { this.record("bindBufferRange", ...args); }
+  activeTexture(...args) { this.record("activeTexture", ...args); }
+  bindTexture(...args) { this.record("bindTexture", ...args); }
+  createTexture() { return {}; }
+  deleteTexture() {}
+  texParameteri() {}
+  pixelStorei() {}
+  texImage2D() {}
   drawElementsInstanced(...args) { this.record("drawElementsInstanced", ...args); }
   drawElements(...args) { this.record("drawElements", ...args); }
   drawArraysInstanced(...args) { this.record("drawArraysInstanced", ...args); }
   drawArrays(...args) { this.record("drawArrays", ...args); }
 }
 
-function harness() {
+function harness(onError = error => { throw error; }) {
   const gl = new FakeWebGL2();
   const canvas = {
     style: {}, clientWidth: 640, clientHeight: 360, width: 0, height: 0,
@@ -75,7 +94,7 @@ function harness() {
     getElementById() { return null; },
     createElement(kind) { assert.equal(kind, "canvas"); return canvas; },
   };
-  const bridge = __testing.createGameBridge(document, error => { throw error; }, new Map());
+  const bridge = __testing.createGameBridge(document, onError, new Map());
   const memory = new ArrayBuffer(65536);
   bridge.attach({ exports: { memory: { buffer: memory } } });
   const bytes = new Uint8Array(memory);
@@ -141,6 +160,7 @@ test("compiles and draws a custom WebGL 2 shader", () => {
     window, vertexSource, fragmentSource,
     descriptorPointer, descriptorPointer+8, descriptorPointer+16, descriptorPointer+24, 2,
     descriptorPointer+32, descriptorPointer+36, descriptorPointer+40, descriptorPointer+44, 1,
+    0, 0, 0, 0,
   );
   assert.ok(pipeline > 0);
 
@@ -151,7 +171,7 @@ test("compiles and draws a custom WebGL 2 shader", () => {
   const buffer = imports.shader_buffer_create(window, vertexPointer, 72);
   const bindingPointer = 8192;
   new Int32Array(memory, bindingPointer, 3).set([0,buffer,0]);
-  assert.equal(imports.shader_draw(window,pipeline,bindingPointer,bindingPointer+4,bindingPointer+8,1,0,0,3,1),1);
+  assert.equal(imports.shader_draw(window,pipeline,bindingPointer,bindingPointer+4,bindingPointer+8,1,0,0,0,0,0,0,0,0,0,0,0,0,3,1),1);
 
   assert.ok(gl.calls.some(([name, location, size, type, normalized, stride, offset]) =>
     name === "vertexAttribPointer" && location === 0 && size === 2 && type === gl.FLOAT
@@ -167,4 +187,118 @@ test("compiles and draws a custom WebGL 2 shader", () => {
   imports.resource_delete(window,3,buffer);
   imports.resource_delete(window,4,pipeline);
   assert.ok(gl.calls.some(([name]) => name === "deleteProgram"));
+});
+
+function nameTable(memory, write, pointer, names) {
+  const table = new Uint32Array(memory, pointer, names.length);
+  let offset = pointer + 64;
+  names.forEach((name, i) => { table[i] = write(offset, name); offset += name.length + 1; });
+  return pointer;
+}
+
+function createSlottedPipeline({ bridge, memory, write }, window, uniformNames, textureNames) {
+  const imports = bridge.imports;
+  const vertexSource = write(256, "#version 300 es\nlayout(location=0) in vec2 position;void main(){gl_Position=vec4(position,0,1);}");
+  const fragmentSource = write(768, "#version 300 es\nprecision mediump float;uniform sampler2D albedo;layout(std140) uniform Material{vec4 tint;};out vec4 color;void main(){color=texture(albedo,vec2(0.5))*tint;}");
+  const descriptorPointer = 2048;
+  new Int32Array(memory, descriptorPointer, 8).set([0, 0, 0, 2, 0, 8, 1, 1]);
+  return imports.shader_pipeline_create(
+    window, vertexSource, fragmentSource,
+    descriptorPointer, descriptorPointer+4, descriptorPointer+8, descriptorPointer+12, 1,
+    descriptorPointer+16, descriptorPointer+20, descriptorPointer+24, descriptorPointer+28, 1,
+    nameTable(memory, write, 12288, uniformNames), uniformNames.length,
+    nameTable(memory, write, 13312, textureNames), textureNames.length,
+  );
+}
+
+test("binds WebGL 2 uniform blocks, textures, and index buffers by slot", () => {
+  const context = harness();
+  const { bridge, gl, memory, write } = context;
+  const imports = bridge.imports;
+  const window = imports.window_create(write(64, "Slot test"), 640, 360, 1);
+  const pipeline = createSlottedPipeline(context, window, ["Material"], ["albedo"]);
+  assert.ok(pipeline > 0);
+  assert.ok(gl.calls.some(([name, , blockIndex, binding]) => name === "uniformBlockBinding" && blockIndex === 0 && binding === 0));
+  assert.ok(gl.calls.some(([name, location, unit]) => name === "uniform1i" && location.name === "albedo" && unit === 0));
+
+  const vertexPointer = 4096;
+  new Float32Array(memory, vertexPointer, 6).set([-1, -1, 1, -1, 0, 1]);
+  const vertices = imports.shader_buffer_create(window, vertexPointer, 24);
+  const indexPointer = 4352;
+  new Uint32Array(memory, indexPointer, 3).set([0, 1, 2]);
+  const indices = imports.shader_buffer_create(window, indexPointer, 12);
+  const texturePointer = 4608;
+  new Uint8Array(memory, texturePointer, 4).set([255, 255, 255, 255]);
+  const texture = imports.texture_rgba(window, texturePointer, 4, 1, 1);
+
+  const bindingPointer = 8192;
+  new Int32Array(memory, bindingPointer, 3).set([0, vertices, 0]);
+  const uniformPointer = 9216;
+  new Int32Array(memory, uniformPointer, 4).set([0, 0, 0, 16]);
+  const bytesPointer = 9472;
+  new Float32Array(memory, bytesPointer, 4).set([1, 0.5, 0.25, 1]);
+  const texturesPointer = 9728;
+  new Int32Array(memory, texturesPointer, 2).set([0, texture]);
+  gl.calls.length = 0;
+  assert.equal(imports.shader_draw(window, pipeline,
+    bindingPointer, bindingPointer+4, bindingPointer+8, 1,
+    uniformPointer, uniformPointer+4, uniformPointer+8, uniformPointer+12, 1, bytesPointer, 16,
+    texturesPointer, texturesPointer+4, 1,
+    indices, 3, 0, 1), 1);
+
+  // Short inline bytes are padded to the block size the linker reported.
+  assert.ok(gl.calls.some(([name, target, data, usage]) =>
+    name === "bufferData" && target === gl.UNIFORM_BUFFER && data.length === 32 && usage === gl.DYNAMIC_DRAW));
+  assert.ok(gl.calls.some(([name, target, binding]) => name === "bindBufferBase" && target === gl.UNIFORM_BUFFER && binding === 0));
+  assert.ok(gl.calls.some(([name, unit]) => name === "activeTexture" && unit === gl.TEXTURE0));
+  assert.ok(gl.calls.some(([name, target]) => name === "bindTexture" && target === gl.TEXTURE_2D));
+  // The index buffer gets its own GL buffer created on the element target.
+  const elementUploads = gl.calls.filter(([name, target]) => name === "bufferData" && target === gl.ELEMENT_ARRAY_BUFFER);
+  assert.equal(elementUploads.length, 1);
+  assert.ok(gl.calls.some(([name, mode, count]) => name === "drawElements" && mode === gl.TRIANGLES && count === 3));
+});
+
+test("binds persistent WebGL 2 uniform buffer ranges and updates them in place", () => {
+  const context = harness();
+  const { bridge, gl, memory, write } = context;
+  const imports = bridge.imports;
+  const window = imports.window_create(write(64, "Update test"), 640, 360, 1);
+  const pipeline = createSlottedPipeline(context, window, ["Material"], []);
+  const vertexPointer = 4096;
+  new Float32Array(memory, vertexPointer, 6).set([-1, -1, 1, -1, 0, 1]);
+  const vertices = imports.shader_buffer_create(window, vertexPointer, 24);
+  const uniformDataPointer = 4352;
+  new Float32Array(memory, uniformDataPointer, 8).fill(1);
+  const uniforms = imports.shader_buffer_create(window, uniformDataPointer, 32);
+
+  const bindingPointer = 8192;
+  new Int32Array(memory, bindingPointer, 3).set([0, vertices, 0]);
+  const uniformPointer = 9216;
+  new Int32Array(memory, uniformPointer, 4).set([0, uniforms, 0, 32]);
+  const draw = () => imports.shader_draw(window, pipeline,
+    bindingPointer, bindingPointer+4, bindingPointer+8, 1,
+    uniformPointer, uniformPointer+4, uniformPointer+8, uniformPointer+12, 1, 0, 0,
+    0, 0, 0, 0, 0, 3, 1);
+  assert.equal(draw(), 1);
+  assert.ok(gl.calls.some(([name, target, binding, , offset, size]) =>
+    name === "bindBufferRange" && target === gl.UNIFORM_BUFFER && binding === 0 && offset === 0 && size === 32));
+
+  const updatePointer = 4608;
+  new Float32Array(memory, updatePointer, 4).set([0, 0, 0, 0]);
+  gl.calls.length = 0;
+  assert.equal(imports.shader_buffer_update(window, uniforms, updatePointer, 16, 16), 1);
+  assert.ok(gl.calls.some(([name, target, offset, values]) =>
+    name === "bufferSubData" && target === gl.ARRAY_BUFFER && offset === 16 && values.length === 16));
+  assert.equal(imports.shader_buffer_update(window, uniforms, updatePointer, 16, 24), 0);
+});
+
+test("rejects WebGL 2 pipelines whose uniform blocks are missing", () => {
+  const errors = [];
+  const context = harness(error => errors.push(error));
+  const imports = context.bridge.imports;
+  const window = imports.window_create(context.write(64, "Missing block"), 640, 360, 1);
+  const pipeline = createSlottedPipeline(context, window, ["Lights"], []);
+  assert.equal(pipeline, 0);
+  assert.match(errors[0].message, /no uniform block named 'Lights'/);
+  assert.ok(context.gl.calls.some(([name]) => name === "deleteProgram"));
 });

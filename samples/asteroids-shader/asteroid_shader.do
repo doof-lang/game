@@ -8,14 +8,15 @@ import {
   RenderPass,
   SimpleMeshSpec,
   ShaderBuffer,
-  ShaderBufferBinding,
   ShaderBytesBuilder,
-  ShaderBytesBinding,
   ShaderDraw,
   ShaderPipeline,
   ShaderPipelineDescriptor,
   ShaderProgram,
+  ShaderUniformBinding,
+  ShaderUniformSlot,
   ShaderVertexAttribute,
+  ShaderVertexBufferBinding,
   ShaderVertexFormat,
   ShaderVertexLayout,
   ShaderVertexStepFunction,
@@ -29,7 +30,12 @@ readonly ASTEROID_SUBDIVISIONS = 4
 readonly ASTEROID_VERTEX_STRIDE = 12
 readonly ASTEROID_INSTANCE_STRIDE = 64
 readonly BACKDROP_VERTEX_STRIDE = 8
-readonly SHADER_PATH = "shaders/asteroid.metal"
+// Doof has no build-target switch, so each backend's shader is tried in turn:
+// Metal compiles on macOS and iOS, HLSL on Windows.
+readonly SHADER_PATHS = ["shaders/asteroid.metal", "shaders/asteroid.hlsl"]
+// Both pipelines read the scene block at Metal buffer index 2 (HLSL register
+// b2), clear of the asteroid vertex (0) and instance (1) buffers.
+readonly SCENE_UNIFORMS = ShaderUniformSlot { name: "Scene", index: 2 }
 
 // The belt is a flattened ring around the planet at the origin. The camera
 // flies along its middle, so a tunnel around that path is kept clear.
@@ -175,20 +181,25 @@ function createPipeline(
   fragmentFunction: string,
   attributes: readonly ShaderVertexAttribute[],
   layouts: readonly ShaderVertexLayout[],
-): ShaderPipeline {
+): Result<ShaderPipeline, string> {
   return ShaderPipeline(
     surface,
     ShaderPipelineDescriptor {
       program: ShaderProgram { vertexSource: source, vertexFunction, fragmentFunction },
       attributes,
       layouts,
+      uniforms: [SCENE_UNIFORMS],
     },
-  )!
+  )
 }
 
-export function createAsteroidShaderResources(surface: GameSurface): AsteroidShaderResources {
-  source := readTextResource(SHADER_PATH)!
-  asteroidPipeline := createPipeline(
+class AsteroidPipelines {
+  asteroid: ShaderPipeline
+  backdrop: ShaderPipeline
+}
+
+function createPipelines(surface: GameSurface, source: string): Result<AsteroidPipelines, string> {
+  try asteroid := createPipeline(
     surface,
     source,
     "asteroid_vertex",
@@ -209,7 +220,7 @@ export function createAsteroidShaderResources(surface: GameSurface): AsteroidSha
       },
     ],
   )
-  backdropPipeline := createPipeline(
+  try backdrop := createPipeline(
     surface,
     source,
     "backdrop_vertex",
@@ -217,11 +228,28 @@ export function createAsteroidShaderResources(surface: GameSurface): AsteroidSha
     [ShaderVertexAttribute { attribute: 0, buffer: 0, offset: 0, format: ShaderVertexFormat.Float2 }],
     [ShaderVertexLayout { buffer: 0, stride: BACKDROP_VERTEX_STRIDE }],
   )
+  return Success(AsteroidPipelines { asteroid, backdrop })
+}
 
+function createPlatformPipelines(surface: GameSurface): AsteroidPipelines {
+  let errors = ""
+  for path of SHADER_PATHS {
+    source := readTextResource(path)!
+    pipelines := createPipelines(surface, source) else error {
+      errors = errors + "\n${path}: ${error}"
+      continue
+    }
+    return pipelines
+  }
+  panic("No asteroid shader compiled for this backend:${errors}")
+}
+
+export function createAsteroidShaderResources(surface: GameSurface): AsteroidShaderResources {
+  pipelines := createPlatformPipelines(surface)
   geometry := createIcosphereMeshSpec{ subdivisions: ASTEROID_SUBDIVISIONS }
   return AsteroidShaderResources {
-    asteroidPipeline,
-    backdropPipeline,
+    asteroidPipeline: pipelines.asteroid,
+    backdropPipeline: pipelines.backdrop,
     vertexBuffer: ShaderBuffer.create(surface, asteroidVertexBytes(geometry))!,
     indexBuffer: ShaderBuffer.create(surface, asteroidIndexBytes(geometry))!,
     instanceBuffer: ShaderBuffer.create(surface, asteroidInstanceBytes())!,
@@ -239,16 +267,16 @@ export function drawAsteroidField(
   time: double,
   sun: Sun,
 ): none {
-  bytes := sceneUniformBytes(viewProjection, cameraPosition, time, sun)
-  fragmentScene := ShaderBytesBinding.create(pass.surface(), 0, bytes)!
+  // Both draws copy the scene block inline; no per-frame buffer allocation.
+  scene := ShaderUniformBinding { name: SCENE_UNIFORMS.name, bytes: sceneUniformBytes(viewProjection, cameraPosition, time, sun) }
 
   drawShader(
     pass,
     ShaderDraw {
       pipeline: resources.backdropPipeline,
-      vertexBuffers: [ShaderBufferBinding { index: 0, buffer: resources.backdropBuffer }],
+      vertexBuffers: [ShaderVertexBufferBinding { index: 0, buffer: resources.backdropBuffer }],
       vertexCount: 3,
-      fragmentBytes: [fragmentScene],
+      uniforms: [scene],
     },
   )!
 
@@ -257,14 +285,13 @@ export function drawAsteroidField(
     ShaderDraw {
       pipeline: resources.asteroidPipeline,
       vertexBuffers: [
-        ShaderBufferBinding { index: 0, buffer: resources.vertexBuffer },
-        ShaderBufferBinding { index: 1, buffer: resources.instanceBuffer },
+        ShaderVertexBufferBinding { index: 0, buffer: resources.vertexBuffer },
+        ShaderVertexBufferBinding { index: 1, buffer: resources.instanceBuffer },
       ],
       indexBuffer: resources.indexBuffer,
       indexCount: resources.indexCount,
       instanceCount: ASTEROID_COUNT,
-      vertexBytes: [ShaderBytesBinding.create(pass.surface(), 2, bytes)!],
-      fragmentBytes: [fragmentScene],
+      uniforms: [scene],
     },
   )!
 }

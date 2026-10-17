@@ -7,6 +7,12 @@ backdrop, uploads an interleaved position/barycentric buffer, and renders a
 WebGL 2 `layout(location = ...)` locations and draws through the shared
 `ShaderPipeline` and `drawShader` API.
 
+It also covers each uniform and texture path: the prism `Field` block is copied
+inline per draw, the backdrop `Backdrop` block lives in a persistent
+`ShaderBuffer` rewritten with `update(...)` every frame, and the prism hue ramp
+is sampled from a generated `palette` texture. Each is declared as a named
+`ShaderUniformSlot` or `ShaderTextureSlot` and bound by that name.
+
 ```sh
 doof build game/samples/custom-shader-web
 cd game/samples/custom-shader-web/build
@@ -15,9 +21,8 @@ python3 -m http.server 8080
 
 Open `http://localhost:8080/web/`.
 
-The current WebGL 2 custom path supports vertex buffers, `uint32` index buffers,
-non-indexed draws, and instancing. Uniform-byte and texture bindings report an
-explicit not-implemented error.
+The WebGL 2 custom path supports vertex buffers, `uint32` index buffers,
+non-indexed draws, instancing, `std140` uniform blocks, and 2D textures.
 
 The Wasm host also supplies optional `doofTime`, `doofViewport`, and
 `doofPointer` GLSL uniforms when a custom program declares them. Time is in

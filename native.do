@@ -208,6 +208,7 @@ export import class NativeShaderBuffer from "native_mesh.hpp" as doof_game::Nati
   isolated static create(metalDeviceHandle: long, data: readonly byte[]): Result<NativeShaderBuffer, string>
   isolated byteLength(): int
   isolated metalBufferHandle(): long
+  isolated update(data: readonly byte[], offset: int): Result<none, string>
 }
 
 export import class NativeShaderPipeline from "native_mesh.hpp" as doof_game::NativeShaderPipeline {
@@ -225,6 +226,12 @@ export import class NativeShaderPipeline from "native_mesh.hpp" as doof_game::Na
     layoutStrides: int[],
     layoutStepFunctions: int[],
     layoutStepRates: int[],
+    uniformNames: string[],
+    uniformIndices: int[],
+    uniformStages: int[],
+    textureNames: string[],
+    textureIndices: int[],
+    textureStages: int[],
   ): Result<NativeShaderPipeline, string>
 }
 
@@ -412,14 +419,13 @@ export import function drawNativeShader(
   vertexBufferIndices: int[],
   vertexBufferHandles: long[],
   vertexBufferOffsets: int[],
-  vertexBytesIndices: int[],
-  vertexBytesHandles: long[],
-  vertexBytesOffsets: int[],
-  fragmentBytesIndices: int[],
-  fragmentBytesHandles: long[],
-  fragmentBytesOffsets: int[],
-  fragmentTextureIndices: int[],
-  fragmentTextureHandles: long[],
+  uniformSlots: int[],
+  uniformBufferHandles: long[],
+  uniformOffsets: int[],
+  uniformLengths: int[],
+  uniformBytes: readonly byte[],
+  textureSlots: int[],
+  textureHandles: long[],
   indexBufferHandle: long,
   indexCount: int,
   vertexCount: int,

@@ -8,6 +8,11 @@ out vec4 fragmentColor;
 uniform float doofTime;
 uniform vec2 doofPointer;
 
+layout(std140) uniform Backdrop {
+  // x scales the core glow; updated in place every frame.
+  vec4 glow;
+};
+
 float hash(vec2 point) {
   return fract(sin(dot(point, vec2(127.1, 311.7))) * 43758.5453123);
 }
@@ -32,7 +37,7 @@ void main() {
 
   vec3 base = mix(vec3(0.004, 0.006, 0.022), vec3(0.018, 0.035, 0.082), uv.y);
   base += vec3(0.018, 0.038, 0.095) * vignette;
-  base += mix(vec3(0.12, 0.025, 0.19), vec3(0.0, 0.22, 0.26), spectral) * core * 0.54;
+  base += mix(vec3(0.12, 0.025, 0.19), vec3(0.0, 0.22, 0.26), spectral) * core * 0.54 * glow.x;
   base += mix(vec3(0.17, 0.04, 0.24), vec3(0.01, 0.27, 0.34), spectral) * halo * 0.18;
   base += vec3(0.13, 0.19, 0.35) * outerHalo * 0.055;
   base += vec3(0.11, 0.17, 0.29) * grid * 0.045 * vignette;

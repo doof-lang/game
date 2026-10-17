@@ -53,6 +53,18 @@ function createGameBridge(document, onError, textureAssets) {
   };
   const doubles = (pointer, count) => Array.from(new Float64Array(memory(), pointer, count));
   const ints = (pointer, count) => Array.from(new Int32Array(memory(), pointer, count));
+  const strings = (pointer, count) => Array.from(new Uint32Array(memory(), pointer, count), readString);
+  const shaderGlBuffer = (gl, item, target) => {
+    const key = target === gl.ELEMENT_ARRAY_BUFFER ? "elementBuffer" : "arrayBuffer";
+    if (!item[key]) {
+      const buffer = gl.createBuffer();
+      if (!buffer) throw new Error("Failed to create WebGL 2 shader buffer");
+      gl.bindBuffer(target, buffer);
+      gl.bufferData(target, item.bytes, gl.STATIC_DRAW);
+      item[key] = buffer;
+    }
+    return item[key];
+  };
   const matrix4 = (pointer) => {
     const m = doubles(pointer, 16);
     return new Float32Array([m[0],m[4],m[8],m[12],m[1],m[5],m[9],m[13],m[2],m[6],m[10],m[14],m[3],m[7],m[11],m[15]]);
@@ -205,12 +217,40 @@ function createGameBridge(document, onError, textureAssets) {
     batch_create(id, capacity) { const {gl}=gameWindow(id);if(capacity<=0)return 0;const buffer=gl.createBuffer();if(!buffer)return 0;gl.bindBuffer(gl.ARRAY_BUFFER,buffer);gl.bufferData(gl.ARRAY_BUFFER,capacity*BATCH_INSTANCE_STRIDE,gl.DYNAMIC_DRAW);return saveResource("batch",{window:id,buffer,capacity}); },
     batch_set_instance(id, batchId, slot, pointer, count) { const {gl}=gameWindow(id),batch=resource(batchId,"batch");if(slot<0||slot>=batch.capacity||count!==BATCH_INSTANCE_FLOATS)throw new Error("Invalid Doof game model batch instance upload");const values=new Float32Array(memory(),pointer,count).slice();gl.bindBuffer(gl.ARRAY_BUFFER,batch.buffer);gl.bufferSubData(gl.ARRAY_BUFFER,slot*BATCH_INSTANCE_STRIDE,values); },
     dust_create(id, pointer, count) { const {gl}=gameWindow(id);const buffer=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,buffer);gl.bufferData(gl.ARRAY_BUFFER,new Float32Array(doubles(pointer,count)),gl.STATIC_DRAW);return saveResource("dust",{window:id,buffer,count:count/4}); },
-    shader_buffer_create(id, pointer, count) { const {gl}=gameWindow(id);if(count<=0)return 0;const buffer=gl.createBuffer();if(!buffer)return 0;gl.bindBuffer(gl.ARRAY_BUFFER,buffer);gl.bufferData(gl.ARRAY_BUFFER,new Uint8Array(memory(),pointer,count).slice(),gl.STATIC_DRAW);return saveResource("shaderBuffer",{window:id,buffer,byteLength:count}); },
-    shader_pipeline_create(id, vertexSourcePointer, fragmentSourcePointer, attributeIndicesPointer, attributeBuffersPointer, attributeOffsetsPointer, attributeFormatsPointer, attributeCount, layoutBuffersPointer, layoutStridesPointer, layoutStepFunctionsPointer, layoutStepRatesPointer, layoutCount) {
+    shader_buffer_create(id, pointer, count) {
+      gameWindow(id);if(count<=0)return 0;
+      // GL buffers are created lazily per binding target: WebGL 2 forbids
+      // binding one buffer object as both an index buffer and anything else.
+      return saveResource("shaderBuffer",{window:id,bytes:new Uint8Array(memory(),pointer,count).slice(),byteLength:count,arrayBuffer:null,elementBuffer:null});
+    },
+    shader_buffer_update(id, bufferId, pointer, count, offset) {
+      const {gl}=gameWindow(id),item=resource(bufferId,"shaderBuffer");
+      if(count<=0||offset<0||offset+count>item.byteLength)return 0;
+      const data=new Uint8Array(memory(),pointer,count);item.bytes.set(data,offset);
+      if(item.arrayBuffer){gl.bindBuffer(gl.ARRAY_BUFFER,item.arrayBuffer);gl.bufferSubData(gl.ARRAY_BUFFER,offset,data);}
+      if(item.elementBuffer){gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER,item.elementBuffer);gl.bufferSubData(gl.ELEMENT_ARRAY_BUFFER,offset,data);}
+      return 1;
+    },
+    shader_pipeline_create(id, vertexSourcePointer, fragmentSourcePointer, attributeIndicesPointer, attributeBuffersPointer, attributeOffsetsPointer, attributeFormatsPointer, attributeCount, layoutBuffersPointer, layoutStridesPointer, layoutStepFunctionsPointer, layoutStepRatesPointer, layoutCount, uniformNamesPointer, uniformCount, textureNamesPointer, textureCount) {
       const {gl}=gameWindow(id);
+      let value=null;
       try {
-        const value=program(gl,readString(vertexSourcePointer),readString(fragmentSourcePointer));
-        return saveResource("shaderPipeline",{window:id,value,
+        value=program(gl,readString(vertexSourcePointer),readString(fragmentSourcePointer));
+        // Uniform slot ordinals double as UBO binding points and texture slot
+        // ordinals as texture units, so draws can bind by ordinal.
+        const uniforms=strings(uniformNamesPointer,uniformCount).map((name,binding)=>{
+          const blockIndex=gl.getUniformBlockIndex(value,name);
+          if(blockIndex===gl.INVALID_INDEX)throw new Error(`WebGL 2 shader has no uniform block named '${name}'`);
+          gl.uniformBlockBinding(value,blockIndex,binding);
+          return {name,size:gl.getActiveUniformBlockParameter(value,blockIndex,gl.UNIFORM_BLOCK_DATA_SIZE),stream:null};
+        });
+        gl.useProgram(value);
+        const textures=strings(textureNamesPointer,textureCount).map((name,unit)=>{
+          const location=gl.getUniformLocation(value,name);
+          if(location!==null)gl.uniform1i(location,unit);
+          return {name};
+        });
+        return saveResource("shaderPipeline",{window:id,value,uniforms,textures,
           runtimeUniforms:{
             time:gl.getUniformLocation(value,"doofTime"),
             viewport:gl.getUniformLocation(value,"doofViewport"),
@@ -218,22 +258,53 @@ function createGameBridge(document, onError, textureAssets) {
           },
           attributeIndices:ints(attributeIndicesPointer,attributeCount),attributeBuffers:ints(attributeBuffersPointer,attributeCount),attributeOffsets:ints(attributeOffsetsPointer,attributeCount),attributeFormats:ints(attributeFormatsPointer,attributeCount),
           layoutBuffers:ints(layoutBuffersPointer,layoutCount),layoutStrides:ints(layoutStridesPointer,layoutCount),layoutStepFunctions:ints(layoutStepFunctionsPointer,layoutCount),layoutStepRates:ints(layoutStepRatesPointer,layoutCount)});
+      } catch(error) { if(value)gl.deleteProgram(value);onError(error);return 0; }
+    },
+    shader_draw(id, pipelineId, vertexBufferIndicesPointer, vertexBufferHandlesPointer, vertexBufferOffsetsPointer, vertexBufferCount, uniformSlotsPointer, uniformHandlesPointer, uniformOffsetsPointer, uniformLengthsPointer, uniformCount, uniformBytesPointer, uniformBytesLength, textureSlotsPointer, textureHandlesPointer, textureCount, indexBufferId, indexCount, vertexCount, instanceCount) {
+      const entry=gameWindow(id),{gl,canvas}=entry,enabled=[];
+      try {
+        const pipeline=resource(pipelineId,"shaderPipeline");
+        const bindingIndices=ints(vertexBufferIndicesPointer,vertexBufferCount),bindingHandles=ints(vertexBufferHandlesPointer,vertexBufferCount),bindingOffsets=ints(vertexBufferOffsetsPointer,vertexBufferCount);
+        const bindings=new Map();for(let i=0;i<vertexBufferCount;i+=1)bindings.set(bindingIndices[i],{buffer:resource(bindingHandles[i],"shaderBuffer"),offset:bindingOffsets[i]});
+        const layouts=new Map();for(let i=0;i<pipeline.layoutBuffers.length;i+=1)layouts.set(pipeline.layoutBuffers[i],{stride:pipeline.layoutStrides[i],stepFunction:pipeline.layoutStepFunctions[i],stepRate:pipeline.layoutStepRates[i]});
+        gl.useProgram(pipeline.value);
+        if(pipeline.runtimeUniforms.time!==null)gl.uniform1f(pipeline.runtimeUniforms.time,entry.timeSeconds);
+        if(pipeline.runtimeUniforms.viewport!==null)gl.uniform2f(pipeline.runtimeUniforms.viewport,canvas.width,canvas.height);
+        if(pipeline.runtimeUniforms.pointer!==null)gl.uniform2f(pipeline.runtimeUniforms.pointer,entry.pointerX,entry.pointerY);
+
+        const uniformSlots=ints(uniformSlotsPointer,uniformCount),uniformHandles=ints(uniformHandlesPointer,uniformCount),uniformOffsets=ints(uniformOffsetsPointer,uniformCount),uniformLengths=ints(uniformLengthsPointer,uniformCount);
+        for(let i=0;i<uniformCount;i+=1){
+          const binding=uniformSlots[i],slot=pipeline.uniforms[binding];
+          if(!slot)throw new Error(`Unknown WebGL 2 shader uniform slot ${binding}`);
+          if(uniformLengths[i]<slot.size&&uniformHandles[i])throw new Error(`WebGL 2 uniform block '${slot.name}' needs ${slot.size} bytes but its buffer range has ${uniformLengths[i]}`);
+          if(uniformHandles[i]){
+            const buffer=shaderGlBuffer(gl,resource(uniformHandles[i],"shaderBuffer"),gl.UNIFORM_BUFFER);
+            gl.bindBufferRange(gl.UNIFORM_BUFFER,binding,buffer,uniformOffsets[i],uniformLengths[i]);
+            continue;
+          }
+          if(uniformOffsets[i]<0||uniformOffsets[i]+uniformLengths[i]>uniformBytesLength)throw new Error("WebGL 2 shader uniform bytes are out of range");
+          const data=new Uint8Array(memory(),uniformBytesPointer+uniformOffsets[i],uniformLengths[i]);
+          // Pad short blocks to the size the linker reported so the draw is valid.
+          let upload=data;if(data.length<slot.size){upload=new Uint8Array(slot.size);upload.set(data);}
+          if(!slot.stream)slot.stream=gl.createBuffer();
+          gl.bindBuffer(gl.UNIFORM_BUFFER,slot.stream);gl.bufferData(gl.UNIFORM_BUFFER,upload,gl.DYNAMIC_DRAW);
+          gl.bindBufferBase(gl.UNIFORM_BUFFER,binding,slot.stream);
+        }
+
+        const textureSlots=ints(textureSlotsPointer,textureCount),textureHandles=ints(textureHandlesPointer,textureCount);
+        for(let i=0;i<textureCount;i+=1){
+          if(!pipeline.textures[textureSlots[i]])throw new Error(`Unknown WebGL 2 shader texture slot ${textureSlots[i]}`);
+          gl.activeTexture(gl.TEXTURE0+textureSlots[i]);gl.bindTexture(gl.TEXTURE_2D,resource(textureHandles[i],"texture").value);
+        }
+        if(textureCount>0)gl.activeTexture(gl.TEXTURE0);
+
+        for(let i=0;i<pipeline.attributeIndices.length;i+=1){const location=pipeline.attributeIndices[i],binding=bindings.get(pipeline.attributeBuffers[i]),layout=layouts.get(pipeline.attributeBuffers[i]);if(!binding||!layout)throw new Error(`Missing WebGL 2 shader buffer ${pipeline.attributeBuffers[i]}`);gl.bindBuffer(gl.ARRAY_BUFFER,shaderGlBuffer(gl,binding.buffer,gl.ARRAY_BUFFER));gl.enableVertexAttribArray(location);enabled.push(location);const offset=binding.offset+pipeline.attributeOffsets[i],format=pipeline.attributeFormats[i];if(format===5)gl.vertexAttribIPointer(location,1,gl.UNSIGNED_INT,layout.stride,offset);else{const sizes=[0,1,2,3,4,1,4],types=[0,gl.FLOAT,gl.FLOAT,gl.FLOAT,gl.FLOAT,gl.UNSIGNED_INT,gl.UNSIGNED_BYTE];gl.vertexAttribPointer(location,sizes[format],types[format],format===6,layout.stride,offset);}gl.vertexAttribDivisor(location,layout.stepFunction===2?layout.stepRate:0);}
+        if(indexBufferId){gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER,shaderGlBuffer(gl,resource(indexBufferId,"shaderBuffer"),gl.ELEMENT_ARRAY_BUFFER));if(instanceCount>1)gl.drawElementsInstanced(gl.TRIANGLES,indexCount,gl.UNSIGNED_INT,0,instanceCount);else gl.drawElements(gl.TRIANGLES,indexCount,gl.UNSIGNED_INT,0);}else if(instanceCount>1)gl.drawArraysInstanced(gl.TRIANGLES,0,vertexCount,instanceCount);else gl.drawArrays(gl.TRIANGLES,0,vertexCount);
+        return 1;
       } catch(error) { onError(error);return 0; }
+      finally { for(const location of enabled){gl.vertexAttribDivisor(location,0);gl.disableVertexAttribArray(location);} }
     },
-    shader_draw(id, pipelineId, vertexBufferIndicesPointer, vertexBufferHandlesPointer, vertexBufferOffsetsPointer, vertexBufferCount, indexBufferId, indexCount, vertexCount, instanceCount) {
-      const entry=gameWindow(id),{gl,canvas}=entry,pipeline=resource(pipelineId,"shaderPipeline");
-      const bindingIndices=ints(vertexBufferIndicesPointer,vertexBufferCount),bindingHandles=ints(vertexBufferHandlesPointer,vertexBufferCount),bindingOffsets=ints(vertexBufferOffsetsPointer,vertexBufferCount);
-      const bindings=new Map();for(let i=0;i<vertexBufferCount;i+=1)bindings.set(bindingIndices[i],{buffer:resource(bindingHandles[i],"shaderBuffer"),offset:bindingOffsets[i]});
-      const layouts=new Map();for(let i=0;i<pipeline.layoutBuffers.length;i+=1)layouts.set(pipeline.layoutBuffers[i],{stride:pipeline.layoutStrides[i],stepFunction:pipeline.layoutStepFunctions[i],stepRate:pipeline.layoutStepRates[i]});
-      const enabled=[];gl.useProgram(pipeline.value);
-      if(pipeline.runtimeUniforms.time!==null)gl.uniform1f(pipeline.runtimeUniforms.time,entry.timeSeconds);
-      if(pipeline.runtimeUniforms.viewport!==null)gl.uniform2f(pipeline.runtimeUniforms.viewport,canvas.width,canvas.height);
-      if(pipeline.runtimeUniforms.pointer!==null)gl.uniform2f(pipeline.runtimeUniforms.pointer,entry.pointerX,entry.pointerY);
-      for(let i=0;i<pipeline.attributeIndices.length;i+=1){const location=pipeline.attributeIndices[i],binding=bindings.get(pipeline.attributeBuffers[i]),layout=layouts.get(pipeline.attributeBuffers[i]);if(!binding||!layout)throw new Error(`Missing WebGL 2 shader buffer ${pipeline.attributeBuffers[i]}`);gl.bindBuffer(gl.ARRAY_BUFFER,binding.buffer.buffer);gl.enableVertexAttribArray(location);enabled.push(location);const offset=binding.offset+pipeline.attributeOffsets[i],format=pipeline.attributeFormats[i];if(format===5)gl.vertexAttribIPointer(location,1,gl.UNSIGNED_INT,layout.stride,offset);else{const sizes=[0,1,2,3,4,1,4],types=[0,gl.FLOAT,gl.FLOAT,gl.FLOAT,gl.FLOAT,gl.UNSIGNED_INT,gl.UNSIGNED_BYTE];gl.vertexAttribPointer(location,sizes[format],types[format],format===6,layout.stride,offset);}gl.vertexAttribDivisor(location,layout.stepFunction===2?layout.stepRate:0);}
-      if(indexBufferId){const index=resource(indexBufferId,"shaderBuffer");gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER,index.buffer);if(instanceCount>1)gl.drawElementsInstanced(gl.TRIANGLES,indexCount,gl.UNSIGNED_INT,0,instanceCount);else gl.drawElements(gl.TRIANGLES,indexCount,gl.UNSIGNED_INT,0);}else if(instanceCount>1)gl.drawArraysInstanced(gl.TRIANGLES,0,vertexCount,instanceCount);else gl.drawArrays(gl.TRIANGLES,0,vertexCount);
-      for(const location of enabled){gl.vertexAttribDivisor(location,0);gl.disableVertexAttribArray(location);}return 1;
-    },
-    resource_delete(id, kind, resourceId) { const {gl}=gameWindow(id),names=["mesh","dust","batch","shaderBuffer","shaderPipeline"],item=resource(resourceId,names[kind]);if(item.vertex)gl.deleteBuffer(item.vertex);if(item.index)gl.deleteBuffer(item.index);if(item.buffer)gl.deleteBuffer(item.buffer);if(item.value&&kind===4)gl.deleteProgram(item.value);resources.delete(resourceId); },
+    resource_delete(id, kind, resourceId) { const {gl}=gameWindow(id),names=["mesh","dust","batch","shaderBuffer","shaderPipeline"],item=resource(resourceId,names[kind]);if(item.vertex)gl.deleteBuffer(item.vertex);if(item.index)gl.deleteBuffer(item.index);if(item.buffer)gl.deleteBuffer(item.buffer);if(item.arrayBuffer)gl.deleteBuffer(item.arrayBuffer);if(item.elementBuffer)gl.deleteBuffer(item.elementBuffer);if(item.value&&kind===4){gl.deleteProgram(item.value);for(const uniform of item.uniforms)if(uniform.stream)gl.deleteBuffer(uniform.stream);}resources.delete(resourceId); },
     draw_mesh(id, meshId, textureId, textured, blendMode, viewPointer, modelPointer, normalPointer, ambient, directional, lightX, lightY, lightZ, red, green, blue, alpha) {
       const entry=gameWindow(id),gl=entry.gl,mesh=resource(meshId,"mesh");if(!entry.meshProgram)entry.meshProgram=program(gl,
         "#version 300 es\nin vec3 position;in vec4 color;in vec2 uv;in vec3 normal;uniform mat4 viewProjection;uniform mat4 model;uniform mat3 normalMatrix;out vec4 vertexColor;out vec2 textureUv;out vec3 worldNormal;void main(){gl_Position=viewProjection*model*vec4(position,1.0);vertexColor=color;textureUv=uv;worldNormal=normalize(normalMatrix*normal);}",
