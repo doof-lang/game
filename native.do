@@ -191,6 +191,7 @@ export import class NativeSimpleModelBatch from "native_mesh.hpp" as doof_game::
     shininess: double,
     fresnel: double,
     fresnelPower: double,
+    alphaCutoff: double,
   ): none
 }
 
@@ -291,6 +292,12 @@ export import function drawNativeSimpleMesh(
   eyeX: double,
   eyeY: double,
   eyeZ: double,
+  lightRed: double,
+  lightGreen: double,
+  lightBlue: double,
+  ambientRed: double,
+  ambientGreen: double,
+  ambientBlue: double,
   red: double,
   green: double,
   blue: double,
@@ -304,6 +311,7 @@ export import function drawNativeSimpleMesh(
   shininess: double,
   fresnel: double,
   fresnelPower: double,
+  alphaCutoff: double,
 ): none from "native_mesh.hpp" as doof_game::drawNativeSimpleMesh
 
 export import function drawNativeTexturedSimpleMesh(
@@ -363,6 +371,12 @@ export import function drawNativeTexturedSimpleMesh(
   eyeX: double,
   eyeY: double,
   eyeZ: double,
+  lightRed: double,
+  lightGreen: double,
+  lightBlue: double,
+  ambientRed: double,
+  ambientGreen: double,
+  ambientBlue: double,
   red: double,
   green: double,
   blue: double,
@@ -376,6 +390,7 @@ export import function drawNativeTexturedSimpleMesh(
   shininess: double,
   fresnel: double,
   fresnelPower: double,
+  alphaCutoff: double,
 ): none from "native_mesh.hpp" as doof_game::drawNativeTexturedSimpleMesh
 
 export import function drawNativeSimpleModelBatch(
@@ -412,6 +427,12 @@ export import function drawNativeSimpleModelBatch(
   eyeX: double,
   eyeY: double,
   eyeZ: double,
+  lightRed: double,
+  lightGreen: double,
+  lightBlue: double,
+  ambientRed: double,
+  ambientGreen: double,
+  ambientBlue: double,
 ): none from "native_mesh.hpp" as doof_game::drawNativeSimpleModelBatch
 
 export import function drawNativeShader(

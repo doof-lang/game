@@ -57,9 +57,11 @@ class FakeWebGL2 {
   vertexAttribDivisor(...args) { this.record("vertexAttribDivisor", ...args); }
   getUniformLocation(program, name) { return { program, name }; }
   uniformMatrix4fv(...args) { this.record("uniformMatrix4fv", ...args); }
+  uniformMatrix3fv(...args) { this.record("uniformMatrix3fv", ...args); }
   uniform1f(...args) { this.record("uniform1f", ...args); }
   uniform2f(...args) { this.record("uniform2f", ...args); }
   uniform3f(...args) { this.record("uniform3f", ...args); }
+  uniform4f(...args) { this.record("uniform4f", ...args); }
   uniform1i(...args) { this.record("uniform1i", ...args); }
   getUniformBlockIndex(program, name) { return this.uniformBlocks.has(name) ? this.uniformBlocks.get(name) : this.INVALID_INDEX; }
   uniformBlockBinding(...args) { this.record("uniformBlockBinding", ...args); }
@@ -130,7 +132,9 @@ test("uploads and draws a WebGL 2 simple-model batch", () => {
   const viewPointer = 8192;
   const view = new Float64Array(memory, viewPointer, 16);
   view[0] = view[5] = view[10] = view[15] = 1;
-  imports.draw_batch(window, mesh, batch, 0, 0, 0, 2, viewPointer, 0.35, 0.65, 0, 0, 1, 0, 0, 4);
+  const lightingPointer = 9216;
+  new Float64Array(memory, lightingPointer, 14).set([0.35, 0.65, 0, 0, 1, 0, 0, 4, 1, 0.5, 0.25, 0.1, 0.2, 0.3]);
+  imports.draw_batch(window, mesh, batch, 0, 0, 0, 2, viewPointer, lightingPointer);
 
   assert.ok(gl.calls.some(([name, target, size, usage]) =>
     name === "bufferData" && target === gl.ARRAY_BUFFER && size === 352 && usage === gl.DYNAMIC_DRAW));
@@ -143,9 +147,53 @@ test("uploads and draws a WebGL 2 simple-model batch", () => {
   const shaderSources = gl.calls.filter(([name]) => name === "shaderSource");
   assert.equal(shaderSources.length, 2);
   assert.ok(shaderSources.every(([, , source]) => source.startsWith("#version 300 es")));
+  assert.ok(gl.calls.some(([name, location, x, y]) => name === "uniform2f" && location.name === "lightLevels" && x === 0.35 && y === 0.65));
+  assert.ok(gl.calls.some(([name, location, x, y, z]) => name === "uniform3f" && location.name === "eyePosition" && x === 0 && y === 0 && z === 4));
+  assert.ok(gl.calls.some(([name, location, r, g, b]) => name === "uniform3f" && location.name === "lightColor" && r === 1 && g === 0.5 && b === 0.25));
+  assert.ok(gl.calls.some(([name, location, r, g, b]) => name === "uniform3f" && location.name === "ambientColor" && r === 0.1 && g === 0.2 && b === 0.3));
 
   imports.resource_delete(window, 2, batch);
   assert.ok(gl.calls.some(([name]) => name === "deleteBuffer"));
+});
+
+test("draws a WebGL 2 simple mesh with the full material and lighting model", () => {
+  const { bridge, gl, memory, write } = harness();
+  const imports = bridge.imports;
+  const window = imports.window_create(write(64, "Mesh test"), 640, 360, 1);
+
+  const vertexPointer = 1024;
+  new Float64Array(memory, vertexPointer, 36).fill(1);
+  const indexPointer = 2048;
+  new Uint32Array(memory, indexPointer, 3).set([0, 1, 2]);
+  const mesh = imports.mesh_create(window, vertexPointer, 36, indexPointer, 3);
+
+  const identityPointer = 8192;
+  const identity = new Float64Array(memory, identityPointer, 16);
+  identity[0] = identity[5] = identity[10] = identity[15] = 1;
+  const normalPointer = 8448;
+  new Float64Array(memory, normalPointer, 9).set([1, 0, 0, 0, 1, 0, 0, 0, 1]);
+  const lightingPointer = 8704;
+  new Float64Array(memory, lightingPointer, 14).set([0.25, 0.75, 0.35, 0.6, 0.72, 1, 2, 3, 0.9, 0.8, 0.7, 0.1, 0.2, 0.3]);
+  const materialPointer = 8960;
+  new Float64Array(memory, materialPointer, 14).set([0.5, 0.25, 0.125, 1, 0.4, 0.1, 0.2, 2, 3, 0.6, 32, 0.3, 5, 0.5]);
+  imports.draw_mesh(window, mesh, 0, 0, 0, identityPointer, identityPointer, normalPointer, lightingPointer, materialPointer);
+
+  const uniform4 = name => gl.calls.find(([call, location]) => call === "uniform4f" && location.name === name)?.slice(2);
+  const uniform3 = name => gl.calls.find(([call, location]) => call === "uniform3f" && location.name === name)?.slice(2);
+  assert.deepEqual(uniform4("tint"), [0.5, 0.25, 0.125, 1]);
+  // whiteBlend, specular, shininess, fresnel
+  assert.deepEqual(uniform4("materialEffects"), [0.4, 0.6, 32, 0.3]);
+  assert.deepEqual(uniform4("uvTransform"), [0.1, 0.2, 2, 3]);
+  // fresnelPower, alphaCutoff
+  assert.deepEqual(uniform4("materialParams"), [5, 0.5, 0, 0]);
+  assert.deepEqual(uniform3("eyePosition"), [1, 2, 3]);
+  assert.deepEqual(uniform3("lightColor"), [0.9, 0.8, 0.7]);
+  assert.deepEqual(uniform3("ambientColor"), [0.1, 0.2, 0.3]);
+  assert.ok(gl.calls.some(([name, mode, count]) => name === "drawElements" && mode === gl.TRIANGLES && count === 3));
+
+  const fragment = gl.calls.filter(([name]) => name === "shaderSource").map(([, , source]) => source).find(source => source.includes("fragmentColor"));
+  assert.match(fragment, /if\(base\.a<material\.y\)discard;/);
+  assert.match(fragment, /specular=diffuse>0\.0\?directional\*/);
 });
 
 test("compiles and draws a custom WebGL 2 shader", () => {

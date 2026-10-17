@@ -155,6 +155,7 @@ export class SimpleModelBatch {
           material.shininess,
           material.fresnel,
           material.fresnelPower,
+          material.alphaCutoff,
         )
         dirty[slot] = 0
       }
@@ -293,5 +294,11 @@ export function drawSimpleModelBatch(
     eye.x,
     eye.y,
     eye.z,
+    lighting.lightColor.r,
+    lighting.lightColor.g,
+    lighting.lightColor.b,
+    lighting.ambientColor.r,
+    lighting.ambientColor.g,
+    lighting.ambientColor.b,
   )
 }

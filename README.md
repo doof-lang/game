@@ -151,13 +151,13 @@ Call `app.stop()` to exit the native app loop.
 ```doof
 import { SfxrSoundConfig, SoundPlayOptions, synthSound } from "std/game"
 
-pickup := try! synthSound(SfxrSoundConfig.pickup())
-laser := try! synthSound(SfxrSoundConfig.laser())
-musicSting := try! app.loadSoundResource("audio/sting.wav")
+pickup := synthSound(SfxrSoundConfig.pickup())!
+laser := synthSound(SfxrSoundConfig.laser())!
+musicSting := app.loadSoundResource("audio/sting.wav")!
 
-try! pickup.play()
-try! laser.play(SoundPlayOptions { volume: 0.35, pan: -0.25 })
-try! musicSting.play(SoundPlayOptions { volume: 0.8 })
+pickup.play()!
+laser.play(SoundPlayOptions { volume: 0.35, pan: -0.25 })!
+musicSting.play(SoundPlayOptions { volume: 0.8 })!
 ```
 
 `app.loadSoundResource(path)`, `Sound.loadResource(path)`, and
@@ -286,14 +286,15 @@ for the whole mesh with simple built-in lighting, while
 `drawTexturedSimpleMesh(...)` samples a `Texture` using the mesh UVs transformed
 by `SimpleMaterial` before applying the same lighting. Pass
 `SimpleMaterial { tint, whiteBlend, uvOffset, uvScale, specular, shininess,
-fresnel, fresnelPower }` before the optional `SimpleMeshLighting` argument to
-control material response. Lighting defaults are ambient `0.25`, directional
-`0.75`, and direction `Point3(0.35, 0.60, 0.72)`.
+fresnel, fresnelPower, alphaCutoff }` before the optional `SimpleMeshLighting`
+argument to control material response. Lighting defaults are ambient `0.25`,
+directional `0.75`, direction `Point3(0.35, 0.60, 0.72)`, and white
+`lightColor` and `ambientColor`.
 
 ### Bitmap Font Text
 
 ```doof
-font := try! app.loadIntrinsicFont()
+font := app.loadIntrinsicFont()!
 label := createTextModel(
   app.surface,
   font,
@@ -399,7 +400,7 @@ mix text atlases when needed.
 ### Sphere Meshes
 
 ```doof
-texture := try! app.loadTextureResource("images/earth.png")
+texture := app.loadTextureResource("images/earth.png")!
 spec := createSphereMeshSpec{ radius: 1.0, tessellation: 32 }
 planet := SimpleModel(SimpleMesh(app.surface, spec), texture)
 ```
@@ -424,7 +425,7 @@ UV seam.
 ### OBJ Meshes
 
 ```doof
-spec := try! loadObjMeshSpecResource("models/ship.obj")
+spec := loadObjMeshSpecResource("models/ship.obj")!
 mesh := SimpleMesh(app.surface, spec)
 ```
 
@@ -439,11 +440,11 @@ generated face normals.
 ### glTF Assets
 
 ```doof
-asset := try! loadGlbResource("models/character.glb")
+asset := loadGlbResource("models/character.glb")!
 pose := asset.createPose()
-animation := try! asset.getAnimation()
-try! animation.apply(timeSeconds, pose)
-try! pose.resolveWorldTransforms()
+animation := asset.getAnimation()!
+animation.apply(timeSeconds, pose)!
+pose.resolveWorldTransforms()!
 ```
 
 `loadGlbResource(path)` and `loadGltfResource(path)` load package-resource model
@@ -458,7 +459,7 @@ animations. `GltfPose` is bound to its source asset and samples `STEP` or
 ### Textures And Atlases
 
 ```doof
-loadedTexture := try! app.loadTexture("/path/to/card_atlas.png")
+loadedTexture := app.loadTexture("/path/to/card_atlas.png")!
 atlas := Atlas { texture: loadedTexture, columns: 14, rows: 4 }
 
 cardMesh := SimpleMeshBuilder()
@@ -649,7 +650,7 @@ spin, color, and deformation seeds.
 ### Equirectangular Sky Maps
 
 ```doof
-texture := try! app.loadTexture("images/panorama.png")
+texture := app.loadTexture("images/panorama.png")!
 skyMap := SkyMap { texture: texture }
 
 renderer.pass(

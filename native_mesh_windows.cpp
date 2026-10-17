@@ -22,11 +22,11 @@ namespace {
 template <typename T> int64_t handle(T* value) { return reinterpret_cast<int64_t>(value); }
 struct Vertex { float position[3], color[4], uv[2], normal[3]; };
 struct Particle { float position[3], brightness; };
-struct Instance { float model[16], normal[12], color[4], whiteBlend, uvOffset[2], uvScale[2], specular, shininess, fresnel, fresnelPower; };
-static_assert(sizeof(Instance) == 164 && offsetof(Instance, normal) == 64 &&
+struct Instance { float model[16], normal[12], color[4], whiteBlend, uvOffset[2], uvScale[2], specular, shininess, fresnel, fresnelPower, alphaCutoff; };
+static_assert(sizeof(Instance) == 168 && offsetof(Instance, normal) == 64 &&
     offsetof(Instance, color) == 112 && offsetof(Instance, whiteBlend) == 128 &&
     offsetof(Instance, uvOffset) == 132 && offsetof(Instance, uvScale) == 140 &&
-    offsetof(Instance, specular) == 148, "D3D11 model instance layout changed");
+    offsetof(Instance, specular) == 148 && offsetof(Instance, alphaCutoff) == 164, "D3D11 model instance layout changed");
 template <typename T> doof::Result<ComPtr<ID3D11Buffer>, std::string> immutableBuffer(ID3D11Device* device, const std::vector<T>& values, UINT bind) {
     if (!device || values.empty()) return doof::Failure<std::string>{"Cannot create an empty D3D11 buffer"};
     D3D11_BUFFER_DESC desc{}; desc.ByteWidth = static_cast<UINT>(values.size() * sizeof(T)); desc.Usage = D3D11_USAGE_IMMUTABLE; desc.BindFlags = bind;
@@ -46,6 +46,8 @@ struct MeshConstants {
     float effects[4];
     float uv[4];
     float material[4];
+    float lightColor[4];
+    float ambientColor[4];
 };
 
 struct MeshPipeline {
@@ -102,6 +104,8 @@ struct ModelBatchConstants {
     float lightDirection[4];
     float lightLevels[4];
     float eye[4];
+    float lightColor[4];
+    float ambientColor[4];
 };
 
 std::mutex pipelineMutex;
@@ -253,6 +257,7 @@ cbuffer MeshConstants : register(b0) {
   float4 normal0; float4 normal1; float4 normal2;
   float4 lightDirection; float4 lightLevels; float4 eye; float4 tint;
   float4 effects; float4 uvTransform; float4 material;
+  float4 lightColor; float4 ambientColor;
 };
 struct VertexIn { float3 position : POSITION; float4 color : COLOR; float2 uv : TEXCOORD; float3 normal : NORMAL; };
 struct VertexOut { float4 position : SV_POSITION; float4 color : COLOR; float2 uv : TEXCOORD; float3 normal : NORMAL; float3 world : TEXCOORD1; };
@@ -266,14 +271,15 @@ VertexOut vertexMain(VertexIn input) {
 }
 Texture2D texture0 : register(t0); SamplerState sampler0 : register(s0);
 float4 applyLight(VertexOut input, float4 base) {
-  base *= tint; base.rgb = lerp(base.rgb, float3(1.0, 1.0, 1.0), saturate(effects.x)); clip(base.a - 0.005);
+  base *= tint; base.rgb = lerp(base.rgb, float3(1.0, 1.0, 1.0), saturate(effects.x)); clip(base.a - material.y);
   float3 n = normalize(input.normal);
   float3 lightDir = length(lightDirection.xyz) < 0.0001 ? normalize(float3(0.35, 0.60, 0.72)) : normalize(lightDirection.xyz);
-  float amount = max(lightLevels.x, 0.0) + max(lightLevels.y, 0.0) * max(dot(n, lightDir), 0.0);
+  float directional = max(lightLevels.y, 0.0); float diffuse = max(dot(n, lightDir), 0.0);
+  float3 amount = ambientColor.rgb * max(lightLevels.x, 0.0) + lightColor.rgb * (directional * diffuse);
   float3 viewDir = normalize(eye.xyz - input.world); float3 halfDir = normalize(lightDir + viewDir);
-  float specular = max(effects.y, 0.0) * pow(max(dot(n, halfDir), 0.0), max(effects.z, 0.0001));
+  float specular = diffuse > 0.0 ? directional * max(effects.y, 0.0) * pow(max(dot(n, halfDir), 0.0), max(effects.z, 0.0001)) : 0.0;
   float fresnel = max(effects.w, 0.0) * pow(1.0 - saturate(dot(n, viewDir)), max(material.x, 0.0001));
-  return float4(base.rgb * amount + specular + fresnel, base.a);
+  return float4(base.rgb * amount + lightColor.rgb * specular + fresnel, base.a);
 }
 float4 colorMain(VertexOut input) : SV_TARGET { return applyLight(input, input.color); }
 float4 textureMain(VertexOut input) : SV_TARGET { return applyLight(input, texture0.Sample(sampler0, input.uv) * input.color); }
@@ -305,6 +311,7 @@ std::shared_ptr<ModelBatchPipeline> modelBatchPipeline(ID3D11Device* device) {
     static const char* shader = R"(
 cbuffer BatchConstants : register(b0) {
   row_major float4x4 viewProjection; float4 lightDirection; float4 lightLevels; float4 eye;
+  float4 lightColor; float4 ambientColor;
 };
 Texture2D texture0 : register(t0); SamplerState sampler0 : register(s0);
 struct VertexIn {
@@ -312,25 +319,26 @@ struct VertexIn {
   float4 model0 : INSTANCE_MODEL0; float4 model1 : INSTANCE_MODEL1; float4 model2 : INSTANCE_MODEL2; float4 model3 : INSTANCE_MODEL3;
   float3 normal0 : INSTANCE_NORMAL0; float3 normal1 : INSTANCE_NORMAL1; float3 normal2 : INSTANCE_NORMAL2;
   float4 tint : INSTANCE_COLOR; float whiteBlend : INSTANCE_WHITE; float2 uvOffset : INSTANCE_UVOFFSET;
-  float2 uvScale : INSTANCE_UVSCALE; float4 material : INSTANCE_MATERIAL;
+  float2 uvScale : INSTANCE_UVSCALE; float4 material : INSTANCE_MATERIAL; float alphaCutoff : INSTANCE_CUTOFF;
 };
-struct VertexOut { float4 position : SV_POSITION; float4 color : COLOR0; float2 uv : TEXCOORD0; float3 normal : NORMAL0; float3 world : TEXCOORD1; float4 effects : TEXCOORD2; float fresnelPower : TEXCOORD3; };
+struct VertexOut { float4 position : SV_POSITION; float4 color : COLOR0; float2 uv : TEXCOORD0; float3 normal : NORMAL0; float3 world : TEXCOORD1; float4 effects : TEXCOORD2; float fresnelPower : TEXCOORD3; float alphaCutoff : TEXCOORD4; };
 VertexOut vertexMain(VertexIn input) {
   float4x4 model = float4x4(input.model0, input.model1, input.model2, input.model3);
   float4 world = mul(model, float4(input.position, 1.0)); VertexOut output;
   output.position = mul(viewProjection, world); output.color = input.color * input.tint;
   output.uv = input.uv * input.uvScale + input.uvOffset;
   output.normal = float3(dot(input.normal0, input.normal), dot(input.normal1, input.normal), dot(input.normal2, input.normal));
-  output.world = world.xyz; output.effects = float4(input.whiteBlend, input.material.xyz); output.fresnelPower = input.material.w; return output;
+  output.world = world.xyz; output.effects = float4(input.whiteBlend, input.material.xyz); output.fresnelPower = input.material.w; output.alphaCutoff = input.alphaCutoff; return output;
 }
 float4 light(VertexOut input, float4 base) {
-  base.rgb = lerp(base.rgb, float3(1.0, 1.0, 1.0), saturate(input.effects.x)); clip(base.a - 0.005);
+  base.rgb = lerp(base.rgb, float3(1.0, 1.0, 1.0), saturate(input.effects.x)); clip(base.a - input.alphaCutoff);
   float3 normal = normalize(input.normal); float3 direction = length(lightDirection.xyz) < 0.0001 ? normalize(float3(0.35, 0.60, 0.72)) : normalize(lightDirection.xyz);
-  float amount = max(lightLevels.x, 0.0) + max(lightLevels.y, 0.0) * max(dot(normal, direction), 0.0);
+  float directional = max(lightLevels.y, 0.0); float diffuse = max(dot(normal, direction), 0.0);
+  float3 amount = ambientColor.rgb * max(lightLevels.x, 0.0) + lightColor.rgb * (directional * diffuse);
   float3 viewDirection = normalize(eye.xyz - input.world); float3 halfDirection = normalize(direction + viewDirection);
-  float specular = max(input.effects.y, 0.0) * pow(max(dot(normal, halfDirection), 0.0), max(input.effects.z, 0.0001));
+  float specular = diffuse > 0.0 ? directional * max(input.effects.y, 0.0) * pow(max(dot(normal, halfDirection), 0.0), max(input.effects.z, 0.0001)) : 0.0;
   float fresnel = max(input.effects.w, 0.0) * pow(1.0 - saturate(dot(normal, viewDirection)), max(input.fresnelPower, 0.0001));
-  return float4(base.rgb * amount + specular + fresnel, base.a);
+  return float4(base.rgb * amount + lightColor.rgb * specular + fresnel, base.a);
 }
 float4 colorMain(VertexOut input) : SV_TARGET { return light(input, input.color); }
 float4 textureMain(VertexOut input) : SV_TARGET { return light(input, texture0.Sample(sampler0, input.uv) * input.color); }
@@ -350,6 +358,7 @@ float4 textureMain(VertexOut input) : SV_TARGET { return light(input, texture0.S
         {"INSTANCE_NORMAL",2,DXGI_FORMAT_R32G32B32_FLOAT,1,96,D3D11_INPUT_PER_INSTANCE_DATA,1}, {"INSTANCE_COLOR",0,DXGI_FORMAT_R32G32B32A32_FLOAT,1,112,D3D11_INPUT_PER_INSTANCE_DATA,1},
         {"INSTANCE_WHITE",0,DXGI_FORMAT_R32_FLOAT,1,128,D3D11_INPUT_PER_INSTANCE_DATA,1}, {"INSTANCE_UVOFFSET",0,DXGI_FORMAT_R32G32_FLOAT,1,132,D3D11_INPUT_PER_INSTANCE_DATA,1},
         {"INSTANCE_UVSCALE",0,DXGI_FORMAT_R32G32_FLOAT,1,140,D3D11_INPUT_PER_INSTANCE_DATA,1}, {"INSTANCE_MATERIAL",0,DXGI_FORMAT_R32G32B32A32_FLOAT,1,148,D3D11_INPUT_PER_INSTANCE_DATA,1},
+        {"INSTANCE_CUTOFF",0,DXGI_FORMAT_R32_FLOAT,1,164,D3D11_INPUT_PER_INSTANCE_DATA,1},
     };
     if (FAILED(device->CreateInputLayout(elements, static_cast<UINT>(std::size(elements)), vs->GetBufferPointer(), vs->GetBufferSize(), &result->layout)) ||
         !createDynamicConstants<ModelBatchConstants>(device, result->constants)) return {};
@@ -362,11 +371,12 @@ void drawMesh(std::shared_ptr<NativeSimpleMesh> mesh, ID3D11ShaderResourceView* 
     ID3D11DeviceContext* context, ID3D11Device* device, int32_t blendMode,
     bool hasColorAttachment, const double* viewProjection, const double* model, const double* normal,
     double ambient, double directional, double lightX, double lightY, double lightZ,
-    double eyeX, double eyeY, double eyeZ, double red, double green, double blue, double alpha,
+    double eyeX, double eyeY, double eyeZ, double lightRed, double lightGreen, double lightBlue, double ambientRed, double ambientGreen, double ambientBlue,
+    double red, double green, double blue, double alpha,
     double whiteBlend, double uvOffsetX, double uvOffsetY, double uvScaleX, double uvScaleY,
-    double specular, double shininess, double fresnel, double fresnelPower) {
+    double specular, double shininess, double fresnel, double fresnelPower, double alphaCutoff) {
     if(!mesh||mesh->indexCount()<=0||!context||!device)return;auto pipeline=meshPipeline(device);if(!pipeline)return;
-    MeshConstants values{};for(int i=0;i<16;++i){values.viewProjection[i]=float(viewProjection[i]);values.model[i]=float(model[i]);}for(int i=0;i<12;++i)values.normal[i]=float(normal[i]);values.lightDirection[0]=float(lightX);values.lightDirection[1]=float(lightY);values.lightDirection[2]=float(lightZ);values.lightLevels[0]=float(ambient);values.lightLevels[1]=float(directional);values.eye[0]=float(eyeX);values.eye[1]=float(eyeY);values.eye[2]=float(eyeZ);values.tint[0]=float(red);values.tint[1]=float(green);values.tint[2]=float(blue);values.tint[3]=float(alpha);values.effects[0]=float(whiteBlend);values.effects[1]=float(specular);values.effects[2]=float(shininess);values.effects[3]=float(fresnel);values.uv[0]=float(uvOffsetX);values.uv[1]=float(uvOffsetY);values.uv[2]=float(uvScaleX);values.uv[3]=float(uvScaleY);values.material[0]=float(fresnelPower);if(!updateConstants(context,pipeline->constants.Get(),values))return;
+    MeshConstants values{};for(int i=0;i<16;++i){values.viewProjection[i]=float(viewProjection[i]);values.model[i]=float(model[i]);}for(int i=0;i<12;++i)values.normal[i]=float(normal[i]);values.lightDirection[0]=float(lightX);values.lightDirection[1]=float(lightY);values.lightDirection[2]=float(lightZ);values.lightLevels[0]=float(ambient);values.lightLevels[1]=float(directional);values.eye[0]=float(eyeX);values.eye[1]=float(eyeY);values.eye[2]=float(eyeZ);values.tint[0]=float(red);values.tint[1]=float(green);values.tint[2]=float(blue);values.tint[3]=float(alpha);values.effects[0]=float(whiteBlend);values.effects[1]=float(specular);values.effects[2]=float(shininess);values.effects[3]=float(fresnel);values.uv[0]=float(uvOffsetX);values.uv[1]=float(uvOffsetY);values.uv[2]=float(uvScaleX);values.uv[3]=float(uvScaleY);values.material[0]=float(fresnelPower);values.material[1]=float(alphaCutoff);values.lightColor[0]=float(lightRed);values.lightColor[1]=float(lightGreen);values.lightColor[2]=float(lightBlue);values.ambientColor[0]=float(ambientRed);values.ambientColor[1]=float(ambientGreen);values.ambientColor[2]=float(ambientBlue);if(!updateConstants(context,pipeline->constants.Get(),values))return;
     auto* vb=reinterpret_cast<ID3D11Buffer*>(mesh->metalVertexBufferHandle());auto* ib=reinterpret_cast<ID3D11Buffer*>(mesh->metalIndexBufferHandle());UINT stride=sizeof(Vertex),offset=0;context->IASetInputLayout(pipeline->layout.Get());context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);context->IASetVertexBuffers(0,1,&vb,&stride,&offset);context->IASetIndexBuffer(ib,DXGI_FORMAT_R32_UINT,0);context->VSSetShader(pipeline->vertex.Get(),nullptr,0);ID3D11Buffer*cb=pipeline->constants.Get();context->VSSetConstantBuffers(0,1,&cb);context->PSSetConstantBuffers(0,1,&cb);context->PSSetShader(hasColorAttachment?(texture?pipeline->textureFragment.Get():pipeline->colorFragment.Get()):nullptr,nullptr,0);context->PSSetShaderResources(0,1,&texture);ID3D11SamplerState*sampler=pipeline->sampler.Get();context->PSSetSamplers(0,1,&sampler);float factor[4]{};context->OMSetBlendState(blendMode==1?pipeline->alphaBlend.Get():nullptr,factor,0xffffffff);context->DrawIndexed(mesh->indexCount(),0,0);ID3D11ShaderResourceView*none=nullptr;context->PSSetShaderResources(0,1,&none);
 }
 
@@ -395,7 +405,7 @@ doof::Result<std::shared_ptr<NativeSimpleMesh>,std::string> NativeSimpleMeshBuil
 struct NativeSimpleModelBatch::Impl { ComPtr<ID3D11Device> device; ComPtr<ID3D11Buffer> buffer; std::vector<Instance> instances; int32_t count=0; Impl(void*d,void*b,int32_t c):device(static_cast<ID3D11Device*>(d)),buffer(static_cast<ID3D11Buffer*>(b)),instances(c){} };
 doof::Result<std::shared_ptr<NativeSimpleModelBatch>,std::string> NativeSimpleModelBatch::create(int64_t dh,int32_t capacity){auto*d=reinterpret_cast<ID3D11Device*>(dh);if(!d)return doof::Failure<std::string>{"D3D11 device handle is invalid"};if(capacity<=0)return doof::Failure<std::string>{"Simple model batch capacity must be positive"};D3D11_BUFFER_DESC desc{};desc.ByteWidth=UINT(capacity*sizeof(Instance));desc.Usage=D3D11_USAGE_DEFAULT;desc.BindFlags=D3D11_BIND_VERTEX_BUFFER;ComPtr<ID3D11Buffer>b;if(FAILED(d->CreateBuffer(&desc,nullptr,&b)))return doof::Failure<std::string>{"Failed to create simple model batch buffer"};return doof::Success<std::shared_ptr<NativeSimpleModelBatch>>{std::make_shared<NativeSimpleModelBatch>(d,b.Get(),capacity)};}
 NativeSimpleModelBatch::NativeSimpleModelBatch(void*d,void*b,int32_t c):impl_(std::make_shared<Impl>(d,b,c)){} NativeSimpleModelBatch::~NativeSimpleModelBatch()=default;int32_t NativeSimpleModelBatch::capacity()const{return static_cast<int32_t>(impl_->instances.size());}int32_t NativeSimpleModelBatch::count()const{return impl_->count;}void NativeSimpleModelBatch::setCount(int32_t c){impl_->count=std::clamp(c,0,capacity());}
-void NativeSimpleModelBatch::setInstance(int32_t slot,double m00,double m01,double m02,double m03,double m10,double m11,double m12,double m13,double m20,double m21,double m22,double m23,double m30,double m31,double m32,double m33,double n00,double n01,double n02,double n10,double n11,double n12,double n20,double n21,double n22,double r,double g,double b,double a,double white,double ux,double uy,double sx,double sy,double spec,double shine,double fresnel,double power){if(slot<0||slot>=capacity())return;auto&i=impl_->instances[slot];double m[]={m00,m01,m02,m03,m10,m11,m12,m13,m20,m21,m22,m23,m30,m31,m32,m33};for(int x=0;x<16;++x)i.model[x]=float(m[x]);double n[]={n00,n01,n02,0,n10,n11,n12,0,n20,n21,n22,0};for(int x=0;x<12;++x)i.normal[x]=float(n[x]);i.color[0]=float(r);i.color[1]=float(g);i.color[2]=float(b);i.color[3]=float(a);i.whiteBlend=float(white);i.uvOffset[0]=float(ux);i.uvOffset[1]=float(uy);i.uvScale[0]=float(sx);i.uvScale[1]=float(sy);i.specular=float(spec);i.shininess=float(shine);i.fresnel=float(fresnel);i.fresnelPower=float(power);ComPtr<ID3D11DeviceContext>context;impl_->device->GetImmediateContext(&context);if(context&&impl_->buffer){D3D11_BOX box{};box.left=UINT(slot*sizeof(Instance));box.right=box.left+UINT(sizeof(Instance));box.bottom=1;box.back=1;context->UpdateSubresource(impl_->buffer.Get(),0,&box,&i,UINT(sizeof(Instance)),0);}}
+void NativeSimpleModelBatch::setInstance(int32_t slot,double m00,double m01,double m02,double m03,double m10,double m11,double m12,double m13,double m20,double m21,double m22,double m23,double m30,double m31,double m32,double m33,double n00,double n01,double n02,double n10,double n11,double n12,double n20,double n21,double n22,double r,double g,double b,double a,double white,double ux,double uy,double sx,double sy,double spec,double shine,double fresnel,double power,double cutoff){if(slot<0||slot>=capacity())return;auto&i=impl_->instances[slot];double m[]={m00,m01,m02,m03,m10,m11,m12,m13,m20,m21,m22,m23,m30,m31,m32,m33};for(int x=0;x<16;++x)i.model[x]=float(m[x]);double n[]={n00,n01,n02,0,n10,n11,n12,0,n20,n21,n22,0};for(int x=0;x<12;++x)i.normal[x]=float(n[x]);i.color[0]=float(r);i.color[1]=float(g);i.color[2]=float(b);i.color[3]=float(a);i.whiteBlend=float(white);i.uvOffset[0]=float(ux);i.uvOffset[1]=float(uy);i.uvScale[0]=float(sx);i.uvScale[1]=float(sy);i.specular=float(spec);i.shininess=float(shine);i.fresnel=float(fresnel);i.fresnelPower=float(power);i.alphaCutoff=float(cutoff);ComPtr<ID3D11DeviceContext>context;impl_->device->GetImmediateContext(&context);if(context&&impl_->buffer){D3D11_BOX box{};box.left=UINT(slot*sizeof(Instance));box.right=box.left+UINT(sizeof(Instance));box.bottom=1;box.back=1;context->UpdateSubresource(impl_->buffer.Get(),0,&box,&i,UINT(sizeof(Instance)),0);}}
 int64_t NativeSimpleModelBatch::metalInstanceBufferHandle()const{return handle(impl_->buffer.Get());}
 
 struct NativeSpaceDust::Impl { ComPtr<ID3D11Device> device;ComPtr<ID3D11Buffer>buffer;int32_t count;Impl(void*d,void*b,int32_t c):device(static_cast<ID3D11Device*>(d)),buffer(static_cast<ID3D11Buffer*>(b)),count(c){} };struct NativeSpaceDustBuilder::Impl{std::vector<Particle>particles;};
@@ -631,24 +641,24 @@ void drawNativeSimpleMesh(
     double m00,double m01,double m02,double m03,double m10,double m11,double m12,double m13,double m20,double m21,double m22,double m23,double m30,double m31,double m32,double m33,
     double modelM00,double modelM01,double modelM02,double modelM03,double modelM10,double modelM11,double modelM12,double modelM13,double modelM20,double modelM21,double modelM22,double modelM23,double modelM30,double modelM31,double modelM32,double modelM33,
     double n00,double n01,double n02,double n10,double n11,double n12,double n20,double n21,double n22,
-    double ambient,double directional,double lightX,double lightY,double lightZ,double eyeX,double eyeY,double eyeZ,
-    double red,double green,double blue,double alpha,double whiteBlend,double uvOffsetX,double uvOffsetY,double uvScaleX,double uvScaleY,double specular,double shininess,double fresnel,double fresnelPower
-) { double viewProjection[]={m00,m01,m02,m03,m10,m11,m12,m13,m20,m21,m22,m23,m30,m31,m32,m33};double model[]={modelM00,modelM01,modelM02,modelM03,modelM10,modelM11,modelM12,modelM13,modelM20,modelM21,modelM22,modelM23,modelM30,modelM31,modelM32,modelM33};double normal[]={n00,n01,n02,0,n10,n11,n12,0,n20,n21,n22,0};drawMesh(std::move(mesh),nullptr,reinterpret_cast<ID3D11DeviceContext*>(contextHandle),reinterpret_cast<ID3D11Device*>(deviceHandle),blendMode,hasColorAttachment,viewProjection,model,normal,ambient,directional,lightX,lightY,lightZ,eyeX,eyeY,eyeZ,red,green,blue,alpha,whiteBlend,uvOffsetX,uvOffsetY,uvScaleX,uvScaleY,specular,shininess,fresnel,fresnelPower); }
+    double ambient,double directional,double lightX,double lightY,double lightZ,double eyeX,double eyeY,double eyeZ,double lightRed,double lightGreen,double lightBlue,double ambientRed,double ambientGreen,double ambientBlue,
+    double red,double green,double blue,double alpha,double whiteBlend,double uvOffsetX,double uvOffsetY,double uvScaleX,double uvScaleY,double specular,double shininess,double fresnel,double fresnelPower,double alphaCutoff
+) { double viewProjection[]={m00,m01,m02,m03,m10,m11,m12,m13,m20,m21,m22,m23,m30,m31,m32,m33};double model[]={modelM00,modelM01,modelM02,modelM03,modelM10,modelM11,modelM12,modelM13,modelM20,modelM21,modelM22,modelM23,modelM30,modelM31,modelM32,modelM33};double normal[]={n00,n01,n02,0,n10,n11,n12,0,n20,n21,n22,0};drawMesh(std::move(mesh),nullptr,reinterpret_cast<ID3D11DeviceContext*>(contextHandle),reinterpret_cast<ID3D11Device*>(deviceHandle),blendMode,hasColorAttachment,viewProjection,model,normal,ambient,directional,lightX,lightY,lightZ,eyeX,eyeY,eyeZ,lightRed,lightGreen,lightBlue,ambientRed,ambientGreen,ambientBlue,red,green,blue,alpha,whiteBlend,uvOffsetX,uvOffsetY,uvScaleX,uvScaleY,specular,shininess,fresnel,fresnelPower,alphaCutoff); }
 
 void drawNativeTexturedSimpleMesh(
     std::shared_ptr<NativeSimpleMesh> mesh, int64_t textureHandle, int64_t contextHandle, int64_t deviceHandle, int32_t blendMode, bool hasColorAttachment, bool,
     double m00,double m01,double m02,double m03,double m10,double m11,double m12,double m13,double m20,double m21,double m22,double m23,double m30,double m31,double m32,double m33,
     double modelM00,double modelM01,double modelM02,double modelM03,double modelM10,double modelM11,double modelM12,double modelM13,double modelM20,double modelM21,double modelM22,double modelM23,double modelM30,double modelM31,double modelM32,double modelM33,
     double n00,double n01,double n02,double n10,double n11,double n12,double n20,double n21,double n22,
-    double ambient,double directional,double lightX,double lightY,double lightZ,double eyeX,double eyeY,double eyeZ,
-    double red,double green,double blue,double alpha,double whiteBlend,double uvOffsetX,double uvOffsetY,double uvScaleX,double uvScaleY,double specular,double shininess,double fresnel,double fresnelPower
-) { double viewProjection[]={m00,m01,m02,m03,m10,m11,m12,m13,m20,m21,m22,m23,m30,m31,m32,m33};double model[]={modelM00,modelM01,modelM02,modelM03,modelM10,modelM11,modelM12,modelM13,modelM20,modelM21,modelM22,modelM23,modelM30,modelM31,modelM32,modelM33};double normal[]={n00,n01,n02,0,n10,n11,n12,0,n20,n21,n22,0};drawMesh(std::move(mesh),reinterpret_cast<ID3D11ShaderResourceView*>(textureHandle),reinterpret_cast<ID3D11DeviceContext*>(contextHandle),reinterpret_cast<ID3D11Device*>(deviceHandle),blendMode,hasColorAttachment,viewProjection,model,normal,ambient,directional,lightX,lightY,lightZ,eyeX,eyeY,eyeZ,red,green,blue,alpha,whiteBlend,uvOffsetX,uvOffsetY,uvScaleX,uvScaleY,specular,shininess,fresnel,fresnelPower); }
+    double ambient,double directional,double lightX,double lightY,double lightZ,double eyeX,double eyeY,double eyeZ,double lightRed,double lightGreen,double lightBlue,double ambientRed,double ambientGreen,double ambientBlue,
+    double red,double green,double blue,double alpha,double whiteBlend,double uvOffsetX,double uvOffsetY,double uvScaleX,double uvScaleY,double specular,double shininess,double fresnel,double fresnelPower,double alphaCutoff
+) { double viewProjection[]={m00,m01,m02,m03,m10,m11,m12,m13,m20,m21,m22,m23,m30,m31,m32,m33};double model[]={modelM00,modelM01,modelM02,modelM03,modelM10,modelM11,modelM12,modelM13,modelM20,modelM21,modelM22,modelM23,modelM30,modelM31,modelM32,modelM33};double normal[]={n00,n01,n02,0,n10,n11,n12,0,n20,n21,n22,0};drawMesh(std::move(mesh),reinterpret_cast<ID3D11ShaderResourceView*>(textureHandle),reinterpret_cast<ID3D11DeviceContext*>(contextHandle),reinterpret_cast<ID3D11Device*>(deviceHandle),blendMode,hasColorAttachment,viewProjection,model,normal,ambient,directional,lightX,lightY,lightZ,eyeX,eyeY,eyeZ,lightRed,lightGreen,lightBlue,ambientRed,ambientGreen,ambientBlue,red,green,blue,alpha,whiteBlend,uvOffsetX,uvOffsetY,uvScaleX,uvScaleY,specular,shininess,fresnel,fresnelPower,alphaCutoff); }
 
 void drawNativeSimpleModelBatch(
     std::shared_ptr<NativeSimpleMesh> mesh, std::shared_ptr<NativeSimpleModelBatch> batch, int64_t textureHandle, bool textured,
     int64_t contextHandle, int64_t deviceHandle, int32_t blendMode, bool hasColorAttachment, bool,
     double m00,double m01,double m02,double m03,double m10,double m11,double m12,double m13,double m20,double m21,double m22,double m23,double m30,double m31,double m32,double m33,
-    double ambient,double directional,double lightX,double lightY,double lightZ,double eyeX,double eyeY,double eyeZ
+    double ambient,double directional,double lightX,double lightY,double lightZ,double eyeX,double eyeY,double eyeZ,double lightRed,double lightGreen,double lightBlue,double ambientRed,double ambientGreen,double ambientBlue
 ) {
     if(!mesh||!batch||mesh->indexCount()<=0||batch->count()<=0)return;
     auto*context=reinterpret_cast<ID3D11DeviceContext*>(contextHandle);auto*device=reinterpret_cast<ID3D11Device*>(deviceHandle);if(!context||!device)return;
@@ -656,6 +666,7 @@ void drawNativeSimpleModelBatch(
     auto*texture=reinterpret_cast<ID3D11ShaderResourceView*>(textureHandle);if(textured&&!texture)return;
     ModelBatchConstants values{};double matrix[]={m00,m01,m02,m03,m10,m11,m12,m13,m20,m21,m22,m23,m30,m31,m32,m33};for(int i=0;i<16;++i)values.matrix[i]=float(matrix[i]);
     values.lightDirection[0]=float(lightX);values.lightDirection[1]=float(lightY);values.lightDirection[2]=float(lightZ);values.lightLevels[0]=float(ambient);values.lightLevels[1]=float(directional);values.eye[0]=float(eyeX);values.eye[1]=float(eyeY);values.eye[2]=float(eyeZ);
+    values.lightColor[0]=float(lightRed);values.lightColor[1]=float(lightGreen);values.lightColor[2]=float(lightBlue);values.ambientColor[0]=float(ambientRed);values.ambientColor[1]=float(ambientGreen);values.ambientColor[2]=float(ambientBlue);
     if(!updateConstants(context,pipeline->constants.Get(),values))return;
     auto*vertices=reinterpret_cast<ID3D11Buffer*>(mesh->metalVertexBufferHandle());auto*indices=reinterpret_cast<ID3D11Buffer*>(mesh->metalIndexBufferHandle());auto*instances=reinterpret_cast<ID3D11Buffer*>(batch->metalInstanceBufferHandle());
     ID3D11Buffer*buffers[]={vertices,instances};UINT strides[]={sizeof(Vertex),sizeof(Instance)},offsets[]={0,0};context->IASetInputLayout(pipeline->layout.Get());context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);context->IASetVertexBuffers(0,2,buffers,strides,offsets);context->IASetIndexBuffer(indices,DXGI_FORMAT_R32_UINT,0);

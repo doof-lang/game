@@ -563,8 +563,8 @@ function normalizedColorGlb(componentType: int): readonly byte[] {
 
 export function testParseGlbConvertsNormalizedUnsignedColors(): none {
   for componentType of [5121, 5123] {
-    asset := try! parseGlb(normalizedColorGlb(componentType), "tinted.glb")
-    spec := (try! glbAssetToSimpleMeshSpecs(asset))[0].spec
+    asset := parseGlb(normalizedColorGlb(componentType), "tinted.glb")!
+    spec := glbAssetToSimpleMeshSpecs(asset)![0].spec
     Assert.equal(asset.warnings.length, 0)
     assertApprox(spec.colors[0].r, 1.0)
     assertApprox(spec.colors[0].g, 0.0)

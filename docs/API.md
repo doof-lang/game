@@ -483,11 +483,17 @@ legacy defaults. `MeshUv.unit()` maps a face to `(0, 0)` through `(1, 1)`, and
 `SimpleMeshLighting` controls the built-in mesh lighting. `ambient` defaults
 to `0.25`, `directional` defaults to `0.75`, and `direction` defaults to
 `Point3(0.35, 0.60, 0.72)`. Negative light levels are clamped to zero by the
-renderer; values above `1.0` are allowed.
+renderer; values above `1.0` are allowed. `lightColor` tints the directional
+light and its specular highlight, and `ambientColor` tints the ambient term;
+both default to white and ignore alpha.
 
-`SimpleMaterial` controls tint, atlas UV transform, white blend, specular, and
-Fresnel terms. Defaults are white tint, no white blend, full UVs, and no
-specular or Fresnel contribution.
+`SimpleMaterial` controls tint, atlas UV transform, white blend, specular,
+Fresnel, and alpha cutoff. Defaults are white tint, no white blend, full UVs,
+no specular or Fresnel contribution, and an `alphaCutoff` of `0.005`.
+Fragments whose final alpha is below `alphaCutoff` are discarded; raise it to
+around `0.5` for hard-edged cutouts such as foliage. Specular highlights only
+appear on surfaces facing the light and scale with `directional`; Fresnel rim
+light is independent of the light.
 
 ### `SimpleModel`
 
@@ -641,7 +647,7 @@ Create generated textures with `app.createTexture(image)`,
 small embedded intrinsic font.
 
 ```doof
-font := try! app.loadIntrinsicFont()
+font := app.loadIntrinsicFont()!
 model := createTextModel(
   app.surface,
   font,
@@ -828,13 +834,13 @@ native particle field. Draw it with `drawSpaceDust(pass, dust)`.
 ## Sound
 
 ```doof
-pickup := try! pickupSound()
-laser := try! synthSound(SfxrSoundConfig.laser())
-musicSting := try! app.loadSoundResource("audio/sting.wav")
+pickup := pickupSound()!
+laser := synthSound(SfxrSoundConfig.laser())!
+musicSting := app.loadSoundResource("audio/sting.wav")!
 
-try! pickup.play()
-try! laser.play(SoundPlayOptions { volume: 0.35, pan: -0.25 })
-try! musicSting.play(SoundPlayOptions { volume: 0.8 })
+pickup.play()!
+laser.play(SoundPlayOptions { volume: 0.35, pan: -0.25 })!
+musicSting.play(SoundPlayOptions { volume: 0.8 })!
 ```
 
 | API | Description |

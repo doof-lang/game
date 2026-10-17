@@ -106,6 +106,8 @@ struct SimpleMeshLightingUniforms {
     float direction[4];
     float levels[4];
     float eye[4];
+    float lightColor[4];
+    float ambientColor[4];
 };
 
 struct SimpleMeshMaterialUniforms {
@@ -123,7 +125,13 @@ SimpleMeshLightingUniforms makeSimpleMeshLightingUniforms(
     double lightDirectionZ,
     double eyeX,
     double eyeY,
-    double eyeZ
+    double eyeZ,
+    double lightRed,
+    double lightGreen,
+    double lightBlue,
+    double ambientRed,
+    double ambientGreen,
+    double ambientBlue
 ) {
     return SimpleMeshLightingUniforms {
         {
@@ -144,6 +152,18 @@ SimpleMeshLightingUniforms makeSimpleMeshLightingUniforms(
             static_cast<float>(eyeZ),
             0.0f,
         },
+        {
+            static_cast<float>(lightRed),
+            static_cast<float>(lightGreen),
+            static_cast<float>(lightBlue),
+            0.0f,
+        },
+        {
+            static_cast<float>(ambientRed),
+            static_cast<float>(ambientGreen),
+            static_cast<float>(ambientBlue),
+            0.0f,
+        },
     };
 }
 
@@ -160,7 +180,8 @@ SimpleMeshMaterialUniforms makeSimpleMeshMaterialUniforms(
     double specular,
     double shininess,
     double fresnel,
-    double fresnelPower
+    double fresnelPower,
+    double alphaCutoff
 ) {
     return SimpleMeshMaterialUniforms {
         {
@@ -183,7 +204,7 @@ SimpleMeshMaterialUniforms makeSimpleMeshMaterialUniforms(
         },
         {
             static_cast<float>(fresnelPower),
-            0.0f,
+            static_cast<float>(alphaCutoff),
             0.0f,
             0.0f,
         },
@@ -213,7 +234,7 @@ id<MTLRenderPipelineState> simpleMeshPipeline(id<MTLDevice> device, int32_t blen
         @"struct VertexIn { packed_float4 position; packed_float4 color; packed_float2 uv; packed_float4 normal; };\n"
         @"struct Matrix { float4 row0; float4 row1; float4 row2; float4 row3; };\n"
         @"struct NormalUniforms { float4 row0; float4 row1; float4 row2; float4 row3; };\n"
-        @"struct Lighting { float4 direction; float4 levels; float4 eye; };\n"
+        @"struct Lighting { float4 direction; float4 levels; float4 eye; float4 lightColor; float4 ambientColor; };\n"
         @"struct Material { float4 tint; float4 effects; float4 uv; float4 material; };\n"
         @"struct VertexOut { float4 position [[position]]; float4 color; float2 uv; float3 normal; float3 world; };\n"
         @"float4 doof_game_mul_matrix(constant Matrix& matrix, float4 value) {\n"
@@ -249,27 +270,27 @@ id<MTLRenderPipelineState> simpleMeshPipeline(id<MTLDevice> device, int32_t blen
         @"  float ambient = max(lighting.levels.x, 0.0);\n"
         @"  float directional = max(lighting.levels.y, 0.0);\n"
         @"  float diffuse = max(dot(n, lightDir), 0.0);\n"
-        @"  float amount = ambient + directional * diffuse;\n"
+        @"  float3 amount = lighting.ambientColor.rgb * ambient + lighting.lightColor.rgb * (directional * diffuse);\n"
         @"  float3 viewDir = normalize(lighting.eye.xyz - world);\n"
         @"  float3 halfDir = normalize(lightDir + viewDir);\n"
         @"  float shininess = max(material.effects.z, 0.0001);\n"
-        @"  float specular = max(material.effects.y, 0.0) * pow(max(dot(n, halfDir), 0.0), shininess);\n"
+        @"  float specular = diffuse > 0.0 ? directional * max(material.effects.y, 0.0) * pow(max(dot(n, halfDir), 0.0), shininess) : 0.0;\n"
         @"  float fresnelPower = max(material.material.x, 0.0001);\n"
         @"  float fresnel = max(material.effects.w, 0.0) * pow(1.0 - clamp(dot(n, viewDir), 0.0, 1.0), fresnelPower);\n"
-        @"  return float4(base.rgb * amount + float3(specular + fresnel), base.a);\n"
+        @"  return float4(base.rgb * amount + lighting.lightColor.rgb * specular + float3(fresnel), base.a);\n"
         @"}\n"
-        @"void doof_game_discard_empty_simple_mesh_alpha(float alpha) {\n"
-        @"  if (alpha <= 0.005) { discard_fragment(); }\n"
+        @"void doof_game_discard_simple_mesh_alpha(float alpha, float cutoff) {\n"
+        @"  if (alpha < cutoff) { discard_fragment(); }\n"
         @"}\n"
         @"fragment float4 doof_game_simple_mesh_fragment(VertexOut in [[stage_in]], constant Lighting& lighting [[buffer(0)]], constant Material& material [[buffer(1)]]) {\n"
         @"  float4 base = doof_game_apply_simple_mesh_material(in.color, material);\n"
-        @"  doof_game_discard_empty_simple_mesh_alpha(base.a);\n"
+        @"  doof_game_discard_simple_mesh_alpha(base.a, material.material.y);\n"
         @"  return doof_game_apply_simple_mesh_light(base, in.normal, in.world, lighting, material);\n"
         @"}\n"
         @"fragment float4 doof_game_textured_simple_mesh_fragment(VertexOut in [[stage_in]], constant Lighting& lighting [[buffer(0)]], constant Material& material [[buffer(1)]], texture2d<float> tex [[texture(0)]], sampler textureSampler [[sampler(0)]]) {\n"
         @"  float2 uv = in.uv * material.uv.zw + material.uv.xy;\n"
         @"  float4 sampled = doof_game_apply_simple_mesh_material(tex.sample(textureSampler, uv) * in.color, material);\n"
-        @"  doof_game_discard_empty_simple_mesh_alpha(sampled.a);\n"
+        @"  doof_game_discard_simple_mesh_alpha(sampled.a, material.material.y);\n"
         @"  return doof_game_apply_simple_mesh_light(sampled, in.normal, in.world, lighting, material);\n"
         @"}\n";
 
@@ -322,7 +343,7 @@ id<MTLRenderPipelineState> simpleModelBatchPipeline(id<MTLDevice> device, int32_
         @"struct VertexIn { packed_float4 position; packed_float4 color; packed_float2 uv; packed_float4 normal; };\n"
         @"struct Instance { float4 row0; float4 row1; float4 row2; float4 row3; float4 normal0; float4 normal1; float4 normal2; float4 tint; float4 effects; float4 uv; float4 material; };\n"
         @"struct Uniforms { float4 row0; float4 row1; float4 row2; float4 row3; };\n"
-        @"struct Lighting { float4 direction; float4 levels; float4 eye; };\n"
+        @"struct Lighting { float4 direction; float4 levels; float4 eye; float4 lightColor; float4 ambientColor; };\n"
         @"struct VertexOut { float4 position [[position]]; float4 color; float2 uv; float3 normal; float3 world; float4 effects; float4 material; };\n"
         @"vertex VertexOut doof_game_simple_model_batch_vertex(const device VertexIn* vertices [[buffer(0)]], constant Uniforms& uniforms [[buffer(1)]], const device uint* indices [[buffer(2)]], const device Instance* instances [[buffer(3)]], uint vertexId [[vertex_id]], uint instanceId [[instance_id]]) {\n"
         @"  VertexIn meshVertex = vertices[indices[vertexId]];\n"
@@ -356,26 +377,26 @@ id<MTLRenderPipelineState> simpleModelBatchPipeline(id<MTLDevice> device, int32_
         @"  float ambient = max(lighting.levels.x, 0.0);\n"
         @"  float directional = max(lighting.levels.y, 0.0);\n"
         @"  float diffuse = max(dot(n, lightDir), 0.0);\n"
-        @"  float amount = ambient + directional * diffuse;\n"
+        @"  float3 amount = lighting.ambientColor.rgb * ambient + lighting.lightColor.rgb * (directional * diffuse);\n"
         @"  float3 viewDir = normalize(lighting.eye.xyz - world);\n"
         @"  float3 halfDir = normalize(lightDir + viewDir);\n"
         @"  float shininess = max(effects.z, 0.0001);\n"
-        @"  float specular = max(effects.y, 0.0) * pow(max(dot(n, halfDir), 0.0), shininess);\n"
+        @"  float specular = diffuse > 0.0 ? directional * max(effects.y, 0.0) * pow(max(dot(n, halfDir), 0.0), shininess) : 0.0;\n"
         @"  float fresnelPower = max(material.x, 0.0001);\n"
         @"  float fresnel = max(effects.w, 0.0) * pow(1.0 - clamp(dot(n, viewDir), 0.0, 1.0), fresnelPower);\n"
-        @"  return float4(base.rgb * amount + float3(specular + fresnel), base.a);\n"
+        @"  return float4(base.rgb * amount + lighting.lightColor.rgb * specular + float3(fresnel), base.a);\n"
         @"}\n"
-        @"void doof_game_discard_empty_simple_model_batch_alpha(float alpha) {\n"
-        @"  if (alpha <= 0.005) { discard_fragment(); }\n"
+        @"void doof_game_discard_simple_model_batch_alpha(float alpha, float cutoff) {\n"
+        @"  if (alpha < cutoff) { discard_fragment(); }\n"
         @"}\n"
         @"fragment float4 doof_game_simple_model_batch_fragment(VertexOut in [[stage_in]], constant Lighting& lighting [[buffer(0)]]) {\n"
         @"  float4 base = doof_game_apply_simple_model_batch_material(in.color, in.effects.x);\n"
-        @"  doof_game_discard_empty_simple_model_batch_alpha(base.a);\n"
+        @"  doof_game_discard_simple_model_batch_alpha(base.a, in.material.y);\n"
         @"  return doof_game_apply_simple_model_batch_light(base, in.normal, in.world, in.effects, in.material, lighting);\n"
         @"}\n"
         @"fragment float4 doof_game_textured_simple_model_batch_fragment(VertexOut in [[stage_in]], constant Lighting& lighting [[buffer(0)]], texture2d<float> tex [[texture(0)]], sampler textureSampler [[sampler(0)]]) {\n"
         @"  float4 sampled = tex.sample(textureSampler, in.uv) * in.color;\n"
-        @"  doof_game_discard_empty_simple_model_batch_alpha(sampled.a);\n"
+        @"  doof_game_discard_simple_model_batch_alpha(sampled.a, in.material.y);\n"
         @"  sampled = doof_game_apply_simple_model_batch_material(sampled, in.effects.x);\n"
         @"  return doof_game_apply_simple_model_batch_light(sampled, in.normal, in.world, in.effects, in.material, lighting);\n"
         @"}\n";
@@ -811,7 +832,8 @@ void NativeSimpleModelBatch::setInstance(
     double specular,
     double shininess,
     double fresnel,
-    double fresnelPower
+    double fresnelPower,
+    double alphaCutoff
 ) {
     if (slot < 0 || slot >= impl_->capacity || impl_->instanceBuffer == nil) {
         return;
@@ -829,7 +851,7 @@ void NativeSimpleModelBatch::setInstance(
         { static_cast<float>(red), static_cast<float>(green), static_cast<float>(blue), static_cast<float>(alpha) },
         { static_cast<float>(whiteBlend), static_cast<float>(specular), static_cast<float>(shininess), static_cast<float>(fresnel) },
         { static_cast<float>(uvOffsetX), static_cast<float>(uvOffsetY), static_cast<float>(uvScaleX), static_cast<float>(uvScaleY) },
-        { static_cast<float>(fresnelPower), 0.0f, 0.0f, 0.0f },
+        { static_cast<float>(fresnelPower), static_cast<float>(alphaCutoff), 0.0f, 0.0f },
     };
 }
 
@@ -1174,6 +1196,12 @@ void drawNativeSimpleMesh(
     double eyeX,
     double eyeY,
     double eyeZ,
+    double lightRed,
+    double lightGreen,
+    double lightBlue,
+    double ambientRed,
+    double ambientGreen,
+    double ambientBlue,
     double red,
     double green,
     double blue,
@@ -1186,7 +1214,8 @@ void drawNativeSimpleMesh(
     double specular,
     double shininess,
     double fresnel,
-    double fresnelPower
+    double fresnelPower,
+    double alphaCutoff
 ) {
     drawSimpleMeshInternal(
         mesh,
@@ -1200,8 +1229,8 @@ void drawNativeSimpleMesh(
         native_mesh::makeMatrixUniforms(m00, m01, m02, m03, m10, m11, m12, m13, m20, m21, m22, m23, m30, m31, m32, m33),
         native_mesh::makeMatrixUniforms(modelM00, modelM01, modelM02, modelM03, modelM10, modelM11, modelM12, modelM13, modelM20, modelM21, modelM22, modelM23, modelM30, modelM31, modelM32, modelM33),
         native_mesh::makeNormalMatrixUniforms(n00, n01, n02, n10, n11, n12, n20, n21, n22),
-        makeSimpleMeshLightingUniforms(ambientLight, directionalLight, lightDirectionX, lightDirectionY, lightDirectionZ, eyeX, eyeY, eyeZ),
-        makeSimpleMeshMaterialUniforms(red, green, blue, alpha, whiteBlend, uvOffsetX, uvOffsetY, uvScaleX, uvScaleY, specular, shininess, fresnel, fresnelPower)
+        makeSimpleMeshLightingUniforms(ambientLight, directionalLight, lightDirectionX, lightDirectionY, lightDirectionZ, eyeX, eyeY, eyeZ, lightRed, lightGreen, lightBlue, ambientRed, ambientGreen, ambientBlue),
+        makeSimpleMeshMaterialUniforms(red, green, blue, alpha, whiteBlend, uvOffsetX, uvOffsetY, uvScaleX, uvScaleY, specular, shininess, fresnel, fresnelPower, alphaCutoff)
     );
 }
 
@@ -1262,6 +1291,12 @@ void drawNativeTexturedSimpleMesh(
     double eyeX,
     double eyeY,
     double eyeZ,
+    double lightRed,
+    double lightGreen,
+    double lightBlue,
+    double ambientRed,
+    double ambientGreen,
+    double ambientBlue,
     double red,
     double green,
     double blue,
@@ -1274,7 +1309,8 @@ void drawNativeTexturedSimpleMesh(
     double specular,
     double shininess,
     double fresnel,
-    double fresnelPower
+    double fresnelPower,
+    double alphaCutoff
 ) {
     drawSimpleMeshInternal(
         mesh,
@@ -1288,8 +1324,8 @@ void drawNativeTexturedSimpleMesh(
         native_mesh::makeMatrixUniforms(m00, m01, m02, m03, m10, m11, m12, m13, m20, m21, m22, m23, m30, m31, m32, m33),
         native_mesh::makeMatrixUniforms(modelM00, modelM01, modelM02, modelM03, modelM10, modelM11, modelM12, modelM13, modelM20, modelM21, modelM22, modelM23, modelM30, modelM31, modelM32, modelM33),
         native_mesh::makeNormalMatrixUniforms(n00, n01, n02, n10, n11, n12, n20, n21, n22),
-        makeSimpleMeshLightingUniforms(ambientLight, directionalLight, lightDirectionX, lightDirectionY, lightDirectionZ, eyeX, eyeY, eyeZ),
-        makeSimpleMeshMaterialUniforms(red, green, blue, alpha, whiteBlend, uvOffsetX, uvOffsetY, uvScaleX, uvScaleY, specular, shininess, fresnel, fresnelPower)
+        makeSimpleMeshLightingUniforms(ambientLight, directionalLight, lightDirectionX, lightDirectionY, lightDirectionZ, eyeX, eyeY, eyeZ, lightRed, lightGreen, lightBlue, ambientRed, ambientGreen, ambientBlue),
+        makeSimpleMeshMaterialUniforms(red, green, blue, alpha, whiteBlend, uvOffsetX, uvOffsetY, uvScaleX, uvScaleY, specular, shininess, fresnel, fresnelPower, alphaCutoff)
     );
 }
 
@@ -1326,7 +1362,13 @@ void drawNativeSimpleModelBatch(
     double lightDirectionZ,
     double eyeX,
     double eyeY,
-    double eyeZ
+    double eyeZ,
+    double lightRed,
+    double lightGreen,
+    double lightBlue,
+    double ambientRed,
+    double ambientGreen,
+    double ambientBlue
 ) {
     if (!mesh || !batch || mesh->indexCount() <= 0 || batch->count() <= 0) {
         return;
@@ -1370,7 +1412,13 @@ void drawNativeSimpleModelBatch(
         lightDirectionZ,
         eyeX,
         eyeY,
-        eyeZ
+        eyeZ,
+        lightRed,
+        lightGreen,
+        lightBlue,
+        ambientRed,
+        ambientGreen,
+        ambientBlue
     );
 
     [encoder setRenderPipelineState:pipeline];

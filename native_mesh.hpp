@@ -101,7 +101,8 @@ public:
         double specular,
         double shininess,
         double fresnel,
-        double fresnelPower
+        double fresnelPower,
+        double alphaCutoff
     );
     int64_t metalInstanceBufferHandle() const;
 
@@ -255,6 +256,12 @@ void drawNativeSimpleMesh(
     double eyeX,
     double eyeY,
     double eyeZ,
+    double lightRed,
+    double lightGreen,
+    double lightBlue,
+    double ambientRed,
+    double ambientGreen,
+    double ambientBlue,
     double red,
     double green,
     double blue,
@@ -267,7 +274,8 @@ void drawNativeSimpleMesh(
     double specular,
     double shininess,
     double fresnel,
-    double fresnelPower
+    double fresnelPower,
+    double alphaCutoff
 );
 
 void drawNativeTexturedSimpleMesh(
@@ -327,6 +335,12 @@ void drawNativeTexturedSimpleMesh(
     double eyeX,
     double eyeY,
     double eyeZ,
+    double lightRed,
+    double lightGreen,
+    double lightBlue,
+    double ambientRed,
+    double ambientGreen,
+    double ambientBlue,
     double red,
     double green,
     double blue,
@@ -339,7 +353,8 @@ void drawNativeTexturedSimpleMesh(
     double specular,
     double shininess,
     double fresnel,
-    double fresnelPower
+    double fresnelPower,
+    double alphaCutoff
 );
 
 void drawNativeSimpleModelBatch(
@@ -375,7 +390,13 @@ void drawNativeSimpleModelBatch(
     double lightDirectionZ,
     double eyeX,
     double eyeY,
-    double eyeZ
+    double eyeZ,
+    double lightRed,
+    double lightGreen,
+    double lightBlue,
+    double ambientRed,
+    double ambientGreen,
+    double ambientBlue
 );
 
 void drawNativeEquirectangularSkyMap(

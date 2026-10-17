@@ -64,6 +64,10 @@ export class SimpleMeshLighting {
   ambient: double = 0.25
   directional: double = 0.75
   direction: Point3 = Point3(0.35, 0.60, 0.72)
+  // Tints the directional light and its specular highlight; alpha is ignored.
+  lightColor: Color = Color { r: 1.0, g: 1.0, b: 1.0, a: 1.0 }
+  // Tints the ambient term; alpha is ignored.
+  ambientColor: Color = Color { r: 1.0, g: 1.0, b: 1.0, a: 1.0 }
 }
 
 export class SimpleMaterial {
@@ -75,6 +79,9 @@ export class SimpleMaterial {
   shininess: double = 32.0
   fresnel: double = 0.0
   fresnelPower: double = 5.0
+  // Fragments whose final alpha is below this are discarded. Raise it (for
+  // example to 0.5) for hard-edged cutouts such as foliage or fences.
+  alphaCutoff: double = 0.005
 }
 
 export class SimpleMesh {
@@ -371,6 +378,12 @@ export function drawSimpleMesh(
     eye.x,
     eye.y,
     eye.z,
+    lighting.lightColor.r,
+    lighting.lightColor.g,
+    lighting.lightColor.b,
+    lighting.ambientColor.r,
+    lighting.ambientColor.g,
+    lighting.ambientColor.b,
     material.tint.r,
     material.tint.g,
     material.tint.b,
@@ -384,6 +397,7 @@ export function drawSimpleMesh(
     material.shininess,
     material.fresnel,
     material.fresnelPower,
+    material.alphaCutoff,
   )
 }
 
@@ -460,6 +474,12 @@ export function drawTexturedSimpleMesh(
     eye.x,
     eye.y,
     eye.z,
+    lighting.lightColor.r,
+    lighting.lightColor.g,
+    lighting.lightColor.b,
+    lighting.ambientColor.r,
+    lighting.ambientColor.g,
+    lighting.ambientColor.b,
     material.tint.r,
     material.tint.g,
     material.tint.b,
@@ -473,5 +493,6 @@ export function drawTexturedSimpleMesh(
     material.shininess,
     material.fresnel,
     material.fresnelPower,
+    material.alphaCutoff,
   )
 }
