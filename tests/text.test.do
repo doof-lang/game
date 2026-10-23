@@ -54,6 +54,40 @@ export function testParseBitmapFontReadsMetricsGlyphsKerningAndTextureFile(): no
   Assert.equal(glyphA.xAdvance, 6)
   Assert.equal(font.kerning(65, 66), -1)
   Assert.equal(font.kerning(66, 65), 0)
+  Assert.equal(font.spacingX, 1)
+  Assert.equal(font.spacingY, 1)
+}
+
+export function testParseBitmapFontRejectsMalformedSpacing(): none {
+  malformed := parseBitmapFontData(FONT_TEXT.replaceAll("spacing=1,1", "spacing=1"))
+  Assert.isTrue(malformed.isFailure())
+}
+
+export function testCreateTextMeshSpecKeepsQuadsOnGlyphRectsWithoutSpacing(): none {
+  font := parseBitmapFontData(FONT_TEXT.replaceAll("spacing=1,1", "spacing=0,0"))!
+  spec := createTextMeshSpec(font, "B")
+
+  assertApprox(spec.positions[0].x, 0.0)
+  assertApprox(spec.positions[0].y, 2.0)
+  assertApprox(spec.positions[2].x, 4.0)
+  assertApprox(spec.positions[2].y, 9.0)
+  assertApprox(spec.uvs[0].x, 8.0 / 64.0)
+  assertApprox(spec.uvs[2].x, 12.0 / 64.0)
+  assertApprox(spec.uvs[2].y, 7.0 / 32.0)
+}
+
+export function testCreateTextMeshSpecExtendsIntrinsicGlyphsIntoGutter(): none {
+  font := intrinsicBitmapFontData()!
+  glyph := font.glyph(68) else {
+    Assert.fail("expected D glyph")
+    return
+  }
+  spec := createTextMeshSpec(font, "D")
+
+  assertApprox(spec.positions[0].x, double(glyph.xOffset) - 1.0)
+  assertApprox(spec.positions[2].x, double(glyph.xOffset + glyph.width) + 1.0)
+  assertApprox(spec.uvs[0].x, double(glyph.x - 1) / 256.0)
+  assertApprox(spec.uvs[2].y, double(glyph.y + glyph.height + 1) / 256.0)
 }
 
 export function testIntrinsicBitmapFontDataIsUseful(): none {
@@ -63,6 +97,8 @@ export function testIntrinsicBitmapFontDataIsUseful(): none {
   Assert.equal(font.base, 15)
   Assert.equal(font.scaleWidth, 256)
   Assert.equal(font.scaleHeight, 256)
+  Assert.equal(font.spacingX, 2)
+  Assert.equal(font.spacingY, 2)
   Assert.isTrue(font.glyph(32) != none, "expected a space glyph")
   Assert.isTrue(font.glyph(63) != none, "expected a fallback glyph")
   Assert.isTrue(font.glyph(65) != none, "expected a Latin glyph")
@@ -165,12 +201,17 @@ export function testCreateTextMeshSpecBuildsGlyphQuadsAndUvs(): none {
   assertApprox(spec.positions[0].x, 11.0)
   assertApprox(spec.positions[0].y, 22.0)
   assertApprox(spec.positions[0].z, 2.0)
-  assertApprox(spec.positions[4].x, 15.0)
+  // spacing=1,1 lets quads extend half a texel past each glyph rect, except
+  // where the rect touches the atlas edge (A sits at 0,0).
+  assertApprox(spec.positions[2].x, 16.5)
+  assertApprox(spec.positions[2].y, 29.5)
+  assertApprox(spec.positions[4].x, 14.5)
   assertApprox(spec.positions[4].y, 22.0)
   assertApprox(spec.uvs[0].x, 0.0)
   assertApprox(spec.uvs[0].y, 0.0)
-  assertApprox(spec.uvs[2].x, 5.0 / 64.0)
-  assertApprox(spec.uvs[2].y, 7.0 / 32.0)
+  assertApprox(spec.uvs[2].x, 5.5 / 64.0)
+  assertApprox(spec.uvs[2].y, 7.5 / 32.0)
+  assertApprox(spec.uvs[4].x, 7.5 / 64.0)
   Assert.equal(spec.colors[0].r, 0.25)
   Assert.equal(spec.colors[0].a, 0.9)
   Assert.equal(spec.indices[0], 0)

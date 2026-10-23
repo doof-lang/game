@@ -38,6 +38,9 @@ export interface BitmapFontMetrics {
   readonly base: int
   readonly scaleWidth: int
   readonly scaleHeight: int
+  // Empty texels between glyphs in the atlas (BMFont info spacing=x,y).
+  readonly spacingX: int
+  readonly spacingY: int
   glyph(codepoint: int): BitmapGlyph | none
   kerning(first: int, second: int): int
 }
@@ -47,6 +50,8 @@ export class BitmapFontData {
   readonly base: int
   readonly scaleWidth: int
   readonly scaleHeight: int
+  readonly spacingX: int = 0
+  readonly spacingY: int = 0
   readonly textureFile: string
   glyphs: Map<int, BitmapGlyph>
   kernings: Map<string, int>
@@ -71,6 +76,8 @@ export class BitmapFont {
   readonly base: int
   readonly scaleWidth: int
   readonly scaleHeight: int
+  readonly spacingX: int = 0
+  readonly spacingY: int = 0
   texture: Texture
   glyphs: Map<int, BitmapGlyph>
   kernings: Map<string, int>
@@ -114,6 +121,8 @@ class FontParseState {
   let scaleWidth: int = 0
   let scaleHeight: int = 0
   let pages: int = 1
+  let spacingX: int = 0
+  let spacingY: int = 0
   let textureFile: string | none = none
   glyphs: Map<int, BitmapGlyph> = {}
   kernings: Map<string, int> = {}
@@ -343,6 +352,33 @@ function parsePage(attributes: Map<string, string>, state: FontParseState, sourc
   return Success()
 }
 
+function parseInfo(attributes: Map<string, string>, state: FontParseState, source: string, lineNumber: int): Result<none, string> {
+  spacing := attributes.get("spacing") else {
+    return Success()
+  }
+
+  parts := spacing.split(",")
+  if parts.length != 2 {
+    return Failure {
+      error: parseError(source, lineNumber, `invalid spacing value "${spacing}"`)
+    }
+  }
+  spacingX := parseInt(parts[0]) else {
+    return Failure {
+      error: parseError(source, lineNumber, `invalid spacing value "${spacing}"`)
+    }
+  }
+  spacingY := parseInt(parts[1]) else {
+    return Failure {
+      error: parseError(source, lineNumber, `invalid spacing value "${spacing}"`)
+    }
+  }
+
+  state.spacingX = if spacingX > 0 then spacingX else 0
+  state.spacingY = if spacingY > 0 then spacingY else 0
+  return Success()
+}
+
 function parseKerning(attributes: Map<string, string>, state: FontParseState, source: string, lineNumber: int): Result<none, string> {
   try first := requiredInt(attributes, "first", source, lineNumber)
   try second := requiredInt(attributes, "second", source, lineNumber)
@@ -400,7 +436,14 @@ export function parseBitmapFontData(text: string, source: string = "<font>"): Re
       continue
     }
 
-    if kind == "info" || kind == "chars" || kind == "kernings" {
+    if kind == "info" {
+      parseInfo(attributes, state, source, lineNumber) else error {
+        return Failure(error)
+      }
+      continue
+    }
+
+    if kind == "chars" || kind == "kernings" {
       continue
     }
   }
@@ -429,6 +472,8 @@ export function parseBitmapFontData(text: string, source: string = "<font>"): Re
       base: state.base,
       scaleWidth: state.scaleWidth,
       scaleHeight: state.scaleHeight,
+      spacingX: state.spacingX,
+      spacingY: state.spacingY,
       textureFile,
       glyphs: state.glyphs,
       kernings: state.kernings,
@@ -459,6 +504,8 @@ export function loadBitmapFontForSurface(surface: GameSurface, path: string): Re
       base: data.base,
       scaleWidth: data.scaleWidth,
       scaleHeight: data.scaleHeight,
+      spacingX: data.spacingX,
+      spacingY: data.spacingY,
       texture,
       glyphs: data.glyphs,
       kernings: data.kernings,
@@ -694,6 +741,21 @@ function layoutText(font: BitmapFontMetrics, text: string, options: TextLayoutOp
   }
 }
 
+// How far a glyph quad may extend past the glyph rect, in texels. Linear
+// sampling at the exact rect edge cuts the glyph's outer half texel off with a
+// hard edge; sampling up to half the atlas spacing past it lets the edge fade
+// out over empty texels without reaching a neighbouring glyph.
+function glyphMargin(spacing: int, start: int, size: int, atlasSize: int): Tuple<double, double> {
+  margin := if spacing >= 2 then 1.0 else double(spacing) * 0.5
+  before := if double(start) < margin then double(start) else margin
+  room := double(atlasSize - start - size)
+  after := if room < margin then room else margin
+  return (
+    if before > 0.0 then before else 0.0,
+    if after > 0.0 then after else 0.0,
+  )
+}
+
 function lineOffset(line: TextLine, options: TextLayoutOptions): double {
   if options.align == TextAlign.Center {
     return (options.maxWidth - line.width) * 0.5
@@ -731,14 +793,16 @@ export function createTextMeshSpec(font: BitmapFontMetrics, text: string, option
 
     for placement of line.placements {
       glyph := placement.glyph
-      x0 := options.position.x + offsetX + placement.x
-      y0 := options.position.y + baselineY + placement.y
-      x1 := x0 + double(glyph.width)
-      y1 := y0 + double(glyph.height)
-      u0 := double(glyph.x) / double(font.scaleWidth)
-      v0 := double(glyph.y) / double(font.scaleHeight)
-      u1 := double(glyph.x + glyph.width) / double(font.scaleWidth)
-      v1 := double(glyph.y + glyph.height) / double(font.scaleHeight)
+      (left, right) := glyphMargin(font.spacingX, glyph.x, glyph.width, font.scaleWidth)
+      (top, bottom) := glyphMargin(font.spacingY, glyph.y, glyph.height, font.scaleHeight)
+      x0 := options.position.x + offsetX + placement.x - left
+      y0 := options.position.y + baselineY + placement.y - top
+      x1 := options.position.x + offsetX + placement.x + double(glyph.width) + right
+      y1 := options.position.y + baselineY + placement.y + double(glyph.height) + bottom
+      u0 := (double(glyph.x) - left) / double(font.scaleWidth)
+      v0 := (double(glyph.y) - top) / double(font.scaleHeight)
+      u1 := (double(glyph.x + glyph.width) + right) / double(font.scaleWidth)
+      v1 := (double(glyph.y + glyph.height) + bottom) / double(font.scaleHeight)
       baseIndex := positions.length
 
       positions.push(Point3(x0, y0, options.z))

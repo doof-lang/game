@@ -46,6 +46,8 @@ export function loadIntrinsicBitmapFontForSurface(surface: GameSurface): Result<
       base: data.base,
       scaleWidth: data.scaleWidth,
       scaleHeight: data.scaleHeight,
+      spacingX: data.spacingX,
+      spacingY: data.spacingY,
       texture: createTexture(nativeTexture),
       glyphs: data.glyphs,
       kernings: data.kernings,

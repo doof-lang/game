@@ -682,6 +682,13 @@ Text layout handles newlines, UTF-8 codepoints, kerning, optional word wrapping,
 letter spacing, line spacing, and left/center/right alignment. Missing glyphs
 fall back to `fallbackCodepoint`, which defaults to `?`.
 
+Fonts record the atlas `spacing=x,y` from the BMFont `info` line as
+`spacingX`/`spacingY`. When the atlas has spacing, glyph quads extend up to one
+texel (half the spacing) past each glyph so scaled text fades out at its edges
+instead of being clipped, without sampling neighbouring glyphs. Generate atlases
+with at least 2px spacing for text that will be scaled; the intrinsic font uses
+2px, and `game/tools/repack_intrinsic_font.do` rebuilds it.
+
 ## Retained UI
 
 `UiLayer` is a small retained UI system for panels, labels, and buttons. Bounds
