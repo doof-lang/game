@@ -162,7 +162,8 @@ function createGameBridge(document, onError, textureAssets) {
     return ({ArrowLeft:37,ArrowRight:38,ArrowUp:39,ArrowDown:40,Escape:41,Enter:42,Space:43,
       Backspace:44,Tab:45,ShiftLeft:46,ShiftRight:46,ControlLeft:47,ControlRight:47,
       AltLeft:48,AltRight:48,MetaLeft:49,MetaRight:49,
-      F1:50,F2:51,F3:52,F4:53,F5:54,F6:55,F7:56,F8:57,F9:58,F10:59,F11:60,F12:61})[code] || 0;
+      F1:50,F2:51,F3:52,F4:53,F5:54,F6:55,F7:56,F8:57,F9:58,F10:59,F11:60,F12:61,
+      Numpad0:62,Numpad1:63,Numpad2:64,Numpad3:65,Numpad4:66,Numpad5:67,Numpad6:68,Numpad7:69,Numpad8:70,Numpad9:71,NumpadDecimal:72,NumpadEnter:73,NumpadAdd:74,NumpadSubtract:75,NumpadMultiply:76,NumpadDivide:77,NumpadEqual:78,NumpadClear:79})[code] || 0;
   };
   const mouseButton = (button) => button === 0 ? 0 : button === 2 ? 1 : button === 1 ? 2 : 3;
 

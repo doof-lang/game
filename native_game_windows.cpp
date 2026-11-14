@@ -66,6 +66,7 @@ int32_t mapKey(WPARAM key) {
         case VK_F1: return 50; case VK_F2: return 51; case VK_F3: return 52; case VK_F4: return 53;
         case VK_F5: return 54; case VK_F6: return 55; case VK_F7: return 56; case VK_F8: return 57;
         case VK_F9: return 58; case VK_F10: return 59; case VK_F11: return 60; case VK_F12: return 61;
+        case VK_NUMPAD0: return 62; case VK_NUMPAD1: return 63; case VK_NUMPAD2: return 64; case VK_NUMPAD3: return 65; case VK_NUMPAD4: return 66; case VK_NUMPAD5: return 67; case VK_NUMPAD6: return 68; case VK_NUMPAD7: return 69; case VK_NUMPAD8: return 70; case VK_NUMPAD9: return 71; case VK_DECIMAL: return 72; case VK_ADD: return 74; case VK_SUBTRACT: return 75; case VK_MULTIPLY: return 76; case VK_DIVIDE: return 77; case VK_CLEAR: return 79;
         default: return kKeyUnknown;
     }
 }

@@ -10,6 +10,7 @@
 #import <QuartzCore/CAMetalLayer.h>
 #import <UIKit/UIKit.h>
 #import <dispatch/dispatch.h>
+#import <objc/runtime.h>
 
 #include <algorithm>
 #include <array>
@@ -29,6 +30,7 @@
 #include <string>
 #include <unordered_map>
 #include <unordered_set>
+#include <thread>
 #include <utility>
 #include <vector>
 
@@ -777,7 +779,8 @@ UIWindow* fallbackApplicationWindow() {
         }
 
         UIWindowScene* windowScene = (UIWindowScene*)scene;
-        if (windowScene.activationState != UISceneActivationStateForegroundActive) {
+        if (windowScene.activationState != UISceneActivationStateForegroundActive &&
+            windowScene.activationState != UISceneActivationStateForegroundInactive) {
             continue;
         }
 
@@ -1374,18 +1377,37 @@ bool PanInertiaState::step(GameRuntimeState* state, double timestamp) {
     return true;
 }
 
+// The window to host the game: the app delegate's, when it belongs to a
+// scene, else the foreground scene's.
+UIWindow* applicationWindow() {
+    id delegate = UIApplication.sharedApplication.delegate;
+    if ([delegate respondsToSelector:@selector(window)]) {
+        UIWindow* window = [delegate window];
+        if (window != nil && window.windowScene != nil) {
+            return window;
+        }
+    }
+    return fallbackApplicationWindow();
+}
+
 std::string installIOSSurface(const std::shared_ptr<GameRuntimeState>& state) {
     __block NSString* errorMessage = nil;
 
+    // The game starts from didFinishLaunching, which can run before the scene
+    // connects; give the scene a few seconds to bring up its window.
+    for (int attempt = 0; attempt < 250; ++attempt) {
+        __block bool ready = false;
+        dispatch_sync(dispatch_get_main_queue(), ^{
+            ready = applicationWindow() != nil;
+        });
+        if (ready) {
+            break;
+        }
+        std::this_thread::sleep_for(std::chrono::milliseconds(20));
+    }
+
     dispatch_sync(dispatch_get_main_queue(), ^{
-        UIWindow* window = nil;
-        id delegate = UIApplication.sharedApplication.delegate;
-        if ([delegate respondsToSelector:@selector(window)]) {
-            window = [delegate window];
-        }
-        if (window == nil) {
-            window = fallbackApplicationWindow();
-        }
+        UIWindow* window = applicationWindow();
         if (window == nil) {
             errorMessage = @"UIApplication window is not ready";
             return;
@@ -1538,6 +1560,74 @@ doof::Result<void, std::string> loadTextureWithCGImageSource(
 
 - (BOOL)prefersStatusBarHidden {
     return YES;
+}
+
+@end
+
+// Apps built against recent iOS SDKs must adopt the UIScene lifecycle or UIKit
+// traps at launch. App shells that only set up a legacy app-delegate window get
+// a scene configuration added to their delegate, and the game is hosted in a
+// window attached to that scene.
+@interface DoofGameSceneDelegate : UIResponder <UIWindowSceneDelegate>
+@property(nonatomic, retain) UIWindow* window;
+@end
+
+@implementation DoofGameSceneDelegate
+
+- (void)scene:(UIScene*)scene willConnectToSession:(UISceneSession*)session options:(UISceneConnectionOptions*)connectionOptions {
+    (void)session;
+    (void)connectionOptions;
+    if (![scene isKindOfClass:[UIWindowScene class]]) {
+        return;
+    }
+    UIWindow* window = [[[UIWindow alloc] initWithWindowScene:(UIWindowScene*)scene] autorelease];
+    window.rootViewController = [[[DoofGameIOSViewController alloc] init] autorelease];
+    window.backgroundColor = UIColor.blackColor;
+    self.window = window;
+    [window makeKeyAndVisible];
+}
+
+- (void)dealloc {
+    [_window release];
+    [super dealloc];
+}
+
+@end
+
+namespace {
+
+IMP doofGameOriginalSetDelegate = nullptr;
+
+UISceneConfiguration* doofGameSceneConfiguration(id self, SEL command, UIApplication* application, UISceneSession* session, UISceneConnectionOptions* options) {
+    (void)self;
+    (void)command;
+    (void)application;
+    (void)options;
+    UISceneConfiguration* configuration = [[[UISceneConfiguration alloc] initWithName:@"Doof Game" sessionRole:session.role] autorelease];
+    configuration.delegateClass = [DoofGameSceneDelegate class];
+    return configuration;
+}
+
+void doofGameSetDelegate(id self, SEL command, id delegate) {
+    SEL configure = @selector(application:configurationForConnectingSceneSession:options:);
+    if (delegate != nil && ![delegate respondsToSelector:configure]) {
+        class_addMethod([delegate class], configure, reinterpret_cast<IMP>(doofGameSceneConfiguration), "@@:@@@");
+    }
+    reinterpret_cast<void (*)(id, SEL, id)>(doofGameOriginalSetDelegate)(self, command, delegate);
+}
+
+}  // namespace
+
+@interface DoofGameSceneAdoption : NSObject
+@end
+
+@implementation DoofGameSceneAdoption
+
++ (void)load {
+    Method method = class_getInstanceMethod([UIApplication class], @selector(setDelegate:));
+    if (method != nullptr) {
+        doofGameOriginalSetDelegate = method_setImplementation(method, reinterpret_cast<IMP>(doofGameSetDelegate));
+    }
 }
 
 @end

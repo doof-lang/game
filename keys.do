@@ -62,6 +62,24 @@ readonly KEY_F9 = 58
 readonly KEY_F10 = 59
 readonly KEY_F11 = 60
 readonly KEY_F12 = 61
+readonly KEY_NUMPAD_0 = 62
+readonly KEY_NUMPAD_1 = 63
+readonly KEY_NUMPAD_2 = 64
+readonly KEY_NUMPAD_3 = 65
+readonly KEY_NUMPAD_4 = 66
+readonly KEY_NUMPAD_5 = 67
+readonly KEY_NUMPAD_6 = 68
+readonly KEY_NUMPAD_7 = 69
+readonly KEY_NUMPAD_8 = 70
+readonly KEY_NUMPAD_9 = 71
+readonly KEY_NUMPAD_DECIMAL = 72
+readonly KEY_NUMPAD_ENTER = 73
+readonly KEY_NUMPAD_ADD = 74
+readonly KEY_NUMPAD_SUBTRACT = 75
+readonly KEY_NUMPAD_MULTIPLY = 76
+readonly KEY_NUMPAD_DIVIDE = 77
+readonly KEY_NUMPAD_EQUAL = 78
+readonly KEY_NUMPAD_CLEAR = 79
 
 export function keyCode(key: Key): int {
   return case key {
@@ -126,6 +144,24 @@ export function keyCode(key: Key): int {
     Key.F10 -> KEY_F10,
     Key.F11 -> KEY_F11,
     Key.F12 -> KEY_F12,
+    Key.Numpad0 -> KEY_NUMPAD_0,
+    Key.Numpad1 -> KEY_NUMPAD_1,
+    Key.Numpad2 -> KEY_NUMPAD_2,
+    Key.Numpad3 -> KEY_NUMPAD_3,
+    Key.Numpad4 -> KEY_NUMPAD_4,
+    Key.Numpad5 -> KEY_NUMPAD_5,
+    Key.Numpad6 -> KEY_NUMPAD_6,
+    Key.Numpad7 -> KEY_NUMPAD_7,
+    Key.Numpad8 -> KEY_NUMPAD_8,
+    Key.Numpad9 -> KEY_NUMPAD_9,
+    Key.NumpadDecimal -> KEY_NUMPAD_DECIMAL,
+    Key.NumpadEnter -> KEY_NUMPAD_ENTER,
+    Key.NumpadAdd -> KEY_NUMPAD_ADD,
+    Key.NumpadSubtract -> KEY_NUMPAD_SUBTRACT,
+    Key.NumpadMultiply -> KEY_NUMPAD_MULTIPLY,
+    Key.NumpadDivide -> KEY_NUMPAD_DIVIDE,
+    Key.NumpadEqual -> KEY_NUMPAD_EQUAL,
+    Key.NumpadClear -> KEY_NUMPAD_CLEAR,
     _ -> KEY_UNKNOWN,
   }
 }
@@ -193,6 +229,24 @@ export function keyFromCode(code: int): Key {
     KEY_F10 -> Key.F10,
     KEY_F11 -> Key.F11,
     KEY_F12 -> Key.F12,
+    KEY_NUMPAD_0 -> Key.Numpad0,
+    KEY_NUMPAD_1 -> Key.Numpad1,
+    KEY_NUMPAD_2 -> Key.Numpad2,
+    KEY_NUMPAD_3 -> Key.Numpad3,
+    KEY_NUMPAD_4 -> Key.Numpad4,
+    KEY_NUMPAD_5 -> Key.Numpad5,
+    KEY_NUMPAD_6 -> Key.Numpad6,
+    KEY_NUMPAD_7 -> Key.Numpad7,
+    KEY_NUMPAD_8 -> Key.Numpad8,
+    KEY_NUMPAD_9 -> Key.Numpad9,
+    KEY_NUMPAD_DECIMAL -> Key.NumpadDecimal,
+    KEY_NUMPAD_ENTER -> Key.NumpadEnter,
+    KEY_NUMPAD_ADD -> Key.NumpadAdd,
+    KEY_NUMPAD_SUBTRACT -> Key.NumpadSubtract,
+    KEY_NUMPAD_MULTIPLY -> Key.NumpadMultiply,
+    KEY_NUMPAD_DIVIDE -> Key.NumpadDivide,
+    KEY_NUMPAD_EQUAL -> Key.NumpadEqual,
+    KEY_NUMPAD_CLEAR -> Key.NumpadClear,
     _ -> Key.Unknown,
   }
 }
