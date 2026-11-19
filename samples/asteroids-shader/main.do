@@ -209,9 +209,8 @@ function main(): int {
 
   app.onRender() {
     surface := app.surface
-    if resources == none {
-      resources = createAsteroidShaderResources(surface)
-    }
+    currentResources := resources ?? createAsteroidShaderResources(surface)
+    resources = currentResources
 
     now := Instant.now()
     deltaSeconds := clamp(lastFrameAt.durationUntil(now).toSeconds(), 0.0, 0.1)
@@ -236,7 +235,7 @@ function main(): int {
         blend: Blend.opaque(),
       },
     ) {
-      drawAsteroidField(pass, resources!, camera.matrix(surface), flight.position(time), time, SUN)
+      drawAsteroidField(pass, currentResources, camera.matrix(surface), flight.position(time), time, SUN)
     }
 
     renderer.pass(

@@ -475,7 +475,7 @@ export class Camera {
 
   lookAt(target: Point3, up: Vec3 | none = none): Camera {
     direction := Vec3.fromPoint(target).minus(Vec3.fromPoint(transform.position))
-    resolvedUp := if up == none then Vec3.up else up!
+    resolvedUp := up ?? Vec3.up
     transform = transform.withRotation(Rotation.lookAt{ direction: direction, up: resolvedUp })
     return this
   }

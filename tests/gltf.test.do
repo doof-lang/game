@@ -91,23 +91,23 @@ function trianglePositionBin(): readonly byte[] {
 }
 
 function minimalTriangleJson(bufferLength: int): string {
-  return "{" +
-    "\"asset\":{\"version\":\"2.0\"}," +
-    "\"buffers\":[{\"byteLength\":" + string(bufferLength) + "}]," +
-    "\"bufferViews\":[{\"buffer\":0,\"byteOffset\":0,\"byteLength\":36}]," +
-    "\"accessors\":[{\"bufferView\":0,\"componentType\":5126,\"count\":3,\"type\":\"VEC3\"}]," +
-    "\"meshes\":[{\"name\":\"Triangle\",\"primitives\":[{\"attributes\":{\"POSITION\":0}}]}]" +
-    "}"
+  return `{
+    "asset":{"version":"2.0"},
+    "buffers":[{"byteLength":${bufferLength}}],
+    "bufferViews":[{"buffer":0,"byteOffset":0,"byteLength":36}],
+    "accessors":[{"bufferView":0,"componentType":5126,"count":3,"type":"VEC3"}],
+    "meshes":[{"name":"Triangle","primitives":[{"attributes":{"POSITION":0}}]}]
+  }`
 }
 
 function minimalTriangleGltfJson(bufferLength: int, uri: string): string {
-  return "{" +
-    "\"asset\":{\"version\":\"2.0\"}," +
-    "\"buffers\":[{\"byteLength\":" + string(bufferLength) + ",\"uri\":\"" + uri + "\"}]," +
-    "\"bufferViews\":[{\"buffer\":0,\"byteOffset\":0,\"byteLength\":36}]," +
-    "\"accessors\":[{\"bufferView\":0,\"componentType\":5126,\"count\":3,\"type\":\"VEC3\"}]," +
-    "\"meshes\":[{\"name\":\"Triangle\",\"primitives\":[{\"attributes\":{\"POSITION\":0}}]}]" +
-    "}"
+  return `{
+    "asset":{"version":"2.0"},
+    "buffers":[{"byteLength":${bufferLength},"uri":"${uri}"}],
+    "bufferViews":[{"buffer":0,"byteOffset":0,"byteLength":36}],
+    "accessors":[{"bufferView":0,"componentType":5126,"count":3,"type":"VEC3"}],
+    "meshes":[{"name":"Triangle","primitives":[{"attributes":{"POSITION":0}}]}]
+  }`
 }
 
 function richTriangleBin(): readonly byte[] {
@@ -157,25 +157,25 @@ function richTriangleBin(): readonly byte[] {
 }
 
 function richTriangleJson(bufferLength: int): string {
-  return "{" +
-    "\"asset\":{\"version\":\"2.0\"}," +
-    "\"buffers\":[{\"byteLength\":" + string(bufferLength) + "}]," +
-    "\"bufferViews\":[" +
-      "{\"buffer\":0,\"byteOffset\":0,\"byteLength\":36}," +
-      "{\"buffer\":0,\"byteOffset\":36,\"byteLength\":36}," +
-      "{\"buffer\":0,\"byteOffset\":72,\"byteLength\":24}," +
-      "{\"buffer\":0,\"byteOffset\":96,\"byteLength\":48}," +
-      "{\"buffer\":0,\"byteOffset\":144,\"byteLength\":6}" +
-    "]," +
-    "\"accessors\":[" +
-      "{\"bufferView\":0,\"componentType\":5126,\"count\":3,\"type\":\"VEC3\"}," +
-      "{\"bufferView\":1,\"componentType\":5126,\"count\":3,\"type\":\"VEC3\"}," +
-      "{\"bufferView\":2,\"componentType\":5126,\"count\":3,\"type\":\"VEC2\"}," +
-      "{\"bufferView\":3,\"componentType\":5126,\"count\":3,\"type\":\"VEC4\"}," +
-      "{\"bufferView\":4,\"componentType\":5123,\"count\":3,\"type\":\"SCALAR\"}" +
-    "]," +
-    "\"meshes\":[{\"name\":\"Rich\",\"primitives\":[{\"attributes\":{\"POSITION\":0,\"NORMAL\":1,\"TEXCOORD_0\":2,\"COLOR_0\":3},\"indices\":4}]}]" +
-    "}"
+  return `{
+    "asset":{"version":"2.0"},
+    "buffers":[{"byteLength":${bufferLength}}],
+    "bufferViews":[
+      {"buffer":0,"byteOffset":0,"byteLength":36},
+      {"buffer":0,"byteOffset":36,"byteLength":36},
+      {"buffer":0,"byteOffset":72,"byteLength":24},
+      {"buffer":0,"byteOffset":96,"byteLength":48},
+      {"buffer":0,"byteOffset":144,"byteLength":6}
+    ],
+    "accessors":[
+      {"bufferView":0,"componentType":5126,"count":3,"type":"VEC3"},
+      {"bufferView":1,"componentType":5126,"count":3,"type":"VEC3"},
+      {"bufferView":2,"componentType":5126,"count":3,"type":"VEC2"},
+      {"bufferView":3,"componentType":5126,"count":3,"type":"VEC4"},
+      {"bufferView":4,"componentType":5123,"count":3,"type":"SCALAR"}
+    ],
+    "meshes":[{"name":"Rich","primitives":[{"attributes":{"POSITION":0,"NORMAL":1,"TEXCOORD_0":2,"COLOR_0":3},"indices":4}]}]
+  }`
 }
 
 function animationBin(): readonly byte[] {
@@ -215,68 +215,68 @@ function animationBin(): readonly byte[] {
 }
 
 function animationJson(bufferLength: int, interpolation: string = "LINEAR", targetPath: string = "translation", outputAccessor: int = 1, sparseOutput: bool = false): string {
-  sparse := if sparseOutput then ",\"sparse\":{\"count\":0}" else ""
-  return "{" +
-    "\"asset\":{\"version\":\"2.0\"}," +
-    "\"buffers\":[{\"byteLength\":" + string(bufferLength) + "}]," +
-    "\"bufferViews\":[" +
-      "{\"buffer\":0,\"byteOffset\":0,\"byteLength\":8}," +
-      "{\"buffer\":0,\"byteOffset\":8,\"byteLength\":24}," +
-      "{\"buffer\":0,\"byteOffset\":32,\"byteLength\":32}," +
-      "{\"buffer\":0,\"byteOffset\":64,\"byteLength\":24}," +
-      "{\"buffer\":0,\"byteOffset\":88,\"byteLength\":16}" +
-    "]," +
-    "\"accessors\":[" +
-      "{\"bufferView\":0,\"componentType\":5126,\"count\":2,\"type\":\"SCALAR\"}," +
-      "{\"bufferView\":1,\"componentType\":5126,\"count\":2,\"type\":\"VEC3\"" + sparse + "}," +
-      "{\"bufferView\":2,\"componentType\":5126,\"count\":2,\"type\":\"VEC4\"}," +
-      "{\"bufferView\":3,\"componentType\":5126,\"count\":2,\"type\":\"VEC3\"}," +
-      "{\"bufferView\":4,\"componentType\":5126,\"count\":4,\"type\":\"SCALAR\"}" +
-    "]," +
-    "\"nodes\":[" +
-      "{\"name\":\"Root\",\"translation\":[1,2,3],\"children\":[1]}," +
-      "{\"name\":\"Animated\",\"translation\":[0,1,0],\"rotation\":[0,0,0,1],\"scale\":[1,1,1],\"weights\":[0.1,0.2]}" +
-    "]," +
-    "\"scenes\":[{\"nodes\":[0]}]," +
-    "\"animations\":[{\"name\":\"Move\",\"samplers\":[{\"input\":0,\"output\":" + string(outputAccessor) + ",\"interpolation\":\"" + interpolation + "\"}],\"channels\":[{\"sampler\":0,\"target\":{\"node\":1,\"path\":\"" + targetPath + "\"}}]}]" +
-    "}"
+  sparse := if sparseOutput then `,"sparse":{"count":0}` else ""
+  return `{
+    "asset":{"version":"2.0"},
+    "buffers":[{"byteLength":${bufferLength}}],
+    "bufferViews":[
+      {"buffer":0,"byteOffset":0,"byteLength":8},
+      {"buffer":0,"byteOffset":8,"byteLength":24},
+      {"buffer":0,"byteOffset":32,"byteLength":32},
+      {"buffer":0,"byteOffset":64,"byteLength":24},
+      {"buffer":0,"byteOffset":88,"byteLength":16}
+    ],
+    "accessors":[
+      {"bufferView":0,"componentType":5126,"count":2,"type":"SCALAR"},
+      {"bufferView":1,"componentType":5126,"count":2,"type":"VEC3"${sparse}},
+      {"bufferView":2,"componentType":5126,"count":2,"type":"VEC4"},
+      {"bufferView":3,"componentType":5126,"count":2,"type":"VEC3"},
+      {"bufferView":4,"componentType":5126,"count":4,"type":"SCALAR"}
+    ],
+    "nodes":[
+      {"name":"Root","translation":[1,2,3],"children":[1]},
+      {"name":"Animated","translation":[0,1,0],"rotation":[0,0,0,1],"scale":[1,1,1],"weights":[0.1,0.2]}
+    ],
+    "scenes":[{"nodes":[0]}],
+    "animations":[{"name":"Move","samplers":[{"input":0,"output":${outputAccessor},"interpolation":"${interpolation}"}],"channels":[{"sampler":0,"target":{"node":1,"path":"${targetPath}"}}]}]
+  }`
 }
 
 function fullAnimationJson(bufferLength: int): string {
-  return "{" +
-    "\"asset\":{\"version\":\"2.0\"}," +
-    "\"buffers\":[{\"byteLength\":" + string(bufferLength) + "}]," +
-    "\"bufferViews\":[" +
-      "{\"buffer\":0,\"byteOffset\":0,\"byteLength\":8}," +
-      "{\"buffer\":0,\"byteOffset\":8,\"byteLength\":24}," +
-      "{\"buffer\":0,\"byteOffset\":32,\"byteLength\":32}," +
-      "{\"buffer\":0,\"byteOffset\":64,\"byteLength\":24}," +
-      "{\"buffer\":0,\"byteOffset\":88,\"byteLength\":16}" +
-    "]," +
-    "\"accessors\":[" +
-      "{\"bufferView\":0,\"componentType\":5126,\"count\":2,\"type\":\"SCALAR\"}," +
-      "{\"bufferView\":1,\"componentType\":5126,\"count\":2,\"type\":\"VEC3\"}," +
-      "{\"bufferView\":2,\"componentType\":5126,\"count\":2,\"type\":\"VEC4\"}," +
-      "{\"bufferView\":3,\"componentType\":5126,\"count\":2,\"type\":\"VEC3\"}," +
-      "{\"bufferView\":4,\"componentType\":5126,\"count\":4,\"type\":\"SCALAR\"}" +
-    "]," +
-    "\"nodes\":[" +
-      "{\"name\":\"Root\",\"translation\":[1,2,3],\"children\":[1]}," +
-      "{\"name\":\"Animated\",\"translation\":[0,1,0],\"rotation\":[0,0,0,1],\"scale\":[1,1,1],\"weights\":[0.1,0.2]}" +
-    "]," +
-    "\"scenes\":[{\"nodes\":[0]}]," +
-    "\"animations\":[{\"name\":\"Move\",\"samplers\":[" +
-      "{\"input\":0,\"output\":1,\"interpolation\":\"LINEAR\"}," +
-      "{\"input\":0,\"output\":2,\"interpolation\":\"LINEAR\"}," +
-      "{\"input\":0,\"output\":3,\"interpolation\":\"STEP\"}," +
-      "{\"input\":0,\"output\":4,\"interpolation\":\"LINEAR\"}" +
-    "],\"channels\":[" +
-      "{\"sampler\":0,\"target\":{\"node\":1,\"path\":\"translation\"}}," +
-      "{\"sampler\":1,\"target\":{\"node\":1,\"path\":\"rotation\"}}," +
-      "{\"sampler\":2,\"target\":{\"node\":1,\"path\":\"scale\"}}," +
-      "{\"sampler\":3,\"target\":{\"node\":1,\"path\":\"weights\"}}" +
-    "]}]" +
-    "}"
+  return `{
+    "asset":{"version":"2.0"},
+    "buffers":[{"byteLength":${bufferLength}}],
+    "bufferViews":[
+      {"buffer":0,"byteOffset":0,"byteLength":8},
+      {"buffer":0,"byteOffset":8,"byteLength":24},
+      {"buffer":0,"byteOffset":32,"byteLength":32},
+      {"buffer":0,"byteOffset":64,"byteLength":24},
+      {"buffer":0,"byteOffset":88,"byteLength":16}
+    ],
+    "accessors":[
+      {"bufferView":0,"componentType":5126,"count":2,"type":"SCALAR"},
+      {"bufferView":1,"componentType":5126,"count":2,"type":"VEC3"},
+      {"bufferView":2,"componentType":5126,"count":2,"type":"VEC4"},
+      {"bufferView":3,"componentType":5126,"count":2,"type":"VEC3"},
+      {"bufferView":4,"componentType":5126,"count":4,"type":"SCALAR"}
+    ],
+    "nodes":[
+      {"name":"Root","translation":[1,2,3],"children":[1]},
+      {"name":"Animated","translation":[0,1,0],"rotation":[0,0,0,1],"scale":[1,1,1],"weights":[0.1,0.2]}
+    ],
+    "scenes":[{"nodes":[0]}],
+    "animations":[{"name":"Move","samplers":[
+      {"input":0,"output":1,"interpolation":"LINEAR"},
+      {"input":0,"output":2,"interpolation":"LINEAR"},
+      {"input":0,"output":3,"interpolation":"STEP"},
+      {"input":0,"output":4,"interpolation":"LINEAR"}
+    ],"channels":[
+      {"sampler":0,"target":{"node":1,"path":"translation"}},
+      {"sampler":1,"target":{"node":1,"path":"rotation"}},
+      {"sampler":2,"target":{"node":1,"path":"scale"}},
+      {"sampler":3,"target":{"node":1,"path":"weights"}}
+    ]}]
+  }`
 }
 
 export function testParseGlbConvertsMinimalTriangleAndComputesNormals(): none {
@@ -314,25 +314,25 @@ export function testParseGlbConvertsIndexedAttributes(): none {
 
 export function testParseGlbWarningsStillAllowStaticConversion(): none {
   bin := trianglePositionBin()
-  json := "{" +
-    "\"asset\":{\"version\":\"2.0\"}," +
-    "\"buffers\":[{\"byteLength\":" + string(bin.length) + ",\"uri\":\"external.bin\"}]," +
-    "\"bufferViews\":[{\"buffer\":0,\"byteOffset\":0,\"byteLength\":36}]," +
-    "\"accessors\":[" +
-      "{\"bufferView\":0,\"componentType\":5126,\"count\":3,\"type\":\"VEC3\"}," +
-      "{\"bufferView\":0,\"componentType\":5126,\"count\":3,\"type\":\"VEC3\",\"sparse\":{\"count\":0}}" +
-    "]," +
-    "\"samplers\":[{\"name\":\"Nearest\",\"magFilter\":9728,\"minFilter\":9728,\"wrapS\":33071,\"wrapT\":33071}]," +
-    "\"images\":[{\"name\":\"Atlas\",\"bufferView\":0,\"mimeType\":\"image/png\"}]," +
-    "\"textures\":[{\"name\":\"Diffuse\",\"sampler\":0,\"source\":0}]," +
-    "\"materials\":[{\"name\":\"Body\",\"pbrMetallicRoughness\":{\"baseColorFactor\":[0.5,0.25,1.0,0.75],\"baseColorTexture\":{\"index\":0,\"texCoord\":1},\"metallicFactor\":0.1,\"roughnessFactor\":0.9},\"doubleSided\":true,\"alphaMode\":\"BLEND\"}]," +
-    "\"animations\":[{\"name\":\"Wave\",\"samplers\":[{\"input\":0,\"output\":1,\"interpolation\":\"STEP\"}],\"channels\":[{\"sampler\":0,\"target\":{\"node\":0,\"path\":\"rotation\"}}]}]," +
-    "\"skins\":[{}]," +
-    "\"meshes\":[{\"primitives\":[" +
-      "{\"attributes\":{\"POSITION\":0}}," +
-      "{\"mode\":1,\"attributes\":{\"POSITION\":0},\"material\":0,\"targets\":[{}]}" +
-    "]}]" +
-    "}"
+  json := `{
+    "asset":{"version":"2.0"},
+    "buffers":[{"byteLength":${bin.length},"uri":"external.bin"}],
+    "bufferViews":[{"buffer":0,"byteOffset":0,"byteLength":36}],
+    "accessors":[
+      {"bufferView":0,"componentType":5126,"count":3,"type":"VEC3"},
+      {"bufferView":0,"componentType":5126,"count":3,"type":"VEC3","sparse":{"count":0}}
+    ],
+    "samplers":[{"name":"Nearest","magFilter":9728,"minFilter":9728,"wrapS":33071,"wrapT":33071}],
+    "images":[{"name":"Atlas","bufferView":0,"mimeType":"image/png"}],
+    "textures":[{"name":"Diffuse","sampler":0,"source":0}],
+    "materials":[{"name":"Body","pbrMetallicRoughness":{"baseColorFactor":[0.5,0.25,1.0,0.75],"baseColorTexture":{"index":0,"texCoord":1},"metallicFactor":0.1,"roughnessFactor":0.9},"doubleSided":true,"alphaMode":"BLEND"}],
+    "animations":[{"name":"Wave","samplers":[{"input":0,"output":1,"interpolation":"STEP"}],"channels":[{"sampler":0,"target":{"node":0,"path":"rotation"}}]}],
+    "skins":[{}],
+    "meshes":[{"primitives":[
+      {"attributes":{"POSITION":0}},
+      {"mode":1,"attributes":{"POSITION":0},"material":0,"targets":[{}]}
+    ]}]
+  }`
 
   asset := parseGlb(buildGlb(json, bin), "warnings.glb")!
   specs := glbAssetToSimpleMeshSpecs(asset)!
@@ -413,21 +413,21 @@ export function testLoadGltfRejectsMissingBinFile(): none {
 
 export function testParseGltfRejectsUnsupportedBufferLayouts(): none {
   bin := trianglePositionBin()
-  multipleBuffersJson := "{" +
-    "\"asset\":{\"version\":\"2.0\"}," +
-    "\"buffers\":[" +
-      "{\"byteLength\":" + string(bin.length) + ",\"uri\":\"a.bin\"}," +
-      "{\"byteLength\":" + string(bin.length) + ",\"uri\":\"b.bin\"}" +
-    "]," +
-    "\"bufferViews\":[{\"buffer\":0,\"byteOffset\":0,\"byteLength\":36}]" +
-    "}"
+  multipleBuffersJson := `{
+    "asset":{"version":"2.0"},
+    "buffers":[
+      {"byteLength":${bin.length},"uri":"a.bin"},
+      {"byteLength":${bin.length},"uri":"b.bin"}
+    ],
+    "bufferViews":[{"buffer":0,"byteOffset":0,"byteLength":36}]
+  }`
   Assert.isTrue(isFailure(parseGltf(multipleBuffersJson, "multiple.gltf", bin)), "expected multiple buffers to fail")
 
-  nonZeroBufferJson := "{" +
-    "\"asset\":{\"version\":\"2.0\"}," +
-    "\"buffers\":[{\"byteLength\":" + string(bin.length) + ",\"uri\":\"triangle.bin\"}]," +
-    "\"bufferViews\":[{\"buffer\":1,\"byteOffset\":0,\"byteLength\":36}]" +
-    "}"
+  nonZeroBufferJson := `{
+    "asset":{"version":"2.0"},
+    "buffers":[{"byteLength":${bin.length},"uri":"triangle.bin"}],
+    "bufferViews":[{"buffer":1,"byteOffset":0,"byteLength":36}]
+  }`
   Assert.isTrue(isFailure(parseGltf(nonZeroBufferJson, "non-zero-buffer.gltf", bin)), "expected bufferView.buffer != 0 to fail")
 
   overrunJson := minimalTriangleJson(bin.length + 1)
@@ -520,17 +520,17 @@ export function testParseGlbRejectsMalformedContainers(): none {
 }
 
 export function testGlbConversionRejectsInvalidAccessorsAndBufferOverruns(): none {
-  noSupported := parseGlb(buildGlb("{\"asset\":{\"version\":\"2.0\"},\"meshes\":[{\"primitives\":[{\"mode\":1}]}]}"))!
+  noSupported := parseGlb(buildGlb(`{"asset":{"version":"2.0"},"meshes":[{"primitives":[{"mode":1}]}]}`))!
   Assert.isTrue(isFailure(glbAssetToSimpleMeshSpecs(noSupported)), "expected no supported primitives to fail")
 
   bin := trianglePositionBin()
-  overrunJson := "{" +
-    "\"asset\":{\"version\":\"2.0\"}," +
-    "\"buffers\":[{\"byteLength\":" + string(bin.length) + "}]," +
-    "\"bufferViews\":[{\"buffer\":0,\"byteOffset\":24,\"byteLength\":36}]," +
-    "\"accessors\":[{\"bufferView\":0,\"componentType\":5126,\"count\":3,\"type\":\"VEC3\"}]," +
-    "\"meshes\":[{\"primitives\":[{\"attributes\":{\"POSITION\":0}}]}]" +
-    "}"
+  overrunJson := `{
+    "asset":{"version":"2.0"},
+    "buffers":[{"byteLength":${bin.length}}],
+    "bufferViews":[{"buffer":0,"byteOffset":24,"byteLength":36}],
+    "accessors":[{"bufferView":0,"componentType":5126,"count":3,"type":"VEC3"}],
+    "meshes":[{"primitives":[{"attributes":{"POSITION":0}}]}]
+  }`
   overrun := parseGlb(buildGlb(overrunJson, bin), "overrun.glb")!
   Assert.isTrue(isFailure(glbAssetToSimpleMeshSpecs(overrun)), "expected buffer overrun to fail")
 }
@@ -548,16 +548,15 @@ function normalizedColorGlb(componentType: int): readonly byte[] {
   }
   bin := builder.build()
   colorLength := bin.length - 36
-  json := "{" +
-    "\"asset\":{\"version\":\"2.0\"}," +
-    "\"buffers\":[{\"byteLength\":" + string(bin.length) + "}]," +
-    "\"bufferViews\":[{\"buffer\":0,\"byteOffset\":0,\"byteLength\":36}," +
-      "{\"buffer\":0,\"byteOffset\":36,\"byteLength\":" + string(colorLength) + "}]," +
-    "\"accessors\":[{\"bufferView\":0,\"componentType\":5126,\"count\":3,\"type\":\"VEC3\"}," +
-      "{\"bufferView\":1,\"componentType\":" + string(componentType) +
-      ",\"normalized\":true,\"count\":3,\"type\":\"VEC4\"}]," +
-    "\"meshes\":[{\"name\":\"Tinted\",\"primitives\":[{\"attributes\":{\"POSITION\":0,\"COLOR_0\":1}}]}]" +
-    "}"
+  json := `{
+    "asset":{"version":"2.0"},
+    "buffers":[{"byteLength":${bin.length}}],
+    "bufferViews":[{"buffer":0,"byteOffset":0,"byteLength":36},
+      {"buffer":0,"byteOffset":36,"byteLength":${colorLength}}],
+    "accessors":[{"bufferView":0,"componentType":5126,"count":3,"type":"VEC3"},
+      {"bufferView":1,"componentType":${componentType},"normalized":true,"count":3,"type":"VEC4"}],
+    "meshes":[{"name":"Tinted","primitives":[{"attributes":{"POSITION":0,"COLOR_0":1}}]}]
+  }`
   return buildGlb(json, bin)
 }
 

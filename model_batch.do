@@ -103,11 +103,8 @@ export class SimpleModelBatch {
   }
 
   private syncNative(): NativeSimpleModelBatch {
-    if native == none {
-      native = NativeSimpleModelBatch.create(surface.metalDeviceHandle(), capacity)!
-    }
-
-    target := native!
+    target := native ?? NativeSimpleModelBatch.create(surface.metalDeviceHandle(), capacity)!
+    native = target
     target.setCount(count())
     for slot of 0..<count() {
       if dirty[slot] != 0 {
@@ -263,7 +260,7 @@ export function drawSimpleModelBatch(
   drawNativeSimpleModelBatch(
     batch.mesh.nativeSimpleMesh(),
     nativeBatch,
-    if batch.texture != none then batch.texture!.metalTextureHandle() else 0L,
+    batch.texture?.metalTextureHandle() ?? 0L,
     batch.texture != none,
     pass.metalRenderCommandEncoderHandle(),
     pass.metalDeviceHandle(),

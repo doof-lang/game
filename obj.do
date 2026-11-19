@@ -153,7 +153,7 @@ function resolveOptionalIndex(
     }
   }
 
-  try rawIndex := parseIntToken(token, lineNumber, source, label + " index")
+  try rawIndex := parseIntToken(token, lineNumber, source, "${label} index")
   return resolveIndex(rawIndex, count, lineNumber, source, label)
 }
 

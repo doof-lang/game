@@ -54,15 +54,15 @@ function main(): int {
   app := initGameApp{ title: "Doof Game" }
   mesh := createMesh(app.surface)
 
-  app.key(Key.Escape).onPressed((): void => app.stop())
+  app.key(Key.Escape).onPressed((): none => app.stop())
 
-  app.onEvent((event): void => {
+  app.onEvent((event): none => {
     if event.kind() == GameEventKind.CloseRequested {
       app.stop()
     }
   })
 
-  app.onRender((renderer): void => {
+  app.onRender((renderer): none => {
     renderer.pass(
       RenderPassDescriptor {
         camera: Camera.screen(),
@@ -70,7 +70,7 @@ function main(): int {
         depth: Depth.readWrite(),
         blend: Blend.opaque(),
       },
-      (pass): void => drawSimpleMesh(pass, mesh),
+      (pass): none => drawSimpleMesh(pass, mesh),
     )
   })
 
@@ -151,9 +151,9 @@ normal resizable window.
 | --- | --- | --- |
 | `onEvent(handler)` | `GameApp` | Register app-level event callback. Key and mouse button edges are routed to input helpers instead. |
 | `onRender(handler)` | `GameApp` | Register render callback. |
-| `run()` | `Result<void, string>` | Enter the native app loop. |
-| `stop()` | `void` | Request app shutdown. |
-| `requestRender()` | `void` | Schedule a render in requested mode. |
+| `run()` | `Result<none, string>` | Enter the native app loop. |
+| `stop()` | `none` | Request app shutdown. |
+| `requestRender()` | `none` | Schedule a render in requested mode. |
 | `fps()` | `double` | Recent completed render callback rate. |
 | `key(key)` | `InputButton` | Create a binary input helper for a keyboard key. |
 | `mouseButton(button)` | `InputButton` | Create a binary input helper for a mouse button. |
@@ -171,11 +171,11 @@ normal resizable window.
 | `loadIntrinsicFont()` | `Result<BitmapFont, string>` | Load the small embedded bitmap font. |
 | `loadSound(path)` | `Result<Sound, string>` | Load platform-supported audio. |
 | `loadSoundResource(path)` | `Result<Sound, string>` | Load platform-supported audio from package resources. |
-| `beginPanGesture(x, y)` | `void` | Begin an app-declared pan gesture. |
-| `updatePanGesture(x, y)` | `void` | Emit pan deltas from an app-declared pan gesture. |
-| `endPanGesture()` | `void` | End a pan gesture, possibly starting inertia. |
-| `cancelPanGesture()` | `void` | Cancel the active app-declared pan gesture. |
-| `cancelPanInertia()` | `void` | Stop inertial pan events. |
+| `beginPanGesture(x, y)` | `none` | Begin an app-declared pan gesture. |
+| `updatePanGesture(x, y)` | `none` | Emit pan deltas from an app-declared pan gesture. |
+| `endPanGesture()` | `none` | End a pan gesture, possibly starting inertia. |
+| `cancelPanGesture()` | `none` | Cancel the active app-declared pan gesture. |
+| `cancelPanInertia()` | `none` | Stop inertial pan events. |
 
 `onEvent` receives close, resize, scroll, pan, magnify, double tap, and
 controller connection events. It does not deliver key down/up or mouse
@@ -261,7 +261,7 @@ jump := InputButton.any([
   app.controllerButton(.One, .South),
 ])
 
-jump.onPressed((): void => println("jump"))
+jump.onPressed((): none => println("jump"))
 if jump.pressed() {
   // held this frame
 }
@@ -300,10 +300,10 @@ single-touch translation on iOS.
 
 ```doof
 gestures := app.gestures()
-gestures.onPan((g): void => panCamera(g.deltaX, g.deltaY))
-gestures.onScroll((g): void => zoomAt(g.point, g.deltaY))
-gestures.onMagnify((g): void => pinchZoom(g.point, g.magnificationDelta))
-gestures.onDoubleTap((g): void => toggleZoomAt(g.point))
+gestures.onPan((g): none => panCamera(g.deltaX, g.deltaY))
+gestures.onScroll((g): none => zoomAt(g.point, g.deltaY))
+gestures.onMagnify((g): none => pinchZoom(g.point, g.magnificationDelta))
+gestures.onDoubleTap((g): none => toggleZoomAt(g.point))
 ```
 
 `ScreenGesture` has `point`, `deltaX`, `deltaY`, and `magnificationDelta`.
@@ -331,8 +331,8 @@ the render callback returns.
 | Method | Return | Description |
 | --- | --- | --- |
 | `surface()` | `GameSurface` | Active surface. |
-| `pass(desc, draw)` | `void` | Begin a render pass and invoke `draw(pass)`. |
-| `depthPass(texture, desc, draw)` | `void` | Begin a depth-only pass into a `DepthTexture`. |
+| `pass(desc, draw)` | `none` | Begin a render pass and invoke `draw(pass)`. |
+| `depthPass(texture, desc, draw)` | `none` | Begin a depth-only pass into a `DepthTexture`. |
 | `loadTexture(path)` | `Result<Texture, string>` | Load a texture for the active surface. |
 | `createTexture(image)` | `Result<Texture, string>` | Upload a `std/image` image. |
 | `createTextureFromPixels(pixels)` | `Result<Texture, string>` | Upload raw pixel bytes. |
@@ -570,7 +570,7 @@ celebration effects with staggered bursts, sparkles, and a closing finale. Call
 ```doof
 fireworks := Fireworks(app.surface)
 
-app.onRender((renderer): void => {
+app.onRender((renderer): none => {
   active := fireworks.update(1.0 / 60.0)
   renderer.pass(
     RenderPassDescriptor {
@@ -578,7 +578,7 @@ app.onRender((renderer): void => {
       depth: Depth.disabled(),
       blend: Blend.alpha(),
     },
-    (pass): void => fireworks.draw(pass),
+    (pass): none => fireworks.draw(pass),
   )
   if active {
     app.requestRender()
@@ -698,7 +698,7 @@ screen-space render pass and is also inverted for hit testing.
 ```doof
 ui := UiLayer(app)
 status := ui.addLabel("Ready", Rect(24.0, 24.0, 260.0, 40.0), UiStyle {})
-ui.addButton("Start", Rect(24.0, 80.0, 160.0, 44.0), UiButtonStyle {}, (): void => {
+ui.addButton("Start", Rect(24.0, 80.0, 160.0, 44.0), UiButtonStyle {}, (): none => {
   status.setText("Started")
 })
 ```
@@ -712,12 +712,12 @@ ui.addButton("Start", Rect(24.0, 80.0, 160.0, 44.0), UiButtonStyle {}, (): void 
 | `addPanel(bounds, style)` | `UiPanel` | Add a panel. |
 | `addLabel(text, bounds, style)` | `UiLabel` | Add a label. |
 | `addButton(text, bounds, style, onClick)` | `UiButton` | Add a button. |
-| `hitTest(point)` | `UiHit \| null` | Find the topmost visible element at a screen-space point. |
-| `handleEvent(event)` | `void` | Feed mouse and double-tap events manually. |
-| `draw(pass)` | `void` | Draw visible elements. |
+| `hitTest(point)` | `UiHit \| none` | Find the topmost visible element at a screen-space point. |
+| `handleEvent(event)` | `none` | Feed mouse and double-tap events manually. |
+| `draw(pass)` | `none` | Draw visible elements. |
 
 Later-added elements are topmost. Styles default to the intrinsic font when
-`font` is `null`.
+`font` is `none`.
 
 `UiPanel`, `UiLabel`, and `UiButton` expose `id()`, `bounds()`, `isVisible()`,
 `setBounds`, and `setVisible`. Labels also expose `setText`, `setColor`, and

@@ -44,23 +44,24 @@ export function bindPanel(node: LayoutNode, panel: UiPanel): none {
 
 export function bindClippedPanel(node: LayoutNode, panel: UiPanel): none {
   node.onPlace = (placement: LayoutPlacement): none => {
-    if placement.visibleBounds == none {
-      panel.setVisible(false)
-    } else {
-      panel.setBounds(toGameRect(placement.visibleBounds!))
+    if visible := placement.visibleBounds {
+      panel.setBounds(toGameRect(visible))
       panel.setVisible(true)
+    } else {
+      panel.setVisible(false)
     }
   }
 }
 
 export function bindLabel(node: LayoutNode, label: UiLabel, requireFull: bool = false): none {
   node.onPlace = (placement: LayoutPlacement): none => {
-    visible := placement.visibleBounds
-    fullyVisible := visible != none
-      && visible!.width >= placement.bounds.width - 0.01
-      && visible!.height >= placement.bounds.height - 0.01
+    let shown = false
+    if visible := placement.visibleBounds {
+      shown = !requireFull || (visible.width >= placement.bounds.width - 0.01
+        && visible.height >= placement.bounds.height - 0.01)
+    }
     label.setBounds(toGameRect(placement.bounds))
-    label.setVisible(if requireFull then fullyVisible else visible != none)
+    label.setVisible(shown)
   }
 }
 

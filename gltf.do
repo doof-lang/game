@@ -180,12 +180,10 @@ export class GltfAsset {
   }
 
   findAnimation(name: string): Result<GltfAnimation, GltfError> {
-    for animation of animations {
-      if animation.name == name {
-        return Success(animation)
-      }
+    animation := animations.find(=> it.name == name) else {
+      return Failure(gltfError("animation", "$.animations", `Animation '${name}' was not found`))
     }
-    return Failure(gltfError("animation", "$.animations", `Animation '${name}' was not found`))
+    return Success(animation)
   }
 }
 
@@ -246,56 +244,49 @@ function gltfWarning(stage: string, path: string, message: string): GltfWarning 
 }
 
 function jsonField(object: SerialObject, name: string): SerialValue | none {
-  return case object.get(name) {
-    s: Success -> s.value,
-    _: Failure -> none,
-  }
+  return object.get(name)?
 }
 
 function jsonArrayField(object: SerialObject, name: string, path: string): Result<readonly SerialValue[] | none, GltfError> {
-  value := jsonField(object, name)
-  if value == none {
+  value := jsonField(object, name) else {
     return Success(none)
   }
 
-  array := value! as readonly SerialValue[] else {
-    return Failure(gltfError("json", path + "." + name, "Expected JSON array"))
+  array := value as readonly SerialValue[] else {
+    return Failure(gltfError("json", "${path}.${name}", "Expected JSON array"))
   }
   return Success(array)
 }
 
 function jsonObjectField(object: SerialObject, name: string, path: string): Result<SerialObject | none, GltfError> {
-  value := jsonField(object, name)
-  if value == none {
+  value := jsonField(object, name) else {
     return Success(none)
   }
 
-  child := value! as SerialObject else {
-    return Failure(gltfError("json", path + "." + name, "Expected JSON object"))
+  child := value as SerialObject else {
+    return Failure(gltfError("json", "${path}.${name}", "Expected JSON object"))
   }
   return Success(child)
 }
 
 function jsonStringField(object: SerialObject, name: string, path: string): Result<string | none, GltfError> {
-  value := jsonField(object, name)
-  if value == none {
+  value := jsonField(object, name) else {
     return Success(none)
   }
 
-  text := value! as string else {
-    return Failure(gltfError("json", path + "." + name, "Expected string"))
+  text := value as string else {
+    return Failure(gltfError("json", "${path}.${name}", "Expected string"))
   }
   return Success(text)
 }
 
 function jsonBoolField(object: SerialObject, name: string, defaultValue: bool, path: string): Result<bool, GltfError> {
-  value := jsonField(object, name)
-  if value == none {
+  value := jsonField(object, name) else {
     return Success(defaultValue)
   }
 
-  flag := value! as bool else {
-    return Failure(gltfError("json", path + "." + name, "Expected boolean"))
+  flag := value as bool else {
+    return Failure(gltfError("json", "${path}.${name}", "Expected boolean"))
   }
   return Success(flag)
 }
@@ -308,12 +299,11 @@ function jsonIntValue(value: SerialValue, path: string): Result<int, GltfError> 
 }
 
 function jsonIntField(object: SerialObject, name: string, defaultValue: int, path: string): Result<int, GltfError> {
-  value := jsonField(object, name)
-  if value == none {
+  value := jsonField(object, name) else {
     return Success(defaultValue)
   }
 
-  return jsonIntValue(value!, path + "." + name)
+  return jsonIntValue(value, "${path}.${name}")
 }
 
 function jsonDoubleValue(value: SerialValue, path: string): Result<double, GltfError> {
@@ -324,22 +314,19 @@ function jsonDoubleValue(value: SerialValue, path: string): Result<double, GltfE
 }
 
 function jsonDoubleField(object: SerialObject, name: string, defaultValue: double, path: string): Result<double, GltfError> {
-  value := jsonField(object, name)
-  if value == none {
+  value := jsonField(object, name) else {
     return Success(defaultValue)
   }
 
-  return jsonDoubleValue(value!, path + "." + name)
+  return jsonDoubleValue(value, "${path}.${name}")
 }
 
 function jsonIntArrayField(object: SerialObject, name: string, path: string): Result<int[], GltfError> {
   result: int[] := []
   try maybeArray := jsonArrayField(object, name, path)
-  if maybeArray == none {
+  array := maybeArray else {
     return Success(result)
   }
-
-  array := maybeArray!
   for index of 0..<array.length {
     try value := jsonIntValue(array[index], `${path}.${name}[${index}]`)
     result.push(value)
@@ -350,11 +337,9 @@ function jsonIntArrayField(object: SerialObject, name: string, path: string): Re
 function jsonDoubleArrayField(object: SerialObject, name: string, path: string): Result<double[], GltfError> {
   result: double[] := []
   try maybeArray := jsonArrayField(object, name, path)
-  if maybeArray == none {
+  array := maybeArray else {
     return Success(result)
   }
-
-  array := maybeArray!
   for index of 0..<array.length {
     try value := jsonDoubleValue(array[index], `${path}.${name}[${index}]`)
     result.push(value)
@@ -368,7 +353,7 @@ function parsePoint3Field(object: SerialObject, name: string, defaultValue: Poin
   }
   try values := jsonDoubleArrayField(object, name, path)
   if values.length != 3 {
-    return Failure(gltfError("json", path + "." + name, "Expected three numeric components"))
+    return Failure(gltfError("json", "${path}.${name}", "Expected three numeric components"))
   }
   return Success(Point3(values[0], values[1], values[2]))
 }
@@ -379,7 +364,7 @@ function parseVec3Field(object: SerialObject, name: string, defaultValue: Vec3, 
   }
   try values := jsonDoubleArrayField(object, name, path)
   if values.length != 3 {
-    return Failure(gltfError("json", path + "." + name, "Expected three numeric components"))
+    return Failure(gltfError("json", "${path}.${name}", "Expected three numeric components"))
   }
   return Success(Vec3.xyz(values[0], values[1], values[2]))
 }
@@ -390,7 +375,7 @@ function parseRotationField(object: SerialObject, name: string, defaultValue: Ro
   }
   try values := jsonDoubleArrayField(object, name, path)
   if values.length != 4 {
-    return Failure(gltfError("json", path + "." + name, "Expected four quaternion components"))
+    return Failure(gltfError("json", "${path}.${name}", "Expected four quaternion components"))
   }
   return Success(Rotation { qx: values[0], qy: values[1], qz: values[2], qw: values[3] }.normalized())
 }
@@ -401,7 +386,7 @@ function parseMat4Field(object: SerialObject, name: string, path: string): Resul
   }
   try values := jsonDoubleArrayField(object, name, path)
   if values.length != 16 {
-    return Failure(gltfError("json", path + "." + name, "Expected sixteen matrix components"))
+    return Failure(gltfError("json", "${path}.${name}", "Expected sixteen matrix components"))
   }
   return Success(Mat4 {
     m00: values[0], m01: values[4], m02: values[8], m03: values[12],
@@ -414,11 +399,9 @@ function parseMat4Field(object: SerialObject, name: string, path: string): Resul
 function parseBuffers(root: SerialObject, warnings: GltfWarning[]): Result<GltfBuffer[], GltfError> {
   result: GltfBuffer[] := []
   try maybeBuffers := jsonArrayField(root, "buffers", "$")
-  if maybeBuffers == none {
+  buffers := maybeBuffers else {
     return Success(result)
   }
-
-  buffers := maybeBuffers!
   for index of 0..<buffers.length {
     path := `$.buffers[${index}]`
     object := buffers[index] as SerialObject else {
@@ -437,11 +420,9 @@ function parseBuffers(root: SerialObject, warnings: GltfWarning[]): Result<GltfB
 function parseBufferViews(root: SerialObject): Result<GltfBufferView[], GltfError> {
   result: GltfBufferView[] := []
   try maybeViews := jsonArrayField(root, "bufferViews", "$")
-  if maybeViews == none {
+  views := maybeViews else {
     return Success(result)
   }
-
-  views := maybeViews!
   for index of 0..<views.length {
     path := `$.bufferViews[${index}]`
     object := views[index] as SerialObject else {
@@ -459,11 +440,9 @@ function parseBufferViews(root: SerialObject): Result<GltfBufferView[], GltfErro
 function parseAccessors(root: SerialObject, warnings: GltfWarning[]): Result<GltfAccessor[], GltfError> {
   result: GltfAccessor[] := []
   try maybeAccessors := jsonArrayField(root, "accessors", "$")
-  if maybeAccessors == none {
+  accessors := maybeAccessors else {
     return Success(result)
   }
-
-  accessors := maybeAccessors!
   for index of 0..<accessors.length {
     path := `$.accessors[${index}]`
     object := accessors[index] as SerialObject else {
@@ -471,7 +450,7 @@ function parseAccessors(root: SerialObject, warnings: GltfWarning[]): Result<Glt
     }
     sparse := jsonField(object, "sparse") != none
     if sparse {
-      warnings.push(gltfWarning("json", path + ".sparse", "Sparse accessors are preserved as metadata but are not converted to SimpleMeshSpec"))
+      warnings.push(gltfWarning("json", "${path}.sparse", "Sparse accessors are preserved as metadata but are not converted to SimpleMeshSpec"))
     }
     try bufferView := jsonIntField(object, "bufferView", -1, path)
     try byteOffset := jsonIntField(object, "byteOffset", 0, path)
@@ -496,24 +475,24 @@ function parseAccessors(root: SerialObject, warnings: GltfWarning[]): Result<Glt
 function parsePrimitive(object: SerialObject, path: string, warnings: GltfWarning[]): Result<GltfPrimitive, GltfError> {
   try attributesObject := jsonObjectField(object, "attributes", path)
   attributes: Map<string, int> := {}
-  if attributesObject != none {
-    for key, value of attributesObject! {
-      try attributeIndex := jsonIntValue(value, path + ".attributes." + key)
+  if present := attributesObject {
+    for key, value of present {
+      try attributeIndex := jsonIntValue(value, "${path}.attributes.${key}")
       attributes.set(key, attributeIndex)
     }
   }
 
   try mode := jsonIntField(object, "mode", GLTF_MODE_TRIANGLES, path)
   if mode != GLTF_MODE_TRIANGLES {
-    warnings.push(gltfWarning("convert", path + ".mode", "Only triangle primitives are converted to SimpleMeshSpec"))
+    warnings.push(gltfWarning("convert", "${path}.mode", "Only triangle primitives are converted to SimpleMeshSpec"))
   }
 
   if jsonField(object, "targets") != none {
-    warnings.push(gltfWarning("convert", path + ".targets", "Morph targets are preserved as metadata but are not converted to SimpleMeshSpec"))
+    warnings.push(gltfWarning("convert", "${path}.targets", "Morph targets are preserved as metadata but are not converted to SimpleMeshSpec"))
   }
 
   if jsonField(object, "material") != none {
-    warnings.push(gltfWarning("convert", path + ".material", "Materials are preserved as metadata but are not applied to SimpleMeshSpec"))
+    warnings.push(gltfWarning("convert", "${path}.material", "Materials are preserved as metadata but are not applied to SimpleMeshSpec"))
   }
 
   try indices := jsonIntField(object, "indices", -1, path)
@@ -530,11 +509,9 @@ function parsePrimitive(object: SerialObject, path: string, warnings: GltfWarnin
 function parseMeshes(root: SerialObject, warnings: GltfWarning[]): Result<GltfMesh[], GltfError> {
   result: GltfMesh[] := []
   try maybeMeshes := jsonArrayField(root, "meshes", "$")
-  if maybeMeshes == none {
+  meshes := maybeMeshes else {
     return Success(result)
   }
-
-  meshes := maybeMeshes!
   for meshIndex of 0..<meshes.length {
     path := `$.meshes[${meshIndex}]`
     object := meshes[meshIndex] as SerialObject else {
@@ -542,8 +519,7 @@ function parseMeshes(root: SerialObject, warnings: GltfWarning[]): Result<GltfMe
     }
     primitives: GltfPrimitive[] := []
     try maybePrimitives := jsonArrayField(object, "primitives", path)
-    if maybePrimitives != none {
-      values := maybePrimitives!
+    if values := maybePrimitives {
       for primitiveIndex of 0..<values.length {
         primitivePath := `${path}.primitives[${primitiveIndex}]`
         primitiveObject := values[primitiveIndex] as SerialObject else {
@@ -562,11 +538,9 @@ function parseMeshes(root: SerialObject, warnings: GltfWarning[]): Result<GltfMe
 function parseNodes(root: SerialObject): Result<GltfNode[], GltfError> {
   result: GltfNode[] := []
   try maybeNodes := jsonArrayField(root, "nodes", "$")
-  if maybeNodes == none {
+  nodes := maybeNodes else {
     return Success(result)
   }
-
-  nodes := maybeNodes!
   for index of 0..<nodes.length {
     path := `$.nodes[${index}]`
     object := nodes[index] as SerialObject else {
@@ -597,11 +571,9 @@ function parseNodes(root: SerialObject): Result<GltfNode[], GltfError> {
 function parseScenes(root: SerialObject): Result<GltfScene[], GltfError> {
   result: GltfScene[] := []
   try maybeScenes := jsonArrayField(root, "scenes", "$")
-  if maybeScenes == none {
+  scenes := maybeScenes else {
     return Success(result)
   }
-
-  scenes := maybeScenes!
   for index of 0..<scenes.length {
     path := `$.scenes[${index}]`
     object := scenes[index] as SerialObject else {
@@ -617,11 +589,9 @@ function parseScenes(root: SerialObject): Result<GltfScene[], GltfError> {
 function parseSamplers(root: SerialObject): Result<GltfSampler[], GltfError> {
   result: GltfSampler[] := []
   try maybeSamplers := jsonArrayField(root, "samplers", "$")
-  if maybeSamplers == none {
+  samplers := maybeSamplers else {
     return Success(result)
   }
-
-  samplers := maybeSamplers!
   for index of 0..<samplers.length {
     path := `$.samplers[${index}]`
     object := samplers[index] as SerialObject else {
@@ -640,11 +610,9 @@ function parseSamplers(root: SerialObject): Result<GltfSampler[], GltfError> {
 function parseImages(root: SerialObject, warnings: GltfWarning[]): Result<GltfImage[], GltfError> {
   result: GltfImage[] := []
   try maybeImages := jsonArrayField(root, "images", "$")
-  if maybeImages == none {
+  images := maybeImages else {
     return Success(result)
   }
-
-  images := maybeImages!
   for index of 0..<images.length {
     path := `$.images[${index}]`
     object := images[index] as SerialObject else {
@@ -655,7 +623,7 @@ function parseImages(root: SerialObject, warnings: GltfWarning[]): Result<GltfIm
     try mimeType := jsonStringField(object, "mimeType", path)
     try bufferView := jsonIntField(object, "bufferView", -1, path)
     if uri != none {
-      warnings.push(gltfWarning("json", path + ".uri", "External glTF images are recorded but not decoded"))
+      warnings.push(gltfWarning("json", "${path}.uri", "External glTF images are recorded but not decoded"))
     }
     result.push(GltfImage { name, uri, mimeType, bufferView })
   }
@@ -665,11 +633,9 @@ function parseImages(root: SerialObject, warnings: GltfWarning[]): Result<GltfIm
 function parseTextures(root: SerialObject): Result<GltfTexture[], GltfError> {
   result: GltfTexture[] := []
   try maybeTextures := jsonArrayField(root, "textures", "$")
-  if maybeTextures == none {
+  textures := maybeTextures else {
     return Success(result)
   }
-
-  textures := maybeTextures!
   for index of 0..<textures.length {
     path := `$.textures[${index}]`
     object := textures[index] as SerialObject else {
@@ -685,12 +651,10 @@ function parseTextures(root: SerialObject): Result<GltfTexture[], GltfError> {
 
 function parseTextureInfo(object: SerialObject, name: string, path: string): Result<GltfTextureInfo | none, GltfError> {
   try maybeInfo := jsonObjectField(object, name, path)
-  if maybeInfo == none {
+  info := maybeInfo else {
     return Success(none)
   }
-
-  info := maybeInfo!
-  infoPath := path + "." + name
+  infoPath := "${path}.${name}"
   try index := jsonIntField(info, "index", -1, infoPath)
   try texCoord := jsonIntField(info, "texCoord", 0, infoPath)
   try scale := jsonDoubleField(info, "scale", 1.0, infoPath)
@@ -704,7 +668,7 @@ function parseFactorColor(object: SerialObject, name: string, defaultColor: Colo
     return Success(defaultColor)
   }
   if values.length < 3 {
-    return Failure(gltfError("json", path + "." + name, "Expected at least three color components"))
+    return Failure(gltfError("json", "${path}.${name}", "Expected at least three color components"))
   }
   alpha := if values.length >= 4 then values[3] else defaultColor.a
   return Success(Color(values[0], values[1], values[2], alpha))
@@ -713,11 +677,9 @@ function parseFactorColor(object: SerialObject, name: string, defaultColor: Colo
 function parseMaterials(root: SerialObject): Result<GltfMaterial[], GltfError> {
   result: GltfMaterial[] := []
   try maybeMaterials := jsonArrayField(root, "materials", "$")
-  if maybeMaterials == none {
+  materials := maybeMaterials else {
     return Success(result)
   }
-
-  materials := maybeMaterials!
   for index of 0..<materials.length {
     path := `$.materials[${index}]`
     object := materials[index] as SerialObject else {
@@ -728,11 +690,11 @@ function parseMaterials(root: SerialObject): Result<GltfMaterial[], GltfError> {
     emptyPbr: SerialObject := {}
     pbrObject := pbr ?? emptyPbr
     try name := jsonStringField(object, "name", path)
-    try baseColorFactor := parseFactorColor(pbrObject, "baseColorFactor", Color.white, path + ".pbrMetallicRoughness")
-    try baseColorTexture := parseTextureInfo(pbrObject, "baseColorTexture", path + ".pbrMetallicRoughness")
-    try metallicFactor := jsonDoubleField(pbrObject, "metallicFactor", 1.0, path + ".pbrMetallicRoughness")
-    try roughnessFactor := jsonDoubleField(pbrObject, "roughnessFactor", 1.0, path + ".pbrMetallicRoughness")
-    try metallicRoughnessTexture := parseTextureInfo(pbrObject, "metallicRoughnessTexture", path + ".pbrMetallicRoughness")
+    try baseColorFactor := parseFactorColor(pbrObject, "baseColorFactor", Color.white, "${path}.pbrMetallicRoughness")
+    try baseColorTexture := parseTextureInfo(pbrObject, "baseColorTexture", "${path}.pbrMetallicRoughness")
+    try metallicFactor := jsonDoubleField(pbrObject, "metallicFactor", 1.0, "${path}.pbrMetallicRoughness")
+    try roughnessFactor := jsonDoubleField(pbrObject, "roughnessFactor", 1.0, "${path}.pbrMetallicRoughness")
+    try metallicRoughnessTexture := parseTextureInfo(pbrObject, "metallicRoughnessTexture", "${path}.pbrMetallicRoughness")
     try normalTexture := parseTextureInfo(object, "normalTexture", path)
     try occlusionTexture := parseTextureInfo(object, "occlusionTexture", path)
     try emissiveTexture := parseTextureInfo(object, "emissiveTexture", path)
@@ -763,10 +725,10 @@ function parseMaterials(root: SerialObject): Result<GltfMaterial[], GltfError> {
 function parseAnimationTarget(object: SerialObject, path: string): Result<GltfAnimationTarget, GltfError> {
   try maybeTarget := jsonObjectField(object, "target", path)
   target := maybeTarget else {
-    return Failure(gltfError("json", path + ".target", "Animation channel target is required"))
+    return Failure(gltfError("json", "${path}.target", "Animation channel target is required"))
   }
-  try node := jsonIntField(target, "node", -1, path + ".target")
-  try maybeTargetPath := jsonStringField(target, "path", path + ".target")
+  try node := jsonIntField(target, "node", -1, "${path}.target")
+  try maybeTargetPath := jsonStringField(target, "path", "${path}.target")
   targetPath := maybeTargetPath ?? ""
   return Success(GltfAnimationTarget { node, path: targetPath })
 }
@@ -774,11 +736,9 @@ function parseAnimationTarget(object: SerialObject, path: string): Result<GltfAn
 function parseAnimations(root: SerialObject): Result<GltfAnimation[], GltfError> {
   result: GltfAnimation[] := []
   try maybeAnimations := jsonArrayField(root, "animations", "$")
-  if maybeAnimations == none {
+  animations := maybeAnimations else {
     return Success(result)
   }
-
-  animations := maybeAnimations!
   for animationIndex of 0..<animations.length {
     path := `$.animations[${animationIndex}]`
     object := animations[animationIndex] as SerialObject else {
@@ -787,8 +747,7 @@ function parseAnimations(root: SerialObject): Result<GltfAnimation[], GltfError>
     try name := jsonStringField(object, "name", path)
     animationSamplers: GltfAnimationSampler[] := []
     try maybeSamplers := jsonArrayField(object, "samplers", path)
-    if maybeSamplers != none {
-      samplers := maybeSamplers!
+    if samplers := maybeSamplers {
       for samplerIndex of 0..<samplers.length {
         samplerPath := `${path}.samplers[${samplerIndex}]`
         samplerObject := samplers[samplerIndex] as SerialObject else {
@@ -804,8 +763,7 @@ function parseAnimations(root: SerialObject): Result<GltfAnimation[], GltfError>
 
     channels: GltfAnimationChannel[] := []
     try maybeChannels := jsonArrayField(object, "channels", path)
-    if maybeChannels != none {
-      channelValues := maybeChannels!
+    if channelValues := maybeChannels {
       for channelIndex of 0..<channelValues.length {
         channelPath := `${path}.channels[${channelIndex}]`
         channelObject := channelValues[channelIndex] as SerialObject else {
@@ -823,10 +781,9 @@ function parseAnimations(root: SerialObject): Result<GltfAnimation[], GltfError>
 
 function arrayLength(root: SerialObject, name: string): Result<int, GltfError> {
   try maybeArray := jsonArrayField(root, name, "$")
-  if maybeArray == none {
+  array := maybeArray else {
     return Success(0)
   }
-  array := maybeArray!
   return Success(array.length)
 }
 
@@ -1050,12 +1007,7 @@ function readScalarFloat(asset: GltfAsset, accessorIndex: int, elementIndex: int
 }
 
 function animationInAsset(animation: GltfAnimation, asset: GltfAsset): bool {
-  for candidate of asset.animations {
-    if candidate == animation {
-      return true
-    }
-  }
-  return false
+  return asset.animations.contains(animation)
 }
 
 function validateAnimationFloatAccessor(asset: GltfAsset, accessorIndex: int, expectedType: string, path: string): Result<GltfAccessor, GltfError> {
@@ -1093,16 +1045,16 @@ class GltfSampleSpan {
 }
 
 function animationSampleSpan(asset: GltfAsset, inputAccessor: int, time: double, interpolation: string, path: string): Result<GltfSampleSpan, GltfError> {
-  try accessor := validateAnimationFloatAccessor(asset, inputAccessor, "SCALAR", path + ".input")
+  try accessor := validateAnimationFloatAccessor(asset, inputAccessor, "SCALAR", "${path}.input")
   if accessor.count <= 0 {
-    return Failure(gltfError("animation", path + ".input", "Animation sampler input accessor is empty"))
+    return Failure(gltfError("animation", "${path}.input", "Animation sampler input accessor is empty"))
   }
 
   if accessor.count == 1 {
     return Success(GltfSampleSpan { first: 0, second: 0, amount: 0.0 })
   }
 
-  try firstTime := readScalarFloat(asset, inputAccessor, 0, path + ".input[0]")
+  try firstTime := readScalarFloat(asset, inputAccessor, 0, "${path}.input[0]")
   if time <= firstTime {
     return Success(GltfSampleSpan { first: 0, second: 0, amount: 0.0 })
   }
@@ -1120,7 +1072,7 @@ function animationSampleSpan(asset: GltfAsset, inputAccessor: int, time: double,
         }
         return Success(GltfSampleSpan { first: index, second: index + 1, amount: (time - t0) / (t1 - t0) })
       }
-      return Failure(gltfError("animation", path + ".interpolation", "Unsupported animation interpolation '" + interpolation + "'"))
+      return Failure(gltfError("animation", "${path}.interpolation", "Unsupported animation interpolation '${interpolation}'"))
     }
   }
 
@@ -1173,58 +1125,58 @@ function readAnimationRotation(asset: GltfAsset, accessorIndex: int, elementInde
 
 function applyAnimationChannel(asset: GltfAsset, sampler: GltfAnimationSampler, channel: GltfAnimationChannel, time: double, pose: GltfPose, path: string): Result<none, GltfError> {
   if sampler.interpolation != "STEP" && sampler.interpolation != "LINEAR" {
-    return Failure(gltfError("animation", path + ".sampler.interpolation", "Unsupported animation interpolation '" + sampler.interpolation + "'"))
+    return Failure(gltfError("animation", "${path}.sampler.interpolation", "Unsupported animation interpolation '${sampler.interpolation}'"))
   }
   if channel.target.node < 0 || channel.target.node >= asset.nodes.length {
-    return Failure(gltfError("animation", path + ".target.node", "Animation target node is out of range"))
+    return Failure(gltfError("animation", "${path}.target.node", "Animation target node is out of range"))
   }
   if channel.target.node >= pose.local.length || channel.target.node >= pose.weights.length {
-    return Failure(gltfError("animation", path + ".target.node", "Pose does not contain the target node"))
+    return Failure(gltfError("animation", "${path}.target.node", "Pose does not contain the target node"))
   }
 
-  try span := animationSampleSpan(asset, sampler.input, time, sampler.interpolation, path + ".sampler")
+  try span := animationSampleSpan(asset, sampler.input, time, sampler.interpolation, "${path}.sampler")
   nodeIndex := channel.target.node
   targetPath := channel.target.path
 
   if targetPath == "translation" {
-    try first := readAnimationPoint3(asset, sampler.output, span.first, path + ".sampler.output")
-    try second := readAnimationPoint3(asset, sampler.output, span.second, path + ".sampler.output")
+    try first := readAnimationPoint3(asset, sampler.output, span.first, "${path}.sampler.output")
+    try second := readAnimationPoint3(asset, sampler.output, span.second, "${path}.sampler.output")
     pose.local[nodeIndex] = pose.local[nodeIndex].withPosition(lerpPoint3(first, second, span.amount))
     return Success()
   }
 
   if targetPath == "rotation" {
-    try first := readAnimationRotation(asset, sampler.output, span.first, path + ".sampler.output")
-    try second := readAnimationRotation(asset, sampler.output, span.second, path + ".sampler.output")
+    try first := readAnimationRotation(asset, sampler.output, span.first, "${path}.sampler.output")
+    try second := readAnimationRotation(asset, sampler.output, span.second, "${path}.sampler.output")
     pose.local[nodeIndex] = pose.local[nodeIndex].withRotation(Rotation.slerp(first, second, span.amount))
     return Success()
   }
 
   if targetPath == "scale" {
-    try first := readAnimationVec3(asset, sampler.output, span.first, path + ".sampler.output")
-    try second := readAnimationVec3(asset, sampler.output, span.second, path + ".sampler.output")
+    try first := readAnimationVec3(asset, sampler.output, span.first, "${path}.sampler.output")
+    try second := readAnimationVec3(asset, sampler.output, span.second, "${path}.sampler.output")
     pose.local[nodeIndex] = pose.local[nodeIndex].withScale(lerpVec3(first, second, span.amount))
     return Success()
   }
 
   if targetPath == "weights" {
-    try output := validateAnimationFloatAccessor(asset, sampler.output, "SCALAR", path + ".sampler.output")
-    try input := validateAnimationFloatAccessor(asset, sampler.input, "SCALAR", path + ".sampler.input")
+    try output := validateAnimationFloatAccessor(asset, sampler.output, "SCALAR", "${path}.sampler.output")
+    try input := validateAnimationFloatAccessor(asset, sampler.input, "SCALAR", "${path}.sampler.input")
     if input.count <= 0 || output.count % input.count != 0 {
-      return Failure(gltfError("animation", path + ".sampler.output", "Weight output count must be a multiple of input keyframes"))
+      return Failure(gltfError("animation", "${path}.sampler.output", "Weight output count must be a multiple of input keyframes"))
     }
     weightCount := output.count \ input.count
     sampledWeights: double[] := []
     for weightIndex of 0..<weightCount {
-      try first := readScalarFloat(asset, sampler.output, span.first * weightCount + weightIndex, path + ".sampler.output")
-      try second := readScalarFloat(asset, sampler.output, span.second * weightCount + weightIndex, path + ".sampler.output")
+      try first := readScalarFloat(asset, sampler.output, span.first * weightCount + weightIndex, "${path}.sampler.output")
+      try second := readScalarFloat(asset, sampler.output, span.second * weightCount + weightIndex, "${path}.sampler.output")
       sampledWeights.push(lerpDouble(first, second, span.amount))
     }
     pose.weights[nodeIndex] = sampledWeights
     return Success()
   }
 
-  return Failure(gltfError("animation", path + ".target.path", "Unsupported animation target path '" + targetPath + "'"))
+  return Failure(gltfError("animation", "${path}.target.path", "Unsupported animation target path '${targetPath}'"))
 }
 
 function applyAnimation(animation: GltfAnimation, time: double, pose: GltfPose): Result<none, GltfError> {
@@ -1354,15 +1306,12 @@ function triangleNormal(a: Point3, b: Point3, c: Point3): Point3 {
 }
 
 function primitiveAttribute(primitive: GltfPrimitive, name: string): int {
-  return case primitive.attributes.get(name) {
-    s: Success -> s.value,
-    _: Failure -> -1,
-  }
+  return primitive.attributes.get(name) ?? -1
 }
 
 function primitiveVertexSourceIndex(asset: GltfAsset, primitive: GltfPrimitive, positionAccessor: int, outputIndex: int, path: string): Result<int, GltfError> {
   if primitive.indices >= 0 {
-    return readIndex(asset, primitive.indices, outputIndex, path + ".indices")
+    return readIndex(asset, primitive.indices, outputIndex, "${path}.indices")
   }
   if outputIndex < 0 || outputIndex >= asset.accessors[positionAccessor].count {
     return Failure(gltfError("convert", path, "Generated vertex index is out of range"))
@@ -1382,14 +1331,14 @@ function convertPrimitive(asset: GltfAsset, meshIndex: int, primitiveIndex: int,
   if positionAccessor < 0 {
     return Success(none)
   }
-  try positionUsable := usableFloatAccessor(asset, positionAccessor, "VEC3", path + ".attributes.POSITION")
+  try positionUsable := usableFloatAccessor(asset, positionAccessor, "VEC3", "${path}.attributes.POSITION")
   if !positionUsable {
     return Success(none)
   }
 
   let normalAccessor = primitiveAttribute(primitive, "NORMAL")
   if normalAccessor >= 0 {
-    try normalUsable := usableFloatAccessor(asset, normalAccessor, "VEC3", path + ".attributes.NORMAL")
+    try normalUsable := usableFloatAccessor(asset, normalAccessor, "VEC3", "${path}.attributes.NORMAL")
     if !normalUsable {
       normalAccessor = -1
     }
@@ -1397,7 +1346,7 @@ function convertPrimitive(asset: GltfAsset, meshIndex: int, primitiveIndex: int,
 
   let uvAccessor = primitiveAttribute(primitive, "TEXCOORD_0")
   if uvAccessor >= 0 {
-    try uvUsable := usableFloatAccessor(asset, uvAccessor, "VEC2", path + ".attributes.TEXCOORD_0")
+    try uvUsable := usableFloatAccessor(asset, uvAccessor, "VEC2", "${path}.attributes.TEXCOORD_0")
     if !uvUsable {
       uvAccessor = -1
     }
@@ -1405,14 +1354,14 @@ function convertPrimitive(asset: GltfAsset, meshIndex: int, primitiveIndex: int,
 
   let colorAccessor = primitiveAttribute(primitive, "COLOR_0")
   if colorAccessor >= 0 {
-    try colorUsable := usableColorAccessor(asset, colorAccessor, path + ".attributes.COLOR_0")
+    try colorUsable := usableColorAccessor(asset, colorAccessor, "${path}.attributes.COLOR_0")
     if !colorUsable {
       colorAccessor = -1
     }
   }
 
   if primitive.indices >= 0 {
-    try indicesUsable := usableIndexAccessor(asset, primitive.indices, path + ".indices")
+    try indicesUsable := usableIndexAccessor(asset, primitive.indices, "${path}.indices")
     if !indicesUsable {
       return Success(none)
     }
@@ -1434,9 +1383,9 @@ function convertPrimitive(asset: GltfAsset, meshIndex: int, primitiveIndex: int,
     try i0 := primitiveVertexSourceIndex(asset, primitive, positionAccessor, outIndex, path)
     try i1 := primitiveVertexSourceIndex(asset, primitive, positionAccessor, outIndex + 1, path)
     try i2 := primitiveVertexSourceIndex(asset, primitive, positionAccessor, outIndex + 2, path)
-    try p0 := readPoint3(asset, positionAccessor, i0, path + ".POSITION")
-    try p1 := readPoint3(asset, positionAccessor, i1, path + ".POSITION")
-    try p2 := readPoint3(asset, positionAccessor, i2, path + ".POSITION")
+    try p0 := readPoint3(asset, positionAccessor, i0, "${path}.POSITION")
+    try p1 := readPoint3(asset, positionAccessor, i1, "${path}.POSITION")
+    try p2 := readPoint3(asset, positionAccessor, i2, "${path}.POSITION")
     fallbackNormal := triangleNormal(p0, p1, p2)
 
     sourceIndices: int[] := [i0, i1, i2]
@@ -1447,21 +1396,21 @@ function convertPrimitive(asset: GltfAsset, meshIndex: int, primitiveIndex: int,
       indices.push(positions.length - 1)
 
       if colorAccessor >= 0 {
-        try vertexColor := readColor(asset, colorAccessor, sourceIndex, color.a, path + ".COLOR_0")
+        try vertexColor := readColor(asset, colorAccessor, sourceIndex, color.a, "${path}.COLOR_0")
         colors.push(vertexColor)
       } else {
         colors.push(color)
       }
 
       if uvAccessor >= 0 {
-        try uv := readPoint(asset, uvAccessor, sourceIndex, path + ".TEXCOORD_0")
+        try uv := readPoint(asset, uvAccessor, sourceIndex, "${path}.TEXCOORD_0")
         uvs.push(uv)
       } else {
         uvs.push(Point(0.0, 0.0))
       }
 
       if normalAccessor >= 0 {
-        try normal := readPoint3(asset, normalAccessor, sourceIndex, path + ".NORMAL")
+        try normal := readPoint3(asset, normalAccessor, sourceIndex, "${path}.NORMAL")
         normals.push(normalizePoint3(normal))
       } else {
         normals.push(fallbackNormal)
@@ -1533,7 +1482,7 @@ function buildAsset(source: string, root: SerialObject, binChunk: readonly byte[
 
 function parseGltfJsonRoot(text: string, source: string): Result<SerialObject, GltfError> {
   json := parseJsonValue(text) else error {
-    return Failure(gltfError("json", source, "Invalid glTF JSON: " + error))
+    return Failure(gltfError("json", source, "Invalid glTF JSON: ${error}"))
   }
   root := json as SerialObject else {
     return Failure(gltfError("json", source, "glTF JSON root must be an object"))
@@ -1647,12 +1596,12 @@ export function parseGlb(data: readonly byte[], source: string = "input"): Resul
     chunkIndex += 1
   }
 
-  if jsonText == none {
+  text := jsonText else {
     return Failure(gltfError("binary", source, "GLB is missing the required JSON chunk"))
   }
 
-  json := parseJsonValue(jsonText!) else error {
-    return Failure(gltfError("json", source, "Invalid GLB JSON: " + error))
+  json := parseJsonValue(text) else error {
+    return Failure(gltfError("json", source, `Invalid GLB JSON: ${error}`))
   }
   root := json as SerialObject else {
     return Failure(gltfError("json", source, "GLB JSON root must be an object"))
@@ -1671,12 +1620,12 @@ export function loadGltfResource(path: string): Result<GltfAsset, GltfError> {
     return Failure(gltfError("read", path, `${path}: failed to read glTF resource: ${error}`))
   }
   try root := parseGltfJsonRoot(text, path)
-  try uri := gltfBufferUri(root)
+  try maybeUri := gltfBufferUri(root)
 
   let bin: readonly byte[] = []
-  if uri != none {
-    try validateLocalGltfBufferUri(uri!, path)
-    binPath := join([dirname(path), uri!])
+  if uri := maybeUri {
+    try validateLocalGltfBufferUri(uri, path)
+    binPath := join([dirname(path), uri])
     loadedBin := readBlobResource(binPath) else error {
       return Failure(gltfError("read", binPath, `${binPath}: failed to read glTF buffer resource: ${error}`))
     }
@@ -1691,12 +1640,12 @@ export function loadGltf(path: string): Result<GltfAsset, GltfError> {
     return Failure(gltfError("read", path, `${path}: failed to read glTF file: ${error}`))
   }
   try root := parseGltfJsonRoot(text, path)
-  try uri := gltfBufferUri(root)
+  try maybeUri := gltfBufferUri(root)
 
   let bin: readonly byte[] = []
-  if uri != none {
-    try validateLocalGltfBufferUri(uri!, path)
-    binPath := join([dirname(path), uri!])
+  if uri := maybeUri {
+    try validateLocalGltfBufferUri(uri, path)
+    binPath := join([dirname(path), uri])
     loadedBin := readBlob(binPath) else error {
       return Failure(gltfError("read", binPath, `${binPath}: failed to read glTF buffer file: ${error}`))
     }
@@ -1729,8 +1678,8 @@ export function glbAssetToSimpleMeshSpecs(
     mesh := asset.meshes[meshIndex]
     for primitiveIndex of 0..<mesh.primitives.length {
       try converted := convertPrimitive(asset, meshIndex, primitiveIndex, color)
-      if converted != none {
-        specs.push(converted!)
+      if spec := converted {
+        specs.push(spec)
       }
     }
   }

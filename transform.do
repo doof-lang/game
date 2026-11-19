@@ -15,7 +15,7 @@ function clampUnit(value: double): double {
 
 function safeScale(value: double, name: string): double {
   if value == 0.0 {
-    panic("Transform normal matrix cannot invert zero " + name + " scale")
+    panic("Transform normal matrix cannot invert zero ${name} scale")
   }
   return value
 }

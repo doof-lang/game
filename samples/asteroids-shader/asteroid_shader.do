@@ -236,7 +236,7 @@ function createPlatformPipelines(surface: GameSurface): AsteroidPipelines {
   for path of SHADER_PATHS {
     source := readTextResource(path)!
     pipelines := createPipelines(surface, source) else error {
-      errors = errors + "\n${path}: ${error}"
+      errors = "${errors}\n${path}: ${error}"
       continue
     }
     return pipelines

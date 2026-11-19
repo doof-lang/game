@@ -96,14 +96,14 @@ class BackgroundSound {
     return Success {}
   }
 
-  isPlaying(): bool => if sound == none then false else sound!.isPlaying()
+  isPlaying(): bool => sound?.isPlaying() ?? false
 
   play(): Result<none, string> {
     prepared := sound else { return Failure("Sound was not prepared") }
     return prepared.play({ volume: 0.0 })
   }
 
-  stop(): none { if sound != none { sound!.stop() } }
+  stop(): none { if prepared := sound { prepared.stop() } }
 }
 
 export function testSoundPreparationAndPlaybackCanRunOnWorker(): none {

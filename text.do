@@ -153,7 +153,7 @@ class TextLayout {
 }
 
 function kerningKey(first: int, second: int): string {
-  return string(first) + ":" + string(second)
+  return "${first}:${second}"
 }
 
 function parseError(source: string, lineNumber: int, message: string): string {
@@ -514,14 +514,11 @@ export function loadBitmapFontForSurface(surface: GameSurface, path: string): Re
 }
 
 function requireGlyph(font: BitmapFontMetrics, codepoint: int, options: TextLayoutOptions): BitmapGlyph {
-  glyph := font.glyph(codepoint)
-  if glyph != none {
-    return glyph!
+  if glyph := font.glyph(codepoint) {
+    return glyph
   }
-
-  fallback := font.glyph(options.fallbackCodepoint)
-  if fallback != none {
-    return fallback!
+  if fallback := font.glyph(options.fallbackCodepoint) {
+    return fallback
   }
 
   panic("BitmapFont has no glyph for codepoint ${codepoint} and no fallback glyph ${options.fallbackCodepoint}")

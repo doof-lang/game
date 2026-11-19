@@ -104,20 +104,20 @@ function main(): int {
   })
 
   asset := loadGlbResource("models/character-a.glb") else error {
-    println("Failed to load GLB: " + error.message)
+    println("Failed to load GLB: ${error.message}")
     return 1
   }
   animation := asset.findAnimation("walk") else error {
-    println("Failed to find walk animation: " + error.message)
+    println("Failed to find walk animation: ${error.message}")
     return 1
   }
   specs := glbAssetToSimpleMeshSpecs(asset) else error {
-    println("Failed to convert GLB meshes: " + error.message)
+    println("Failed to convert GLB meshes: ${error.message}")
     return 1
   }
 
   texture := app.loadTextureResource("models/Textures/texture-a.png") else error {
-    println("Failed to load character texture: " + error)
+    println("Failed to load character texture: ${error}")
     return 1
   }
 
@@ -160,12 +160,12 @@ function main(): int {
 
     pose.reset()
     pose.applyLooping(animation, elapsedSeconds) else error {
-      println("Failed to sample animation: " + error.message)
+      println("Failed to sample animation: ${error.message}")
       app.stop()
       return
     }
     pose.resolveWorldTransforms() else error {
-      println("Failed to resolve pose: " + error.message)
+      println("Failed to resolve pose: ${error.message}")
       app.stop()
       return
     }

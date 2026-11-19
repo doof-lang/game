@@ -628,9 +628,8 @@ function main(): int {
   app.key(.Digit4).onPressed() { selectPreset(3) }
 
   app.onRender((renderer): none => {
-    if scene == none {
-      scene = createScene(renderer)
-    }
+    currentScene := scene ?? createScene(renderer)
+    scene = currentScene
 
     now := Instant.now()
     deltaSeconds := clamp(lastFrameAt.durationUntil(now).toSeconds(), 0.0, 0.1)
@@ -640,7 +639,7 @@ function main(): int {
     }
     orbit.update(app, deltaSeconds)
 
-    renderScene(renderer, scene!, time, orbit, SHADOW_PRESETS[presetIndex])
+    renderScene(renderer, currentScene, time, orbit, SHADOW_PRESETS[presetIndex])
     drawHud(renderer, hud)
   })
 

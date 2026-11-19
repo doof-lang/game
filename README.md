@@ -72,13 +72,13 @@ function main(): int {
     app.stop()
   }
 
-  app.onEvent((event): void => {
+  app.onEvent((event): none => {
     if event.kind() == GameEventKind.CloseRequested {
       app.stop()
     }
   })
 
-  app.onRender((renderer): void => {
+  app.onRender((renderer): none => {
     if app.input.isKeyDown(Key.Space) {
       println("space held")
     }
@@ -90,7 +90,7 @@ function main(): int {
         depth: Depth.readWrite(),
         blend: Blend.opaque(),
       },
-      (pass): void => {
+      (pass): none => {
         drawSimpleMesh(pass, mesh)
       },
     )
@@ -125,8 +125,8 @@ windowedApp := initGameApp{
   },
 }
 
-app.onEvent((event: GameEvent): void => {})
-app.onRender((renderer: Renderer): void => {})
+app.onEvent((event: GameEvent): none => {})
+app.onRender((renderer: Renderer): none => {})
 
 result := app.run()
 ```
@@ -208,7 +208,7 @@ renderer.pass(
     winding: .CounterClockwise,
     cull: .Back,
   },
-  (pass): void => {
+  (pass): none => {
     encoder := pass.metalRenderCommandEncoderHandle()
   },
 )
@@ -270,7 +270,7 @@ renderer.pass(
     depth: Depth.readWrite(),
     blend: Blend.opaque(),
   },
-  (pass): void => {
+  (pass): none => {
     drawSimpleMesh(pass, mesh, Mat4.rotationY(angle))
   },
 )
@@ -311,7 +311,7 @@ renderer.pass(
     camera: Camera.screen(),
     blend: Blend.alpha(),
   },
-  (pass): void => {
+  (pass): none => {
     drawSimpleModel(pass, label)
   },
 )
@@ -358,27 +358,27 @@ ui.addButton(
   "Start",
   Rect(24.0, 80.0, 160.0, 44.0),
   UiButtonStyle {},
-  (): void => {
+  (): none => {
     status.setText("Started")
   },
 )
 
-app.key(Key.Escape).onPressed((): void => app.stop())
+app.key(Key.Escape).onPressed((): none => app.stop())
 
-app.onEvent((event): void => {
+app.onEvent((event): none => {
   if event.kind() == GameEventKind.CloseRequested {
     app.stop()
   }
 })
 
-app.onRender((renderer): void => {
+app.onRender((renderer): none => {
   renderer.pass(
     RenderPassDescriptor {
       camera: Camera.screen(),
       depth: Depth.disabled(),
       blend: Blend.alpha(),
     },
-    (pass): void => {
+    (pass): none => {
       ui.draw(pass)
     },
   )
@@ -393,7 +393,7 @@ pointer interaction changes visual state. Pointer positions are mapped back
 through the inverse transform for hit testing, so hover, press, and click
 behavior stays aligned with rendering. Hit
 testing walks last-added elements first, making later elements topmost. Label
-and button styles default `font` to `null`, which uses the embedded intrinsic
+and button styles default `font` to `none`, which uses the embedded intrinsic
 font. Set `font` to a loaded `BitmapFont` for custom typography; one layer can
 mix text atlases when needed.
 
@@ -500,7 +500,7 @@ renderer.pass(
     clear: Clear.colorDepth(Color.black(), 1.0),
     blend: Blend.alpha(),
   },
-  (pass): void => {
+  (pass): none => {
     drawSimpleModelBatch(pass, batch)
   },
 )
@@ -538,7 +538,7 @@ import { Blend, Camera, Depth, Fireworks, RenderPassDescriptor } from "std/game"
 fireworks := Fireworks(app.surface)
 fireworks.start(app.surface.width(), app.surface.height())
 
-app.onRender((renderer): void => {
+app.onRender((renderer): none => {
   active := fireworks.update(1.0 / 60.0)
   renderer.pass(
     RenderPassDescriptor {
@@ -546,7 +546,7 @@ app.onRender((renderer): void => {
       depth: Depth.disabled(),
       blend: Blend.alpha(),
     },
-    (pass): void => {
+    (pass): none => {
       fireworks.draw(pass)
     },
   )
@@ -662,7 +662,7 @@ renderer.pass(
     depth: Depth.disabled(),
     blend: Blend.opaque(),
   },
-  (pass): void => {
+  (pass): none => {
     drawEquirectangularSkyMap(pass, skyMap, 1.0471975512, 1.0)
   },
 )
@@ -738,10 +738,10 @@ controller remains connected and are named `One` through `Four`.
 
 ```doof
 jump := app.key(Key.Space)
-jump.onPressed((): void => playJumpSound())
+jump.onPressed((): none => playJumpSound())
 
 shoot := app.mouseButton(MouseButton.Left)
-shoot.onPressed((): void => fireLaser())
+shoot.onPressed((): none => fireLaser())
 
 if jump.pressed() {
   println("jump held")
@@ -765,9 +765,9 @@ move := app.controllerStick(.One, .Left).withDeadzone(0.2)
 jump := app.controllerButton(.One, .South)
 lookX := app.controllerAxis(.One, .RightX).withDeadzone(0.15)
 
-jump.onPressed((): void => playJumpSound())
+jump.onPressed((): none => playJumpSound())
 
-app.onEvent((event): void => {
+app.onEvent((event): none => {
   if event.kind() == GameEventKind.ControllerConnected {
     println("controller ${event.controller().name()} connected")
   }
@@ -785,9 +785,9 @@ helpers such as `withDeadzone(...)`, `inverted()`, `clamped(...)`, and
 
 ```doof
 pointer := app.screenPointer()
-pointer.onPressed((point): void => beginDrag(point.x, point.y))
-pointer.onMoved((point): void => updateHover(point.x, point.y))
-pointer.onReleased((point): void => endDrag(point.x, point.y))
+pointer.onPressed((point): none => beginDrag(point.x, point.y))
+pointer.onMoved((point): none => updateHover(point.x, point.y))
+pointer.onReleased((point): none => endDrag(point.x, point.y))
 
 if pointer.pressed() {
   println("pointer at ${pointer.x()}, ${pointer.y()}")
@@ -813,10 +813,10 @@ controller availability, compatibility, and other app events.
 
 ```doof
 gestures := app.gestures()
-gestures.onPan((gesture): void => panCamera(gesture.deltaX, gesture.deltaY))
-gestures.onScroll((gesture): void => zoomAt(gesture.point, gesture.deltaY))
-gestures.onMagnify((gesture): void => pinchZoom(gesture.point, gesture.magnificationDelta))
-gestures.onDoubleTap((gesture): void => toggleZoomAt(gesture.point))
+gestures.onPan((gesture): none => panCamera(gesture.deltaX, gesture.deltaY))
+gestures.onScroll((gesture): none => zoomAt(gesture.point, gesture.deltaY))
+gestures.onMagnify((gesture): none => pinchZoom(gesture.point, gesture.magnificationDelta))
+gestures.onDoubleTap((gesture): none => toggleZoomAt(gesture.point))
 ```
 
 `ScreenGestures` represents non-binary viewport interactions. Pan and scroll

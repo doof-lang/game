@@ -32,7 +32,7 @@ function main(): int {
   app := initGameApp{ title: "Doof Game Cards" }
 
   loadedAtlasTexture := app.loadTextureResource(cardAtlasPath) else error {
-    println("Failed to load card atlas texture: " + error)
+    println("Failed to load card atlas texture: ${error}")
     return 1
   }
   cardAtlas := Atlas {

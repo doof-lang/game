@@ -72,10 +72,5 @@ export class InputButton {
 }
 
 function anyButtonPressed(buttons: InputButton[]): bool {
-  for button of buttons {
-    if button.pressed() {
-      return true
-    }
-  }
-  return false
+  return buttons.some(=> it.pressed())
 }

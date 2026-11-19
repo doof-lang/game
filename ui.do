@@ -202,13 +202,11 @@ export class UiLayer {
     pressedButtonId = 0
     clearPressed()
 
-    button := topmostButtonAt(local)
-    if button == none {
+    target := topmostButtonAt(local) else {
       handlePointerMove(point)
       return
     }
 
-    target := button!
     setButtonHovered(target, true)
     setButtonPressed(target, true)
     setButtonPressedInside(target, true)
@@ -217,10 +215,9 @@ export class UiLayer {
 
   handlePointerUp(point: Point): none {
     local := screenToUi(point)
-    clicked := topmostButtonAt(local)
     let clickedButton: UiButton | none = none
 
-    if clicked != none && pressedButtonId != 0 && clicked!.id() == pressedButtonId && clicked!.pressedInside {
+    if clicked := topmostButtonAt(local) && pressedButtonId != 0 && clicked.id() == pressedButtonId && clicked.pressedInside {
       clickedButton = clicked
     }
 
@@ -228,16 +225,15 @@ export class UiLayer {
     pressedButtonId = 0
     updateHoverFromLocal(local)
 
-    if clickedButton != none {
-      clickedButton!.onClick.call()
+    if button := clickedButton {
+      button.onClick.call()
     }
   }
 
   handlePointerTap(point: Point): none {
     local := screenToUi(point)
-    button := topmostButtonAt(local)
-    if button != none {
-      button!.onClick.call()
+    if button := topmostButtonAt(local) {
+      button.onClick.call()
     }
     updateHoverFromLocal(local)
   }
@@ -290,11 +286,11 @@ export class UiLayer {
   }
 
   private resolveFont(surface: GameSurface, font: BitmapFont | none): BitmapFont {
-    if font != none {
-      return font!
+    if requested := font {
+      return requested
     }
-    if intrinsicFont != none {
-      return intrinsicFont!
+    if cached := intrinsicFont {
+      return cached
     }
 
     loaded := loadIntrinsicBitmapFontForSurface(surface) else error {
@@ -371,30 +367,15 @@ export class UiLayer {
   }
 
   private panelForElement(id: int): UiPanel | none {
-    for entry of panels {
-      if entry.element.id == id {
-        return entry.panel
-      }
-    }
-    return none
+    return panels.find(=> it.element.id == id)?.panel
   }
 
   private labelForElement(id: int): UiLabel | none {
-    for entry of labels {
-      if entry.element.id == id {
-        return entry.label
-      }
-    }
-    return none
+    return labels.find(=> it.element.id == id)?.label
   }
 
   private buttonForElement(id: int): UiButton | none {
-    for entry of buttons {
-      if entry.element.id == id {
-        return entry.button
-      }
-    }
-    return none
+    return buttons.find(=> it.element.id == id)?.button
   }
 }
 

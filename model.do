@@ -108,8 +108,8 @@ export function drawSimpleModel(
   model: SimpleModel,
   lighting: SimpleMeshLighting = SimpleMeshLighting {},
 ): none {
-  if model.texture != none {
-    drawTexturedSimpleMesh(pass, model.mesh, model.texture!, model.transform.toMat4(), model.material, lighting)
+  if texture := model.texture {
+    drawTexturedSimpleMesh(pass, model.mesh, texture, model.transform.toMat4(), model.material, lighting)
     return
   }
 

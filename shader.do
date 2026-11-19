@@ -342,13 +342,7 @@ export class ShaderTextureBinding {
   depthTexture: DepthTexture | none = none
 
   nativeHandle(): long {
-    if texture != none {
-      return texture!.nativeTextureHandle()
-    }
-    if depthTexture != none {
-      return depthTexture!.nativeTextureHandle()
-    }
-    return 0L
+    return texture?.nativeTextureHandle() ?? depthTexture?.nativeTextureHandle() ?? 0L
   }
 }
 
@@ -439,8 +433,7 @@ function collectUniforms(pipeline: ShaderPipeline, bindings: readonly ShaderUnif
     if binding.bytes != none && binding.buffer != none {
       return Failure("Shader uniform binding '${binding.name}' must not set both bytes and buffer")
     }
-    if binding.buffer != none {
-      buffer := binding.buffer!
+    if buffer := binding.buffer {
       if binding.offset < 0 || binding.offset >= buffer.byteLength() {
         return Failure("Shader uniform binding '${binding.name}' offset must lie inside its buffer")
       }
@@ -450,8 +443,7 @@ function collectUniforms(pipeline: ShaderPipeline, bindings: readonly ShaderUnif
       result.handles.push(buffer.nativeHandle())
       result.offsets.push(binding.offset)
       result.lengths.push(buffer.byteLength() - binding.offset)
-    } else if binding.bytes != none {
-      bytes := binding.bytes!
+    } else if bytes := binding.bytes {
       if bytes.length == 0 {
         return Failure("Shader uniform binding '${binding.name}' bytes must not be empty")
       }
@@ -508,17 +500,17 @@ export function drawShader(pass: RenderPass, draw: ShaderDraw): Result<none, str
   try textures := collectTextures(draw.pipeline, draw.textures)
 
   let indexBufferHandle = 0L
-  if draw.indexBuffer != none {
+  if indexBuffer := draw.indexBuffer {
     if draw.indexCount <= 0 {
       return Failure("Shader indexed draw must include a positive index count")
     }
-    if draw.indexBuffer!.byteLength() % 4 != 0 {
+    if indexBuffer.byteLength() % 4 != 0 {
       return Failure("Shader index buffer byte length must be divisible by 4")
     }
-    if draw.indexCount * 4 > draw.indexBuffer!.byteLength() {
+    if draw.indexCount * 4 > indexBuffer.byteLength() {
       return Failure("Shader index count exceeds index buffer length")
     }
-    indexBufferHandle = draw.indexBuffer!.nativeHandle()
+    indexBufferHandle = indexBuffer.nativeHandle()
   } else if draw.vertexCount <= 0 {
     return Failure("Shader non-indexed draw must include a positive vertex count")
   }
