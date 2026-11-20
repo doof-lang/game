@@ -166,6 +166,10 @@ function createGameBridge(document, onError, textureAssets) {
       Numpad0:62,Numpad1:63,Numpad2:64,Numpad3:65,Numpad4:66,Numpad5:67,Numpad6:68,Numpad7:69,Numpad8:70,Numpad9:71,NumpadDecimal:72,NumpadEnter:73,NumpadAdd:74,NumpadSubtract:75,NumpadMultiply:76,NumpadDivide:77,NumpadEqual:78,NumpadClear:79})[code] || 0;
   };
   const mouseButton = (button) => button === 0 ? 0 : button === 2 ? 1 : button === 1 ? 2 : 3;
+  // Browsers report wheel deltas with the opposite sign to macOS and Windows and in pixels,
+  // lines or pages. std/game reports them like the desktop: positive moves content down,
+  // about one unit per wheel notch.
+  const wheelNotches = (value) => value.deltaMode === 1 ? 1 / 3 : value.deltaMode === 2 ? 3 : 1 / 100;
 
   const imports = {
     window_create(titlePointer, width, height, windowed) {
@@ -207,7 +211,7 @@ function createGameBridge(document, onError, textureAssets) {
       listen(entry.canvas, "pointerdown", value => { updatePointer(value);entry.canvas.focus();entry.canvas.setPointerCapture?.(value.pointerId);event(4,0,mouseButton(value.button),value.offsetX,value.offsetY); });
       listen(entry.window, "pointerup", value => event(5,0,mouseButton(value.button),value.offsetX||0,value.offsetY||0));
       listen(entry.canvas, "pointermove", value => { updatePointer(value);event(6,0,0,value.offsetX,value.offsetY,value.movementX,value.movementY); });
-      listen(entry.canvas, "wheel", value => { event(7,0,0,value.offsetX,value.offsetY,0,0,value.deltaX,value.deltaY);value.preventDefault(); }, { passive:false });
+      listen(entry.canvas, "wheel", value => { const notches=wheelNotches(value);event(7,0,0,value.offsetX,value.offsetY,0,0,-value.deltaX*notches,-value.deltaY*notches);value.preventDefault(); }, { passive:false });
       listen(entry.window, "resize", () => { if(resize(entry))event(1); });
       entry.running = true;
       const tick = (timestamp) => { if(!entry.running)return;entry.timeSeconds=timestamp*0.001;if(resize(entry))event(1);try{frame(timestamp);}catch(error){entry.running=false;onError(error);}if(entry.running)entry.frame=entry.window.requestAnimationFrame(tick); };

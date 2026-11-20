@@ -10,6 +10,7 @@ sample that shows the same idea in a complete program.
 - [Draw simple 2D and 3D geometry](rendering.md)
 - [Handle keyboard, mouse, touch, and controllers](input.md)
 - [Build retained UI panels and buttons](ui.md)
+- [Draw immediate-mode 2D boards, buttons and tooltips](canvas.md)
 - [Render bitmap text](text.md)
 - [Play generated and file-backed sounds](sound.md)
 - [Load textures, OBJ, glTF, and GLB assets](assets-and-models.md)

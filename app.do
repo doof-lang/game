@@ -4,6 +4,7 @@ import {
   setMainEventWakeHandler,
 } from "std/event"
 import { Image, PixelBytes } from "std/image"
+import { MonotonicInstant } from "std/time"
 
 import {
   NativeGameApp,
@@ -21,6 +22,7 @@ import {
   cancelGameAppPanInertia,
 } from "./native"
 
+import { FrameClock } from "./clock"
 import { GameEvent } from "./event"
 import { controllerStickXAxis, controllerStickYAxis } from "./controller"
 import { InputAxis, InputStick } from "./input_axis"
@@ -60,6 +62,8 @@ export class GameApp {
   private screenPointers: ScreenPointer[] = []
   private let onEventHandler: (event: GameEvent): none
   private let onRenderHandler: (renderer: Renderer): none
+  private frameClock: FrameClock
+  private started: MonotonicInstant
 
   static constructor(
     title: string,
@@ -79,8 +83,18 @@ export class GameApp {
       screenPointers: [],
       onEventHandler: defaultGameEventHandler,
       onRenderHandler: defaultGameRenderHandler,
+      frameClock: FrameClock {},
+      started: MonotonicInstant.now(),
     }
   }
+
+  // Frame time: advanced just before each onRender. Use it to animate and
+  // pace the game in seconds instead of frames.
+  clock(): FrameClock => frameClock
+
+  // Seconds since the app was created, read from the system clock now. Use it
+  // in event handlers, which run between frames.
+  seconds(): double => MonotonicInstant.now().durationSince(started).toSeconds()
 
   onEvent(handler: (event: GameEvent): none): GameApp {
     this.onEventHandler = handler
@@ -222,6 +236,7 @@ export class GameApp {
         this.input = InputState(input)
         gameSurface := GameSurface(surface)
         this.surface = gameSurface
+        frameClock.advance(seconds())
         renderer := createRenderer(gameSurface, NativeRenderFrame.create(surface))
         this.onRenderHandler(renderer)
         renderer.finish()

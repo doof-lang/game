@@ -115,6 +115,14 @@ export struct Color {
   static readonly blue = Color(0.0, 0.0, 1.0)
   static readonly green = Color(0.0, 1.0, 0.0)
   static readonly transparent = Color(0.0, 0.0, 0.0, 0.0)
+
+  // This color with its alpha multiplied by `amount`.
+  fade(amount: double): Color => Color(r, g, b, a * amount)
+
+  // Linear blend toward `other`: 0 is this color, 1 is `other`.
+  mix(other: Color, t: double): Color {
+    return Color(r + (other.r - r) * t, g + (other.g - g) * t, b + (other.b - b) * t, a + (other.a - a) * t)
+  }
 }
 
 export struct Point {
@@ -375,6 +383,16 @@ export struct Rect {
   readonly y: double
   readonly width: double
   readonly height: double
+
+  right(): double => x + width
+  bottom(): double => y + height
+  center(): Point => Point(x + width / 2.0, y + height / 2.0)
+
+  // Shrunk by `by` on every side (grown when negative).
+  inset(by: double): Rect => Rect(x + by, y + by, width - by * 2.0, height - by * 2.0)
+
+  // True when `p` is inside or on an edge (the same rule as `rectContains`).
+  contains(p: Point): bool => p.x >= x && p.y >= y && p.x <= x + width && p.y <= y + height
 }
 
 export class Texture {

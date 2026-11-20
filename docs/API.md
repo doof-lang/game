@@ -137,6 +137,14 @@ state changes. The macOS host defaults to full-screen. Use
 `GameWindowMode.Windowed` with `windowWidth` and `windowHeight` to create a
 normal resizable window.
 
+On macOS, `run()` installs the standard menu bar unless the program has already
+set one: the app menu (About, Hide, Hide Others, Show All, Quit ⌘Q) and a Window
+menu (Minimize, Zoom, Enter Full Screen, Bring All to Front). The menu is named
+after the bundle's display name, falling back to the app title. Quit ends the
+game the way the window's close button does: a `CloseRequested` event, then
+`run()` returns normally. A program that wants its own menu sets it before
+calling `run()`.
+
 ### `GameApp`
 
 | Member | Description |
@@ -155,6 +163,8 @@ normal resizable window.
 | `stop()` | `none` | Request app shutdown. |
 | `requestRender()` | `none` | Schedule a render in requested mode. |
 | `fps()` | `double` | Recent completed render callback rate. |
+| `clock()` | `FrameClock` | Frame time, advanced just before each render callback. See [Time And Pacing](#time-and-pacing). |
+| `seconds()` | `double` | Seconds since the app was created, read from the system clock when called. |
 | `key(key)` | `InputButton` | Create a binary input helper for a keyboard key. |
 | `mouseButton(button)` | `InputButton` | Create a binary input helper for a mouse button. |
 | `controllerButton(slot, button)` | `InputButton` | Create a binary input helper for a controller button. |
@@ -176,6 +186,46 @@ normal resizable window.
 | `endPanGesture()` | `none` | End a pan gesture, possibly starting inertia. |
 | `cancelPanGesture()` | `none` | Cancel the active app-declared pan gesture. |
 | `cancelPanInertia()` | `none` | Stop inertial pan events. |
+
+### Time And Pacing
+
+Animate and pace a game in seconds, not frames. Something counted in frames
+runs twice as fast on a 120 Hz display and slows down when frames drop.
+
+`app.clock()` is a `FrameClock` that the app advances just before each
+`onRender`:
+
+| Method | Return | Description |
+| --- | --- | --- |
+| `seconds()` | `double` | Game time since the first frame. |
+| `delta()` | `double` | Seconds since the previous frame, at most `maxDelta` (default 0.25). |
+| `frames()` | `int` | Frames rendered so far. |
+| `ticks(rate = 60.0)` | `int` | Game time in steps of `1 / rate` seconds: a 60 Hz frame counter that keeps that pace at any refresh rate. |
+| `ease(fraction, rate = 60.0)` | `double` | For motion that moves `fraction` of the remaining way every `1 / rate` seconds: the share to move this frame. `x += (target - x) * clock.ease(0.2)` looks the same at any refresh rate. |
+
+No single frame adds more than `maxDelta`, so a stall or a sleeping laptop
+pauses the game instead of skipping it ahead. Event handlers run between
+frames: use `app.seconds()` there for the current time.
+
+A `Pacer` fires every `interval` seconds, for example a bot taking its turns
+at a readable speed. `step(delta)` returns true at most once per call.
+Overshoot carries into the next wait, so the average rate is exact at any
+refresh rate. After a frame long enough to fall a whole interval behind, it
+fires once and then waits a whole interval, so it never catches up in a
+burst. `restart()` waits a whole interval before firing again, and
+`interval` can be changed at any time.
+
+```doof
+clock := app.clock()
+bot := Pacer { interval: 0.3 }
+app.onRender((renderer): none => {
+  if botsTurn && bot.step(clock.delta()) {
+    takeBotStep()
+  }
+  glow := 0.5 + 0.5 * sin(clock.seconds() * 6.0)
+  // ...draw
+})
+```
 
 `onEvent` receives close, resize, scroll, pan, magnify, double tap, and
 controller connection events. It does not deliver key down/up or mouse
@@ -229,7 +279,7 @@ Controller enums:
 | `x()` / `y()` | `double` | Screen-space event position. |
 | `deltaX()` / `deltaY()` | `double` | Generic movement delta. |
 | `panDeltaX()` / `panDeltaY()` | `double` | Pan delta. |
-| `scrollDeltaX()` / `scrollDeltaY()` | `double` | Wheel or scroll delta. |
+| `scrollDeltaX()` / `scrollDeltaY()` | `double` | Wheel delta in lines; positive moves content down (see [Scrolling Lists By Rows](#scrolling-lists-by-rows)). |
 | `magnificationDelta()` | `double` | Relative pinch/zoom delta. |
 | `pixelWidth()` / `pixelHeight()` | `int` | Size on resize events. |
 
@@ -308,6 +358,35 @@ gestures.onDoubleTap((g): none => toggleZoomAt(g.point))
 
 `ScreenGesture` has `point`, `deltaX`, `deltaY`, and `magnificationDelta`.
 `ScreenGestures` exposes `onPan`, `onScroll`, `onMagnify`, and `onDoubleTap`.
+
+### Scrolling Lists By Rows
+
+Scroll deltas follow the macOS and Windows convention on every platform: a
+positive `deltaY` means the content should move down, revealing what is above
+it. The system has already applied the user's natural-scrolling setting. A
+mouse wheel arrives through `onScroll` in lines (about one per notch). On macOS
+a trackpad or Magic Mouse swipe arrives through `onPan` in points, followed by
+momentum.
+
+`ScrollStepper` turns both into whole rows of a list. `wheel(deltaY, now)`
+takes `onScroll` deltas and `swipe(deltaY, now)` takes `onPan` deltas. Both
+return the rows to move toward the end of the list, so add the result to the
+number of rows hidden above the view. The first event after a pause of more
+than `gap` moves one row at once. The rest of the gesture moves one row per
+`linesPerRow` (default 1) or `pointsPerRow` (default 28). `now` is the time in seconds, usually
+`app.seconds()` (`gap` defaults to 0.2). `reset()` drops a
+partial row. `scrollBy(offset, rows, max)` adds and clamps to `0...max`.
+
+```doof
+stepper := ScrollStepper {}
+scrollList := (point: Point, rows: int): none => {
+  if listRect.contains(point) {
+    listScroll = scrollBy(listScroll, rows, items.length - visibleRows)
+  }
+}
+gestures.onScroll((g): none => scrollList(g.point, stepper.wheel(g.deltaY, app.seconds())))
+gestures.onPan((g): none => scrollList(g.point, stepper.swipe(g.deltaY, app.seconds())))
+```
 
 ## Rendering
 
@@ -727,6 +806,92 @@ Later-added elements are topmost. Styles default to the intrinsic font when
 `UiPanelStyle`, `UiStyle`, and `UiButtonStyle` hold colors, padding, z, font,
 and alignment fields. `rectContains(rect, point)` is exported for hit testing.
 
+## Canvas
+
+`Canvas` is immediate-mode 2D drawing for board games, tools and HUDs: each
+frame you draw what the screen needs and record what can be clicked, with no
+widget tree to keep in step with the game state. Shapes, images and text are
+batched into as few meshes as the paint order allows. Coordinates are logical
+screen points, so draw inside a pass with `Camera.screen()` and alpha blending.
+
+```doof
+canvas := Canvas {}
+body := canvas.font(app.loadBitmapFontResource("fonts/body.fnt")!, 40.0)
+board := canvas.register(app.loadTextureResource("board.png")!)
+
+app.onRender((renderer): none => {
+  renderer.pass(RenderPassDescriptor {
+    camera: Camera.screen(),
+    clear: Clear.color(Color(0.05, 0.05, 0.06)),
+    blend: Blend.alpha(),
+  }, (pass): none => {
+    canvas.begin(pass)
+    button := Rect(24.0, 24.0, 160.0, 40.0)
+    hot := canvas.hovering(button, pointer)
+    canvas.shadow(button, 8.0, 6.0)
+    canvas.round(button, 8.0, if hot then Color(0.25, 0.27, 0.3) else Color(0.18, 0.19, 0.21))
+    canvas.text(body, "New game", button.x, button.y + 11.0, 16.0, Color.white, button.width, TextAlign.Center)
+    canvas.onClick(button, (): none => newGame())
+    canvas.end()
+  })
+})
+app.screenPointer().onReleased((point): none => {
+  if !canvas.click(point) {
+    // Nothing on the canvas was hit: handle the click on the board.
+  }
+})
+```
+
+| `Canvas` Method | Description |
+| --- | --- |
+| `register(texture)` | Register a texture; returns the slot `image` takes. |
+| `font(bitmapFont, pixels)` | Register a bitmap font rasterised at `pixels` (the `size` in its .fnt `info` line); returns a `CanvasFont`. |
+| `begin(pass)` / `end()` | Start and finish a frame. `end` also makes this frame's click targets live. |
+| `replay(pass)` | Draw the last frame's meshes again without rebuilding them. |
+| `rect`, `gradient`, `gradientH` | Filled rectangle, vertical or horizontal gradient. |
+| `round`, `roundGradient` | Rounded rectangle, plain or with a vertical gradient. |
+| `stroke(r, radius, width, color)` | Border inside a (rounded) rectangle's edge. |
+| `glow`, `shadow` | Feathered halo around a rounded rectangle; soft drop shadow under one. |
+| `circle`, `ring`, `halo` | Filled circle, circle outline, feathered halo. |
+| `pie(center, radius, from, to, color)` | Filled wedge, angles in radians clockwise from 3 o'clock. |
+| `arc(center, radius, width, from, to, color)` | Partial ring, for meters and timers. |
+| `line`, `dashed`, `triangle`, `polygon`, `star` | Thick line, dashed line, triangle, convex polygon, five-pointed star. |
+| `image(slot, r, uv, radius, tint)` | Draw the `uv` region (0..1) of a registered texture into a (rounded) rectangle. |
+| `text(font, value, x, y, size, color, maxWidth, align)` | Text with its top-left at `(x, y)`, wrapped at `maxWidth` when given. |
+| `measure(font, value, size, maxWidth)` | `TextBounds` of text at that size. |
+| `lineHeight`, `paragraph`, `textClipped`, `clip` | Line height; wrapped text returning its height; one line cut with an ellipsis to fit. |
+| `push(transform)` / `pop()` | Draw through a `CanvasTransform` (nested inside the current one). |
+| `transform()`, `toCanvas(point)`, `toScreen(rect)` | The current transform; map the pointer into canvas space; map a rect to screen space. |
+| `onClick(r, action)` | Make `r` clickable. Later targets are on top. |
+| `blockClicks(r)` | Swallow clicks over `r` so targets drawn earlier under it can't be reached. |
+| `modal()` | Start a modal layer (dialog, menu) over everything drawn so far: targets under it are dropped and unhandled clicks are swallowed. |
+| `click(point)` | Run the topmost target of the last frame under a screen point; `false` when none (always handled under a modal layer). |
+| `hovering(r, point)` | Whether `r` (canvas space) is under the point and not under last frame's modal layer. Use it for hover highlights and tooltips. |
+| `isUnderModal()` | Whether what is being drawn now is under last frame's modal layer. |
+| `covers(point)` | Whether any target or blocker of the last frame is under a point. |
+
+A dialog calls `modal()` before drawing itself. Nothing drawn earlier in the
+frame can then be clicked, and from the next frame `hovering` is false for
+anything drawn before the dialog, so the game underneath doesn't light up or
+show tooltips. `click` reports every click as handled while a modal layer is
+up, so a click outside the dialog doesn't fall through to the game's own
+handling. To close a menu by clicking outside it, record a full-screen
+`onClick` right after `modal()`.
+
+`CanvasTransform` is a uniform scale then offset. `CanvasTransform.fit(size, bounds)`
+fits a `size`-sized space (a board image, say) into `bounds`, letterboxed and
+centred; draw the board inside `push(fit)` / `pop()` in its own pixel
+coordinates, and use `toCanvas(pointer)` to find what the pointer is over.
+`compose`, `apply`, `applyRect` and `invert` combine and apply transforms.
+
+`placeTooltip(anchor, size, bounds)` returns where to draw a tooltip near the
+pointer: below and to the right, flipped left at the right edge, and kept inside
+`bounds`.
+
+`Color.fade(amount)` multiplies a colour's alpha and `Color.mix(other, t)`
+blends two colours. `Rect` has `right()`, `bottom()`, `center()`, `inset(by)`
+and `contains(point)`.
+
 ## Custom Shaders
 
 Custom shaders compile a consumer-selected platform program and draw with
@@ -905,12 +1070,12 @@ doof run --target ios-app --ios-destination simulator game/samples/jigsaw
 
 | Area | Files |
 | --- | --- |
-| App, surface, events | [`app.do`](../app.do), [`surface.do`](../surface.do), [`event.do`](../event.do), [`types.do`](../types.do) |
+| App, surface, events | [`app.do`](../app.do), [`clock.do`](../clock.do), [`surface.do`](../surface.do), [`event.do`](../event.do), [`types.do`](../types.do) |
 | Rendering and transforms | [`render.do`](../render.do), [`transform.do`](../transform.do) |
 | Meshes and models | [`mesh.do`](../mesh.do), [`model.do`](../model.do), [`model_batch.do`](../model_batch.do) |
 | Geometry and assets | [`sphere.do`](../sphere.do), [`icosphere.do`](../icosphere.do), [`obj.do`](../obj.do), [`sky.do`](../sky.do), [`dust.do`](../dust.do) |
-| Text and UI | [`text.do`](../text.do), [`intrinsic_font.do`](../intrinsic_font.do), [`ui.do`](../ui.do), [`ui_controls.do`](../ui_controls.do), [`ui_types.do`](../ui_types.do), [`ui_draw.do`](../ui_draw.do) |
-| Input | [`input.do`](../input.do), [`input_button.do`](../input_button.do), [`input_axis.do`](../input_axis.do), [`screen_pointer.do`](../screen_pointer.do), [`screen_gestures.do`](../screen_gestures.do), [`controller.do`](../controller.do), [`keys.do`](../keys.do), [`mouse.do`](../mouse.do) |
+| Text and UI | [`canvas.do`](../canvas.do), [`text.do`](../text.do), [`intrinsic_font.do`](../intrinsic_font.do), [`ui.do`](../ui.do), [`ui_controls.do`](../ui_controls.do), [`ui_types.do`](../ui_types.do), [`ui_draw.do`](../ui_draw.do) |
+| Input | [`input.do`](../input.do), [`input_button.do`](../input_button.do), [`input_axis.do`](../input_axis.do), [`screen_pointer.do`](../screen_pointer.do), [`screen_gestures.do`](../screen_gestures.do), [`scroll.do`](../scroll.do), [`controller.do`](../controller.do), [`keys.do`](../keys.do), [`mouse.do`](../mouse.do) |
 | Shaders | [`shader.do`](../shader.do) |
 | Sound | [`sound.do`](../sound.do), [`sound_synth.do`](../sound_synth.do), [`sound_synth_types.do`](../sound_synth_types.do), [`sound_native.do`](../sound_native.do) |
 | Native bridge | [`native.do`](../native.do) |

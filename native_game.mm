@@ -1809,6 +1809,97 @@ std::shared_ptr<NativeGameEvent> makeResizeEvent(const std::shared_ptr<NativeGam
 
 @end
 
+// Target for the standard menu's Quit item. Quit ends the game the same way the
+// window's close button does (a CloseRequested event, then the run loop stops),
+// so app.run() returns normally instead of the process being terminated.
+@interface DoofGameMenuTarget : NSObject
+- (void)quit:(id)sender;
+@end
+
+@implementation DoofGameMenuTarget
+
+- (void)quit:(id)sender {
+    doof_game::GameRuntimeState* state = doof_game::gActiveState;
+    if (state != nullptr) {
+        state->emit(std::make_shared<doof_game::NativeGameEvent>(doof_game::kKindCloseRequested));
+        state->stop();
+        return;
+    }
+    [NSApp terminate:sender];
+}
+
+@end
+
+namespace {
+
+DoofGameMenuTarget* gMenuTarget = nil;
+
+NSMenuItem* addMenuItem(NSMenu* menu, NSString* title, SEL action, NSString* key) {
+    return [menu addItemWithTitle:title action:action keyEquivalent:key];
+}
+
+// The name shown in the menu: the bundle's display name, else the app title.
+NSString* menuAppName(const std::string& title) {
+    NSBundle* bundle = [NSBundle mainBundle];
+    for (NSString* key in @[@"CFBundleDisplayName", @"CFBundleName"]) {
+        id value = [bundle objectForInfoDictionaryKey:key];
+        if ([value isKindOfClass:[NSString class]] && [(NSString*)value length] > 0) {
+            return (NSString*)value;
+        }
+    }
+    return [NSString stringWithUTF8String:title.c_str()];
+}
+
+// Installs the standard macOS menu bar (About, Hide, Hide Others, Show All,
+// Quit ⌘Q; Minimize, Zoom, Full Screen, Bring All to Front) unless the
+// program has already set a main menu of its own.
+void installStandardMenu(NSApplication* app, const std::string& title) {
+    if ([app mainMenu] != nil) {
+        return;
+    }
+    // One game window: keep macOS from adding tab items to the Window menu.
+    [NSWindow setAllowsAutomaticWindowTabbing:NO];
+    if (gMenuTarget == nil) {
+        gMenuTarget = [[DoofGameMenuTarget alloc] init];
+    }
+    NSString* name = menuAppName(title);
+
+    NSMenu* mainMenu = [[NSMenu alloc] initWithTitle:@""];
+
+    // App menu. macOS shows the bundle name as its title.
+    NSMenuItem* appItem = [mainMenu addItemWithTitle:@"" action:nil keyEquivalent:@""];
+    NSMenu* appMenu = [[NSMenu alloc] initWithTitle:name];
+    addMenuItem(appMenu, [@"About " stringByAppendingString:name], @selector(orderFrontStandardAboutPanel:), @"");
+    [appMenu addItem:[NSMenuItem separatorItem]];
+    addMenuItem(appMenu, [@"Hide " stringByAppendingString:name], @selector(hide:), @"h");
+    NSMenuItem* hideOthers = addMenuItem(appMenu, @"Hide Others", @selector(hideOtherApplications:), @"h");
+    [hideOthers setKeyEquivalentModifierMask:NSEventModifierFlagOption | NSEventModifierFlagCommand];
+    addMenuItem(appMenu, @"Show All", @selector(unhideAllApplications:), @"");
+    [appMenu addItem:[NSMenuItem separatorItem]];
+    NSMenuItem* quit = addMenuItem(appMenu, [@"Quit " stringByAppendingString:name], @selector(quit:), @"q");
+    [quit setTarget:gMenuTarget];
+    [appItem setSubmenu:appMenu];
+    [appMenu release];
+
+    // Window menu.
+    NSMenuItem* windowItem = [mainMenu addItemWithTitle:@"Window" action:nil keyEquivalent:@""];
+    NSMenu* windowMenu = [[NSMenu alloc] initWithTitle:@"Window"];
+    addMenuItem(windowMenu, @"Minimize", @selector(performMiniaturize:), @"m");
+    addMenuItem(windowMenu, @"Zoom", @selector(performZoom:), @"");
+    NSMenuItem* fullScreen = addMenuItem(windowMenu, @"Enter Full Screen", @selector(toggleFullScreen:), @"f");
+    [fullScreen setKeyEquivalentModifierMask:NSEventModifierFlagControl | NSEventModifierFlagCommand];
+    [windowMenu addItem:[NSMenuItem separatorItem]];
+    addMenuItem(windowMenu, @"Bring All to Front", @selector(arrangeInFront:), @"");
+    [windowItem setSubmenu:windowMenu];
+
+    [app setMainMenu:mainMenu];
+    [app setWindowsMenu:windowMenu];
+    [windowMenu release];
+    [mainMenu release];
+}
+
+} // namespace
+
 namespace doof_game {
 
 NativeGameSurface::NativeGameSurface(void* device, void* commandQueue, void* layer)
@@ -2584,6 +2675,7 @@ doof::Result<void, std::string> NativeGameApp::run(
 
         NSApplication* app = [NSApplication sharedApplication];
         [app setActivationPolicy:NSApplicationActivationPolicyRegular];
+        installStandardMenu(app, impl_->title);
 
         auto input = impl_->input;
         auto surface = impl_->surface;

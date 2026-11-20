@@ -4,7 +4,8 @@
 on Apple platforms, a D3D11-backed surface on Windows, and WebGL 2 on Wasm, neutral key and mouse
 events, queryable input state, and a small
 native-backed render pass API with static simple meshes and batched texture-quad
-drawing. It also includes a reusable native-backed `Sound` object for file and
+drawing, plus an immediate-mode 2D `Canvas` (rounded shapes, shadows, images,
+text and click targets) for board games, tools and HUDs. It also includes a reusable native-backed `Sound` object for file and
 generated audio playback, plus a compact sfxr/bfxr-inspired synth for game sound
 effects.
 
